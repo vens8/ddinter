@@ -4,11 +4,6 @@ from flask import Flask, render_template
 from flask import jsonify
 
 
-global pdata
-
-pdata="a"
-global graph
-graph=1
 drugsList, sortedInteractionDictionary = {}, {}
 
 app = Flask(__name__)
@@ -50,10 +45,9 @@ def fetch_process_drugs():
     sortedInteractionDictionary = {}
     interactionDictionary = {}
 
-    if (len(rows) > 0):
+    if len(rows) > 0:
         for row in rows:
-            temp = {}
-            temp[row[1]] = row[2]
+            temp = {row[1]: row[2]}
             if row[0] not in interactionDictionary.keys():
                 interactionDictionary[row[0]] = []
             interactionDictionary[row[0]].append(temp)
@@ -77,3 +71,7 @@ def getInteractionTable():
     global sortedInteractionDictionary
     print(jsonify(sortedInteractionDictionary))
     return jsonify(sortedInteractionDictionary)
+
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000)

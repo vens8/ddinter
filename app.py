@@ -1,10 +1,12 @@
-from flask import Flask, request, redirect, url_for, render_template, send_from_directory
+from flask import Flask, render_template
 
 app = Flask(__name__)
 
+
 @app.route('/')
 def upload_form():
-	return render_template('homepage.html')
+	return render_template('ddinter.html')
+
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0')
+	app.run(host='0.0.0.0', debug=True)
