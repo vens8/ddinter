@@ -47,7 +47,7 @@
   <style>
     input[type=text] {
       border: 0;
-
+      
     }
 
     input[type=text]:focus {
@@ -226,7 +226,7 @@
 
     /* Style the input */
     #myInput {
-
+      
       margin: 0;
       margin-bottom: 35px;
       border: solid 3px black;
@@ -238,7 +238,7 @@
     }
 
     .myInput {
-
+      
       margin: 0;
       margin-bottom: 35px;
       border: solid 3px black;
@@ -252,7 +252,7 @@
     /* Style the "Add" button */
     .addBtn {
       padding: 10px;
-
+      
       width: 100%;
       background: #d9d9d9;
       color: #170411;
@@ -262,8 +262,8 @@
       cursor: pointer;
       transition: 0.3s;
       border-radius: 5px;
-
-
+      
+      
     }
 
     .addBtn:hover {
@@ -335,6 +335,10 @@
       display: inline-block;
       font-size: 16px;
     }
+
+    /* #mybtn:hover {
+      background-color: #61c864;
+    } */
 
     #drugtable {
       font-family: Arial, Helvetica, sans-serif;
@@ -415,7 +419,7 @@
       padding: 10px;
       float: center;
 		}
-
+		
 		#dropdown-input {
       margin: 0;
       margin-bottom: 35px;
@@ -426,11 +430,11 @@
       float: left;
       font-size: 16px;
 		}
-
+		
 		.dropdown-list {
 			position: absolute;
-			top: 38%;
-			left: 28%;
+			top: 37%;
+			left: 25%;
       right: 0.5px;
 			z-index: 1;
 			width: 43%;
@@ -441,13 +445,13 @@
 			border-radius: 4px;
 			box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
 		}
-
+		
 		.dropdown-list-item {
 			padding: 10px;
 			cursor: pointer;
       color:#0c0c0f
 		}
-
+		
 		.dropdown-list-item:hover {
 			background-color: #d0d3d3;
 		}
@@ -468,6 +472,34 @@
     #footer .copyright {
       text-align: center;
     }
+
+
+    /* Style the tags */
+    .tag {
+      display: inline-block;
+      background-color: #bedcf7;
+      color: #170411;
+      padding: 5px 10px;
+      margin-right: 5px;
+      margin-bottom: 5px;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    .tag button {
+      margin-left: 5px;
+      background-color: #424242;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .tag button:hover {
+      background-color: #232222;
+    }
+
   </style>
 
 </head>
@@ -485,6 +517,7 @@
 </script>
 
 <script>
+  window.tagsList = [];
   document.getElementById("myUL").innerHTML= "";
   const INTERACTION_EXAMPLE = [
   {id: 1, name: "Aluminum hydroxide"},
@@ -528,43 +561,119 @@ for (i = 0; i < close.length; i++) {
 // }, false);
 
 // Create a new list item when clicking on the "Add" button
+// function newElement() {
+
+//   var li = document.createElement("li");  // yaha bhi li hein ek
+//   var inputValue = document.getElementById("myInput").value;
+//   var t = document.createTextNode(inputValue);
+//   li.appendChild(t);
+//   if (inputValue === '') {
+//     alert("Please enter the drug name!");
+//   } else {
+//     console.log(document.getElementById("myUL"));
+//     document.getElementById("myUL").appendChild(li);
+//   }
+//   document.getElementById("myInput").value = "";  // Clear the input textbox after adding the item
+
+//   var span = document.createElement("SPAN");
+//   var txt = document.createTextNode("\u00D7");
+//   span.className = "close";
+//   span.appendChild(txt);
+//   li.appendChild(span);
+
+//   var close = document.getElementsByClassName("close"); // Definition of the class variable
+
+
+//   for (i = 0; i < close.length; i++) {
+//     close[i].onclick = function () {
+//       var div = this.parentElement;
+//       div.style.display = "none";
+//     }
+//   }
+
+//   console.log(myNodelist);
+// }
+
+
 function newElement() {
 
-  var li = document.createElement("li");  // yaha bhi li hein ek
-  var inputValue = document.getElementById("myInput").value;
-  var t = document.createTextNode(inputValue);
-  li.appendChild(t);
-  if (inputValue === '') {
-    alert("Please enter the drug name!");
-  } else {
-    console.log(document.getElementById("myUL"));
-    document.getElementById("myUL").appendChild(li);
+  if (window.tagsList.length === 0) {
+    alert("Please add a few drugs!");
+    return;
   }
-  document.getElementById("myInput").value = "";  // Clear the input textbox after adding the item
 
-  var span = document.createElement("SPAN");
-  var txt = document.createTextNode("\u00D7");
-  span.className = "close";
-  span.appendChild(txt);
-  li.appendChild(span);
+  const ul = document.getElementById("myUL");
+  ul.innerHTML = ""; // clear the existing list items
 
-  var close = document.getElementsByClassName("close"); // Definition of the class variable
+  for (let i = 0; i < window.tagsList.length; i++) {
+    const li = document.createElement("li");
+    const t = document.createTextNode(window.tagsList[i]);
+    li.appendChild(t);
 
+    const span = document.createElement("SPAN");
+    const txt = document.createTextNode("\u00D7");
+    span.className = "close";
+    span.appendChild(txt);
+    li.appendChild(span);
 
-  for (i = 0; i < close.length; i++) {
-    close[i].onclick = function () {
-      var div = this.parentElement;
-      div.style.display = "none";
+    ul.appendChild(li);
+
+    const close = document.getElementsByClassName("close");
+
+    for (let i = 0; i < close.length; i++) {
+      close[i].onclick = function () {
+        const div = this.parentElement;
+        div.style.display = "none";
+
+        // remove the tag from the list
+        const tagValue = div.textContent.trim();
+        const index = window.tagsList.indexOf(tagValue);
+        if (index !== -1) {
+          window.tagsList.splice(index, 1);
+        }
+      }
     }
   }
 
-  console.log(myNodelist);
+  // show the dropdown menu after adding the tag
+  showDropdown();
+
+  console.log(window.tagsList);
+
 }
 
-function reset(){
-    document.getElementById("myUL").innerHTML= "";
+function reset() {
+    document.getElementById("myUL").innerHTML = "";
     var table = document.getElementById("drugtable");
     table.innerHTML = "";
+    window.tagsList.length = 0;
+}
+
+// function showDropdown() {
+//     console.log("big dropdown called");
+
+//     const input = document.querySelector('.myInput');
+//     const list = document.querySelector('.dropdown-list');
+//     const filter = input.value.toUpperCase();
+//     list.innerHTML = "";
+
+//     for (let key in window.drugsList) {
+//       const drugName = window.drugsList[key];
+//       if (drugName.toUpperCase().indexOf(filter) > -1) {
+//         let newListItem = document.createElement('div');
+//         newListItem.classList.add('dropdown-list-item');
+//         newListItem.textContent = drugName;
+//         list.appendChild(newListItem);
+//       }
+//     }
+
+//     list.style.display = "block";
+// }
+
+function showDropdown() {
+  console.log("dropdown called");
+  const dropdown = document.querySelector('.dropdown-list');
+  dropdown.classList.add('show');
 }
 
 function deleteList() {
@@ -652,7 +761,7 @@ function fetchData() {
       .then(data => {
         window.drugsList = data;  // Declare the variable as global
         console.log('inside', window.drugsList);
-
+        
         // Creating a swapped drugsList
         window.swappedDrugsList = {};
         for (const key in window.drugsList) {
@@ -664,7 +773,7 @@ function fetchData() {
       .catch(error => {
         console.error('Error fetching data:', error);
       });
-
+      
   fetch('/getInteractionTable')
         .then(response => response.json())
         .then(data => {
@@ -710,6 +819,7 @@ function initDropdown() {
 
   // Add a click event listener to the input field
   input.addEventListener('click', function() {
+    // console.log("Im being clicked");
     // Toggle the visibility of the dropdown list
     if (list.style.display === 'block') {
       list.style.display = 'none';
@@ -717,17 +827,6 @@ function initDropdown() {
       list.style.display = 'block';
     }
   });
-
-  // // Add a click event listener to each dropdown list item
-  // const items = document.querySelectorAll('.dropdown-list-item');
-  // items.forEach(function(item) {
-  //   item.addEventListener('click', function() {
-  //     // Update the input field with the selected item
-  //     input.value = item.textContent;
-  //     // Hide the dropdown list
-  //     list.style.display = 'none';
-  //   });
-  // });
 
   // Add a click event listener to each dropdown list item
   const items = document.querySelectorAll('.dropdown-list-item');
@@ -741,6 +840,8 @@ function initDropdown() {
         cancelable: true,
       });
       input.dispatchEvent(event);
+      addTag();
+
       // Hide the dropdown list
       list.style.display = 'none';
     });
@@ -759,20 +860,21 @@ function initDropdown() {
   // Add event listener to the search input
 
   dropdownSearch.addEventListener('input', () => {
+    console.log("search being clicked");
     const searchValue = dropdownSearch.value.toLowerCase().trim();
     let found = false;
     // Show/hide options based on search input
     for (let i = 0; i < dropdownList.children.length; i++) {
       const option = dropdownList.children[i];
       const optionText = option.textContent.toLowerCase();
-
+      
       if (optionText.includes(searchValue)) {
         option.style.display = 'block';
         found = true;
       } else {
         //dropdownList.innerHTML = '<div class="dropdown-list-item">Option not found</div>';
         option.style.display = 'none';
-
+      
       }
     }
   //   if (!found) {
@@ -787,6 +889,7 @@ function initDropdown() {
 
   // Show options on click
   dropdownSearch.addEventListener('click', () => {
+    console.log("now being clicked");
     dropdownList.classList.toggle('show');
     dropdownSearch.value = '';
     for (let i = 0; i < dropdownList.children.length; i++) {
@@ -807,7 +910,7 @@ function initDropdown() {
 function findInteractions(drugIDs) {
   var interactions = [];
   var interactionSet = new Set(); // Use a set to avoid duplicates
-
+  
   // Loop through each pair of drug IDs in the list
   for (var i = 0; i < drugIDs.length; i++) {
     var drugID = drugIDs[i];
@@ -822,11 +925,11 @@ function findInteractions(drugIDs) {
           if (drugIDs.includes(id)) {
             // Generate a unique key for the interaction
             var key = drugID + "|" + id + "|" + interaction[id];
-
+            
             // Add the interaction to the set if it's unique
             if (!interactionSet.has(key)) {
               interactionSet.add(key);
-
+              
               // Add the interaction to the list
               interactions.push({
                 "drug1": window.drugsList[drugID],
@@ -839,7 +942,7 @@ function findInteractions(drugIDs) {
       }
     }
   }
-
+  
   return interactions;
 }
 
@@ -852,13 +955,13 @@ function submitList() {
   for (var i = 0; i < myNodelist.length; i++) {
   var node = myNodelist[i];
   // console.log("node", node);
-
+  
   // Check if node has text content
   if (node.textContent.trim().length > 0) {
     // Remove last child if it exists
     if (node.lastChild instanceof Node) {
       node.removeChild(node.lastChild);
-    }
+    }        
     drugs.push(node.innerHTML.trim());
     console.log("node.innerHTML", node.innerHTML);
   }
@@ -899,10 +1002,50 @@ function submitDelay() {
   setTimeout(submitList,2000);
 }
 
+
+document.getElementById("tag-list").innerHTML = "";
+
+// Add a tag when clicking on the "Add" button
+function addTag() {
+  console.log(window.tagsList);
+  console.log("It was me")
+  var tagList = document.getElementById("tag-list");
+  var inputValue = document.getElementById("myInput").value.trim();
+  const input = document.querySelector('.myInput');
+  
+  if (inputValue === '') {
+    alert("Please enter a drug name!");
+  } else if (!window.swappedDrugsList.hasOwnProperty(inputValue)) {
+    alert("Please enter a valid drug name!");
+  } else if (window.tagsList.includes(inputValue)) {
+    alert("This drug is already added!");
+  } else {
+    // Create a new tag element with text and delete button
+    var tag = document.createElement("div");
+    tag.classList.add("tag");
+    tag.innerHTML = inputValue + '<button onclick="deleteTag(this)">x</button>';
+    tagList.appendChild(tag);
+    window.tagsList.push(inputValue);
+  }
+  
+  console.log('tagsList', window.tagsList)
+  document.getElementById("myInput").value = "";  // Clear the input textbox after adding the tag
+  showDropdown();
+}
+
+
+// Delete a tag when clicking on its delete button
+function deleteTag(button) {
+  var tag = button.parentElement;
+  tag.parentElement.removeChild(tag);
+  var tagText = tag.textContent.replace('x', '').trim(); // Extract the tag text
+  var index = window.tagsList.indexOf(tagText); // Find the index of the tag in the window.tagsList
+  if (index !== -1) {
+    window.tagsList.splice(index, 1); // Remove the tag from the tagsList
+  }
+}
+
 </script>
-
-
-
 
 <body>
 
@@ -917,7 +1060,7 @@ function submitDelay() {
       </button>
     </div>
   </header>
-
+  
   <!-- ======= Sidebar ======= -->
   <aside id="sidebar" class="sidebar">
     <ul class="sidebar-nav" id="sidebar-nav">
@@ -957,7 +1100,7 @@ function submitDelay() {
   <script>
     const sidebarToggle = document.getElementById("sidebar-toggle");
     const sidebar = document.getElementById("sidebar");
-
+  
     sidebarToggle.addEventListener("click", function() {
       console.log('toggling');
       sidebar.classList.toggle("active");
@@ -969,23 +1112,25 @@ function submitDelay() {
   <div id="myhomepage">
     <div id="myDIV" class="header">
       <h2 class="myheading">My Drug List</h2>
-      <!-- <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" > -->
+      <div class="tag-container">
+        <div id="tag-list"></div>
+        <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >
+        <div class="dropdown-list">
+        </div>
+        <!-- <input type="text" id="myInput" class="drop" placeholder="Type a drug name..."> -->
+        <!-- <div id="dropdown" class="dropdown">
+          <input type="text" id="dropdown-input" class="dropdown-input" placeholder="Search a drug...">
+          <div class="dropdown-list"></div>
+        </div> -->
+        <span id = "tagButton" onclick="addTag()" class="addBtn">Add Tag</span>
+        <span  id = "gfg" onclick="newElement()" class="addBtn">Add</span>
+        <span onclick="reset()" class="addBtn">Reset List</span>
+      </div>
+      
+      <!-- <h2 class="myheading">My Drug List</h2>
       <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >
       <div class="dropdown-list">
-      </div>
-
-      <span  id = "gfg" onclick="newElement()" class="addBtn">Add</span>
-      <span onclick="reset()" class="addBtn">Reset List</span>
-      <script>
-        function enterKeyPressed(event) {
-           if (event.keyCode == 13) {
-              newElement();
-              return true;
-           } else {
-              return false;
-           }
-        }
-     </script>
+      </div> -->
      <script>
         let btn = document.getElementById('gfg');
         document.addEventListener('keypress', (event)=>{
@@ -994,12 +1139,17 @@ function submitDelay() {
         let keyCode = event.keyCode ? event.keyCode : event.which;
 
         // 13 points the enter key
-        if(keyCode === 13) {
-        // call click function of the buttonn
+        if(event.shiftKey && event.keyCode === 13) {
+        // call click function of the buttonn 
             btn.click();
-        }
-
+        }        
         });
+        let tagbtn = document.getElementById('tagButton');
+        document.addEventListener('keydown', function(event) {
+        if (event.keyCode === 13 && !event.shiftKey) {
+            tagbtn.click();
+        }
+      });
      </script>
      </div>
     </div>
