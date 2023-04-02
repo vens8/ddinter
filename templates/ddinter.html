@@ -1012,11 +1012,7 @@ function addTag() {
   var tagList = document.getElementById("tag-list");
   var inputValue = document.getElementById("myInput").value.trim();
   const input = document.querySelector('.myInput');
-<<<<<<< HEAD
 
-=======
-  
->>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
   if (inputValue === '') {
     alert("Please enter a drug name!");
   } else if (!window.swappedDrugsList.hasOwnProperty(inputValue)) {
@@ -1031,11 +1027,7 @@ function addTag() {
     tagList.appendChild(tag);
     window.tagsList.push(inputValue);
   }
-<<<<<<< HEAD
 
-=======
-  
->>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
   console.log('tagsList', window.tagsList)
   document.getElementById("myInput").value = "";  // Clear the input textbox after adding the tag
   showDropdown();
@@ -1060,11 +1052,15 @@ function deleteTag(button) {
   <!-- ======= Header ======= -->
   <header id="header" class="header fixed-top d-flex align-items-center">
     <div class="d-flex align-items-center justify-content-between">
+      <a href="/" class="logo d-flex align-items-center">
+        <span class="d-lg-block">SAFE ICU</span>
+      </a>
+      <button class="sidebar-toggle" id="sidebar-toggle">
+        <i class="bi bi-list"></i>
+      </button>
     </div>
   </header>
-<<<<<<< HEAD
-=======
-  
+
   <!-- ======= Sidebar ======= -->
   <aside id="sidebar" class="sidebar">
     <ul class="sidebar-nav" id="sidebar-nav">
@@ -1100,12 +1096,11 @@ function deleteTag(button) {
       </li>
     </ul>
   </aside><!-- End Sidebar-->
->>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
 
   <script>
     const sidebarToggle = document.getElementById("sidebar-toggle");
     const sidebar = document.getElementById("sidebar");
-  
+
     sidebarToggle.addEventListener("click", function() {
       console.log('toggling');
       sidebar.classList.toggle("active");
@@ -1131,11 +1126,7 @@ function deleteTag(button) {
         <span  id = "gfg" onclick="newElement()" class="addBtn">Add</span>
         <span onclick="reset()" class="addBtn">Reset List</span>
       </div>
-<<<<<<< HEAD
 
-=======
-      
->>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
       <!-- <h2 class="myheading">My Drug List</h2>
       <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >
       <div class="dropdown-list">
@@ -1149,15 +1140,9 @@ function deleteTag(button) {
 
         // 13 points the enter key
         if(event.shiftKey && event.keyCode === 13) {
-<<<<<<< HEAD
         // call click function of the buttonn
             btn.click();
         }
-=======
-        // call click function of the buttonn 
-            btn.click();
-        }        
->>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
         });
         let tagbtn = document.getElementById('tagButton');
         document.addEventListener('keydown', function(event) {
