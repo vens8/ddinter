@@ -47,7 +47,7 @@
   <style>
     input[type=text] {
       border: 0;
-
+      
     }
 
     input[type=text]:focus {
@@ -226,7 +226,7 @@
 
     /* Style the input */
     #myInput {
-
+      
       margin: 0;
       margin-bottom: 35px;
       border: solid 3px black;
@@ -238,7 +238,7 @@
     }
 
     .myInput {
-
+      
       margin: 0;
       margin-bottom: 35px;
       border: solid 3px black;
@@ -252,7 +252,7 @@
     /* Style the "Add" button */
     .addBtn {
       padding: 10px;
-
+      
       width: 100%;
       background: #d9d9d9;
       color: #170411;
@@ -262,8 +262,8 @@
       cursor: pointer;
       transition: 0.3s;
       border-radius: 5px;
-
-
+      
+      
     }
 
     .addBtn:hover {
@@ -419,7 +419,7 @@
       padding: 10px;
       float: center;
 		}
-
+		
 		#dropdown-input {
       margin: 0;
       margin-bottom: 35px;
@@ -430,7 +430,7 @@
       float: left;
       font-size: 16px;
 		}
-
+		
 		.dropdown-list {
 			position: absolute;
 			top: 37%;
@@ -445,13 +445,13 @@
 			border-radius: 4px;
 			box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
 		}
-
+		
 		.dropdown-list-item {
 			padding: 10px;
 			cursor: pointer;
       color:#0c0c0f
 		}
-
+		
 		.dropdown-list-item:hover {
 			background-color: #d0d3d3;
 		}
@@ -761,7 +761,7 @@ function fetchData() {
       .then(data => {
         window.drugsList = data;  // Declare the variable as global
         console.log('inside', window.drugsList);
-
+        
         // Creating a swapped drugsList
         window.swappedDrugsList = {};
         for (const key in window.drugsList) {
@@ -773,7 +773,7 @@ function fetchData() {
       .catch(error => {
         console.error('Error fetching data:', error);
       });
-
+      
   fetch('/getInteractionTable')
         .then(response => response.json())
         .then(data => {
@@ -867,14 +867,14 @@ function initDropdown() {
     for (let i = 0; i < dropdownList.children.length; i++) {
       const option = dropdownList.children[i];
       const optionText = option.textContent.toLowerCase();
-
+      
       if (optionText.includes(searchValue)) {
         option.style.display = 'block';
         found = true;
       } else {
         //dropdownList.innerHTML = '<div class="dropdown-list-item">Option not found</div>';
         option.style.display = 'none';
-
+      
       }
     }
   //   if (!found) {
@@ -910,7 +910,7 @@ function initDropdown() {
 function findInteractions(drugIDs) {
   var interactions = [];
   var interactionSet = new Set(); // Use a set to avoid duplicates
-
+  
   // Loop through each pair of drug IDs in the list
   for (var i = 0; i < drugIDs.length; i++) {
     var drugID = drugIDs[i];
@@ -925,11 +925,11 @@ function findInteractions(drugIDs) {
           if (drugIDs.includes(id)) {
             // Generate a unique key for the interaction
             var key = drugID + "|" + id + "|" + interaction[id];
-
+            
             // Add the interaction to the set if it's unique
             if (!interactionSet.has(key)) {
               interactionSet.add(key);
-
+              
               // Add the interaction to the list
               interactions.push({
                 "drug1": window.drugsList[drugID],
@@ -942,7 +942,7 @@ function findInteractions(drugIDs) {
       }
     }
   }
-
+  
   return interactions;
 }
 
@@ -955,13 +955,13 @@ function submitList() {
   for (var i = 0; i < myNodelist.length; i++) {
   var node = myNodelist[i];
   // console.log("node", node);
-
+  
   // Check if node has text content
   if (node.textContent.trim().length > 0) {
     // Remove last child if it exists
     if (node.lastChild instanceof Node) {
       node.removeChild(node.lastChild);
-    }
+    }        
     drugs.push(node.innerHTML.trim());
     console.log("node.innerHTML", node.innerHTML);
   }
@@ -1012,7 +1012,11 @@ function addTag() {
   var tagList = document.getElementById("tag-list");
   var inputValue = document.getElementById("myInput").value.trim();
   const input = document.querySelector('.myInput');
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
   if (inputValue === '') {
     alert("Please enter a drug name!");
   } else if (!window.swappedDrugsList.hasOwnProperty(inputValue)) {
@@ -1027,7 +1031,11 @@ function addTag() {
     tagList.appendChild(tag);
     window.tagsList.push(inputValue);
   }
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
   console.log('tagsList', window.tagsList)
   document.getElementById("myInput").value = "";  // Clear the input textbox after adding the tag
   showDropdown();
@@ -1054,11 +1062,50 @@ function deleteTag(button) {
     <div class="d-flex align-items-center justify-content-between">
     </div>
   </header>
+<<<<<<< HEAD
+=======
+  
+  <!-- ======= Sidebar ======= -->
+  <aside id="sidebar" class="sidebar">
+    <ul class="sidebar-nav" id="sidebar-nav">
+      <li class="nav-item">
+        <a class="nav-link collapsed" href="/first_page">
+          <i class="bi bi-house-door-fill"></i>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link collapsed" href="./tensorboard">
+          <i class="bi bi-calendar2-minus-fill"></i>
+          <span>Tensorboard</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link collapsed" href="./network_page">
+          <i class="bi bi-union"></i>
+          <span>Word Graph</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link collapsed" id="active" href="./ddinter">
+          <i class="bi bi-union"></i>
+          <span>DD Inter</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link collapsed" href="/back">
+          <i class="bi bi-door-closed-fill"></i>
+          <span>Sign out</span>
+        </a>
+      </li>
+    </ul>
+  </aside><!-- End Sidebar-->
+>>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
 
   <script>
     const sidebarToggle = document.getElementById("sidebar-toggle");
     const sidebar = document.getElementById("sidebar");
-
+  
     sidebarToggle.addEventListener("click", function() {
       console.log('toggling');
       sidebar.classList.toggle("active");
@@ -1084,7 +1131,11 @@ function deleteTag(button) {
         <span  id = "gfg" onclick="newElement()" class="addBtn">Add</span>
         <span onclick="reset()" class="addBtn">Reset List</span>
       </div>
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
       <!-- <h2 class="myheading">My Drug List</h2>
       <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >
       <div class="dropdown-list">
@@ -1098,9 +1149,15 @@ function deleteTag(button) {
 
         // 13 points the enter key
         if(event.shiftKey && event.keyCode === 13) {
+<<<<<<< HEAD
         // call click function of the buttonn
             btn.click();
         }
+=======
+        // call click function of the buttonn 
+            btn.click();
+        }        
+>>>>>>> 79e316da2448efc6309fab905381b1cfe8cf486b
         });
         let tagbtn = document.getElementById('tagButton');
         document.addEventListener('keydown', function(event) {
