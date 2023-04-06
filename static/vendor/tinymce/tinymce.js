@@ -14969,4 +14969,15419 @@
     var deleteRange$2 = function (editor, startElm, selectedCells) {
       var rootNode = SugarElement.fromDom(editor.getBody());
       var rng = editor.selection.getRng();
-      
+      return selectedCells.length !== 0 ? emptySingleTableCells(editor, selectedCells, Optional.none()) : deleteTableRange(editor, rootNode, rng, startElm);
+    };
+    var getParentCell = function (rootElm, elm) {
+      return find$3(parentsAndSelf(elm, rootElm), isTableCell$4);
+    };
+    var getParentCaption = function (rootElm, elm) {
+      return find$3(parentsAndSelf(elm, rootElm), isTag('caption'));
+    };
+    var deleteBetweenCells = function (editor, rootElm, forward, fromCell, from) {
+      return navigate(forward, editor.getBody(), from).bind(function (to) {
+        return getParentCell(rootElm, SugarElement.fromDom(to.getNode())).map(function (toCell) {
+          return eq(toCell, fromCell) === false;
+        });
+      });
+    };
+    var emptyElement = function (editor, elm) {
+      fillWithPaddingBr(elm);
+      editor.selection.setCursorLocation(elm.dom, 0);
+      return Optional.some(true);
+    };
+    var isDeleteOfLastCharPos = function (fromCaption, forward, from, to) {
+      return firstPositionIn(fromCaption.dom).bind(function (first) {
+        return lastPositionIn(fromCaption.dom).map(function (last) {
+          return forward ? from.isEqual(first) && to.isEqual(last) : from.isEqual(last) && to.isEqual(first);
+        });
+      }).getOr(true);
+    };
+    var emptyCaretCaption = function (editor, elm) {
+      return emptyElement(editor, elm);
+    };
+    var validateCaretCaption = function (rootElm, fromCaption, to) {
+      return getParentCaption(rootElm, SugarElement.fromDom(to.getNode())).map(function (toCaption) {
+        return eq(toCaption, fromCaption) === false;
+      });
+    };
+    var deleteCaretInsideCaption = function (editor, rootElm, forward, fromCaption, from) {
+      return navigate(forward, editor.getBody(), from).bind(function (to) {
+        return isDeleteOfLastCharPos(fromCaption, forward, from, to) ? emptyCaretCaption(editor, fromCaption) : validateCaretCaption(rootElm, fromCaption, to);
+      }).or(Optional.some(true));
+    };
+    var deleteCaretCells = function (editor, forward, rootElm, startElm) {
+      var from = CaretPosition.fromRangeStart(editor.selection.getRng());
+      return getParentCell(rootElm, startElm).bind(function (fromCell) {
+        return isEmpty$2(fromCell) ? emptyElement(editor, fromCell) : deleteBetweenCells(editor, rootElm, forward, fromCell, from);
+      }).getOr(false);
+    };
+    var deleteCaretCaption = function (editor, forward, rootElm, fromCaption) {
+      var from = CaretPosition.fromRangeStart(editor.selection.getRng());
+      return isEmpty$2(fromCaption) ? emptyElement(editor, fromCaption) : deleteCaretInsideCaption(editor, rootElm, forward, fromCaption, from);
+    };
+    var isNearTable = function (forward, pos) {
+      return forward ? isBeforeTable(pos) : isAfterTable(pos);
+    };
+    var isBeforeOrAfterTable = function (editor, forward) {
+      var fromPos = CaretPosition.fromRangeStart(editor.selection.getRng());
+      return isNearTable(forward, fromPos) || fromPosition(forward, editor.getBody(), fromPos).exists(function (pos) {
+        return isNearTable(forward, pos);
+      });
+    };
+    var deleteCaret$3 = function (editor, forward, startElm) {
+      var rootElm = SugarElement.fromDom(editor.getBody());
+      return getParentCaption(rootElm, startElm).fold(function () {
+        return deleteCaretCells(editor, forward, rootElm, startElm) || isBeforeOrAfterTable(editor, forward);
+      }, function (fromCaption) {
+        return deleteCaretCaption(editor, forward, rootElm, fromCaption).getOr(false);
+      });
+    };
+    var backspaceDelete$9 = function (editor, forward) {
+      var startElm = SugarElement.fromDom(editor.selection.getStart(true));
+      var cells = getCellsFromEditor(editor);
+      return editor.selection.isCollapsed() && cells.length === 0 ? deleteCaret$3(editor, forward, startElm) : deleteRange$2(editor, startElm, cells);
+    };
+
+    var createRange = function (sc, so, ec, eo) {
+      var rng = document.createRange();
+      rng.setStart(sc, so);
+      rng.setEnd(ec, eo);
+      return rng;
+    };
+    var normalizeBlockSelectionRange = function (rng) {
+      var startPos = CaretPosition.fromRangeStart(rng);
+      var endPos = CaretPosition.fromRangeEnd(rng);
+      var rootNode = rng.commonAncestorContainer;
+      return fromPosition(false, rootNode, endPos).map(function (newEndPos) {
+        if (!isInSameBlock(startPos, endPos, rootNode) && isInSameBlock(startPos, newEndPos, rootNode)) {
+          return createRange(startPos.container(), startPos.offset(), newEndPos.container(), newEndPos.offset());
+        } else {
+          return rng;
+        }
+      }).getOr(rng);
+    };
+    var normalize = function (rng) {
+      return rng.collapsed ? rng : normalizeBlockSelectionRange(rng);
+    };
+
+    var hasOnlyOneChild$1 = function (node) {
+      return node.firstChild && node.firstChild === node.lastChild;
+    };
+    var isPaddingNode = function (node) {
+      return node.name === 'br' || node.value === nbsp;
+    };
+    var isPaddedEmptyBlock = function (schema, node) {
+      var blockElements = schema.getBlockElements();
+      return blockElements[node.name] && hasOnlyOneChild$1(node) && isPaddingNode(node.firstChild);
+    };
+    var isEmptyFragmentElement = function (schema, node) {
+      var nonEmptyElements = schema.getNonEmptyElements();
+      return node && (node.isEmpty(nonEmptyElements) || isPaddedEmptyBlock(schema, node));
+    };
+    var isListFragment = function (schema, fragment) {
+      var firstChild = fragment.firstChild;
+      var lastChild = fragment.lastChild;
+      if (firstChild && firstChild.name === 'meta') {
+        firstChild = firstChild.next;
+      }
+      if (lastChild && lastChild.attr('id') === 'mce_marker') {
+        lastChild = lastChild.prev;
+      }
+      if (isEmptyFragmentElement(schema, lastChild)) {
+        lastChild = lastChild.prev;
+      }
+      if (!firstChild || firstChild !== lastChild) {
+        return false;
+      }
+      return firstChild.name === 'ul' || firstChild.name === 'ol';
+    };
+    var cleanupDomFragment = function (domFragment) {
+      var firstChild = domFragment.firstChild;
+      var lastChild = domFragment.lastChild;
+      if (firstChild && firstChild.nodeName === 'META') {
+        firstChild.parentNode.removeChild(firstChild);
+      }
+      if (lastChild && lastChild.id === 'mce_marker') {
+        lastChild.parentNode.removeChild(lastChild);
+      }
+      return domFragment;
+    };
+    var toDomFragment = function (dom, serializer, fragment) {
+      var html = serializer.serialize(fragment);
+      var domFragment = dom.createFragment(html);
+      return cleanupDomFragment(domFragment);
+    };
+    var listItems = function (elm) {
+      return filter$4(elm.childNodes, function (child) {
+        return child.nodeName === 'LI';
+      });
+    };
+    var isPadding = function (node) {
+      return node.data === nbsp || isBr$5(node);
+    };
+    var isListItemPadded = function (node) {
+      return node && node.firstChild && node.firstChild === node.lastChild && isPadding(node.firstChild);
+    };
+    var isEmptyOrPadded = function (elm) {
+      return !elm.firstChild || isListItemPadded(elm);
+    };
+    var trimListItems = function (elms) {
+      return elms.length > 0 && isEmptyOrPadded(elms[elms.length - 1]) ? elms.slice(0, -1) : elms;
+    };
+    var getParentLi = function (dom, node) {
+      var parentBlock = dom.getParent(node, dom.isBlock);
+      return parentBlock && parentBlock.nodeName === 'LI' ? parentBlock : null;
+    };
+    var isParentBlockLi = function (dom, node) {
+      return !!getParentLi(dom, node);
+    };
+    var getSplit = function (parentNode, rng) {
+      var beforeRng = rng.cloneRange();
+      var afterRng = rng.cloneRange();
+      beforeRng.setStartBefore(parentNode);
+      afterRng.setEndAfter(parentNode);
+      return [
+        beforeRng.cloneContents(),
+        afterRng.cloneContents()
+      ];
+    };
+    var findFirstIn = function (node, rootNode) {
+      var caretPos = CaretPosition.before(node);
+      var caretWalker = CaretWalker(rootNode);
+      var newCaretPos = caretWalker.next(caretPos);
+      return newCaretPos ? newCaretPos.toRange() : null;
+    };
+    var findLastOf = function (node, rootNode) {
+      var caretPos = CaretPosition.after(node);
+      var caretWalker = CaretWalker(rootNode);
+      var newCaretPos = caretWalker.prev(caretPos);
+      return newCaretPos ? newCaretPos.toRange() : null;
+    };
+    var insertMiddle = function (target, elms, rootNode, rng) {
+      var parts = getSplit(target, rng);
+      var parentElm = target.parentNode;
+      parentElm.insertBefore(parts[0], target);
+      Tools.each(elms, function (li) {
+        parentElm.insertBefore(li, target);
+      });
+      parentElm.insertBefore(parts[1], target);
+      parentElm.removeChild(target);
+      return findLastOf(elms[elms.length - 1], rootNode);
+    };
+    var insertBefore$1 = function (target, elms, rootNode) {
+      var parentElm = target.parentNode;
+      Tools.each(elms, function (elm) {
+        parentElm.insertBefore(elm, target);
+      });
+      return findFirstIn(target, rootNode);
+    };
+    var insertAfter$1 = function (target, elms, rootNode, dom) {
+      dom.insertAfter(elms.reverse(), target);
+      return findLastOf(elms[0], rootNode);
+    };
+    var insertAtCaret$1 = function (serializer, dom, rng, fragment) {
+      var domFragment = toDomFragment(dom, serializer, fragment);
+      var liTarget = getParentLi(dom, rng.startContainer);
+      var liElms = trimListItems(listItems(domFragment.firstChild));
+      var BEGINNING = 1, END = 2;
+      var rootNode = dom.getRoot();
+      var isAt = function (location) {
+        var caretPos = CaretPosition.fromRangeStart(rng);
+        var caretWalker = CaretWalker(dom.getRoot());
+        var newPos = location === BEGINNING ? caretWalker.prev(caretPos) : caretWalker.next(caretPos);
+        return newPos ? getParentLi(dom, newPos.getNode()) !== liTarget : true;
+      };
+      if (isAt(BEGINNING)) {
+        return insertBefore$1(liTarget, liElms, rootNode);
+      } else if (isAt(END)) {
+        return insertAfter$1(liTarget, liElms, rootNode, dom);
+      }
+      return insertMiddle(liTarget, liElms, rootNode, rng);
+    };
+
+    var trimOrPadLeftRight = function (dom, rng, html) {
+      var root = SugarElement.fromDom(dom.getRoot());
+      if (needsToBeNbspLeft(root, CaretPosition.fromRangeStart(rng))) {
+        html = html.replace(/^ /, '&nbsp;');
+      } else {
+        html = html.replace(/^&nbsp;/, ' ');
+      }
+      if (needsToBeNbspRight(root, CaretPosition.fromRangeEnd(rng))) {
+        html = html.replace(/(&nbsp;| )(<br( \/)>)?$/, '&nbsp;');
+      } else {
+        html = html.replace(/&nbsp;(<br( \/)?>)?$/, ' ');
+      }
+      return html;
+    };
+
+    var isTableCell$1 = isTableCell$5;
+    var isTableCellContentSelected = function (dom, rng, cell) {
+      if (cell !== null) {
+        var endCell = dom.getParent(rng.endContainer, isTableCell$1);
+        return cell === endCell && hasAllContentsSelected(SugarElement.fromDom(cell), rng);
+      } else {
+        return false;
+      }
+    };
+    var validInsertion = function (editor, value, parentNode) {
+      if (parentNode.getAttribute('data-mce-bogus') === 'all') {
+        parentNode.parentNode.insertBefore(editor.dom.createFragment(value), parentNode);
+      } else {
+        var node = parentNode.firstChild;
+        var node2 = parentNode.lastChild;
+        if (!node || node === node2 && node.nodeName === 'BR') {
+          editor.dom.setHTML(parentNode, value);
+        } else {
+          editor.selection.setContent(value);
+        }
+      }
+    };
+    var trimBrsFromTableCell = function (dom, elm) {
+      Optional.from(dom.getParent(elm, 'td,th')).map(SugarElement.fromDom).each(trimBlockTrailingBr);
+    };
+    var reduceInlineTextElements = function (editor, merge) {
+      var textInlineElements = editor.schema.getTextInlineElements();
+      var dom = editor.dom;
+      if (merge) {
+        var root_1 = editor.getBody();
+        var elementUtils_1 = ElementUtils(dom);
+        Tools.each(dom.select('*[data-mce-fragment]'), function (node) {
+          var isInline = isNonNullable(textInlineElements[node.nodeName.toLowerCase()]);
+          if (isInline && hasInheritableStyles(dom, node)) {
+            for (var parentNode = node.parentNode; isNonNullable(parentNode) && parentNode !== root_1; parentNode = parentNode.parentNode) {
+              var styleConflict = hasStyleConflict(dom, node, parentNode);
+              if (styleConflict) {
+                break;
+              }
+              if (elementUtils_1.compare(parentNode, node)) {
+                dom.remove(node, true);
+                break;
+              }
+            }
+          }
+        });
+      }
+    };
+    var markFragmentElements = function (fragment) {
+      var node = fragment;
+      while (node = node.walk()) {
+        if (node.type === 1) {
+          node.attr('data-mce-fragment', '1');
+        }
+      }
+    };
+    var unmarkFragmentElements = function (elm) {
+      Tools.each(elm.getElementsByTagName('*'), function (elm) {
+        elm.removeAttribute('data-mce-fragment');
+      });
+    };
+    var isPartOfFragment = function (node) {
+      return !!node.getAttribute('data-mce-fragment');
+    };
+    var canHaveChildren = function (editor, node) {
+      return node && !editor.schema.getShortEndedElements()[node.nodeName];
+    };
+    var moveSelectionToMarker = function (editor, marker) {
+      var nextRng;
+      var dom = editor.dom;
+      var selection = editor.selection;
+      var getContentEditableFalseParent = function (node) {
+        var root = editor.getBody();
+        for (; node && node !== root; node = node.parentNode) {
+          if (dom.getContentEditable(node) === 'false') {
+            return node;
+          }
+        }
+        return null;
+      };
+      if (!marker) {
+        return;
+      }
+      selection.scrollIntoView(marker);
+      var parentEditableFalseElm = getContentEditableFalseParent(marker);
+      if (parentEditableFalseElm) {
+        dom.remove(marker);
+        selection.select(parentEditableFalseElm);
+        return;
+      }
+      var rng = dom.createRng();
+      var node = marker.previousSibling;
+      if (isText$7(node)) {
+        rng.setStart(node, node.nodeValue.length);
+        if (!Env.ie) {
+          var node2 = marker.nextSibling;
+          if (isText$7(node2)) {
+            node.appendData(node2.data);
+            node2.parentNode.removeChild(node2);
+          }
+        }
+      } else {
+        rng.setStartBefore(marker);
+        rng.setEndBefore(marker);
+      }
+      var findNextCaretRng = function (rng) {
+        var caretPos = CaretPosition.fromRangeStart(rng);
+        var caretWalker = CaretWalker(editor.getBody());
+        caretPos = caretWalker.next(caretPos);
+        if (caretPos) {
+          return caretPos.toRange();
+        }
+      };
+      var parentBlock = dom.getParent(marker, dom.isBlock);
+      dom.remove(marker);
+      if (parentBlock && dom.isEmpty(parentBlock)) {
+        editor.$(parentBlock).empty();
+        rng.setStart(parentBlock, 0);
+        rng.setEnd(parentBlock, 0);
+        if (!isTableCell$1(parentBlock) && !isPartOfFragment(parentBlock) && (nextRng = findNextCaretRng(rng))) {
+          rng = nextRng;
+          dom.remove(parentBlock);
+        } else {
+          dom.add(parentBlock, dom.create('br', { 'data-mce-bogus': '1' }));
+        }
+      }
+      selection.setRng(rng);
+    };
+    var deleteSelectedContent = function (editor) {
+      var dom = editor.dom;
+      var rng = normalize(editor.selection.getRng());
+      editor.selection.setRng(rng);
+      var startCell = dom.getParent(rng.startContainer, isTableCell$1);
+      if (isTableCellContentSelected(dom, rng, startCell)) {
+        deleteCellContents(editor, rng, SugarElement.fromDom(startCell));
+      } else {
+        editor.getDoc().execCommand('Delete', false, null);
+      }
+    };
+    var insertHtmlAtCaret = function (editor, value, details) {
+      var parentNode;
+      var rng, node;
+      var selection = editor.selection;
+      var dom = editor.dom;
+      if (/^ | $/.test(value)) {
+        value = trimOrPadLeftRight(dom, selection.getRng(), value);
+      }
+      var parser = editor.parser;
+      var merge = details.merge;
+      var serializer = HtmlSerializer({ validate: shouldValidate(editor) }, editor.schema);
+      var bookmarkHtml = '<span id="mce_marker" data-mce-type="bookmark">&#xFEFF;</span>';
+      var args = editor.fire('BeforeSetContent', {
+        content: value,
+        format: 'html',
+        selection: true,
+        paste: details.paste
+      });
+      if (args.isDefaultPrevented()) {
+        editor.fire('SetContent', {
+          content: args.content,
+          format: 'html',
+          selection: true,
+          paste: details.paste
+        });
+        return;
+      }
+      value = args.content;
+      if (value.indexOf('{$caret}') === -1) {
+        value += '{$caret}';
+      }
+      value = value.replace(/\{\$caret\}/, bookmarkHtml);
+      rng = selection.getRng();
+      var caretElement = rng.startContainer || (rng.parentElement ? rng.parentElement() : null);
+      var body = editor.getBody();
+      if (caretElement === body && selection.isCollapsed()) {
+        if (dom.isBlock(body.firstChild) && canHaveChildren(editor, body.firstChild) && dom.isEmpty(body.firstChild)) {
+          rng = dom.createRng();
+          rng.setStart(body.firstChild, 0);
+          rng.setEnd(body.firstChild, 0);
+          selection.setRng(rng);
+        }
+      }
+      if (!selection.isCollapsed()) {
+        deleteSelectedContent(editor);
+      }
+      parentNode = selection.getNode();
+      var parserArgs = {
+        context: parentNode.nodeName.toLowerCase(),
+        data: details.data,
+        insert: true
+      };
+      var fragment = parser.parse(value, parserArgs);
+      if (details.paste === true && isListFragment(editor.schema, fragment) && isParentBlockLi(dom, parentNode)) {
+        rng = insertAtCaret$1(serializer, dom, selection.getRng(), fragment);
+        selection.setRng(rng);
+        editor.fire('SetContent', args);
+        return;
+      }
+      markFragmentElements(fragment);
+      node = fragment.lastChild;
+      if (node.attr('id') === 'mce_marker') {
+        var marker = node;
+        for (node = node.prev; node; node = node.walk(true)) {
+          if (node.type === 3 || !dom.isBlock(node.name)) {
+            if (editor.schema.isValidChild(node.parent.name, 'span')) {
+              node.parent.insert(marker, node, node.name === 'br');
+            }
+            break;
+          }
+        }
+      }
+      editor._selectionOverrides.showBlockCaretContainer(parentNode);
+      if (!parserArgs.invalid) {
+        value = serializer.serialize(fragment);
+        validInsertion(editor, value, parentNode);
+      } else {
+        editor.selection.setContent(bookmarkHtml);
+        parentNode = selection.getNode();
+        var rootNode = editor.getBody();
+        if (parentNode.nodeType === 9) {
+          parentNode = node = rootNode;
+        } else {
+          node = parentNode;
+        }
+        while (node !== rootNode) {
+          parentNode = node;
+          node = node.parentNode;
+        }
+        value = parentNode === rootNode ? rootNode.innerHTML : dom.getOuterHTML(parentNode);
+        value = serializer.serialize(parser.parse(value.replace(/<span (id="mce_marker"|id=mce_marker).+?<\/span>/i, function () {
+          return serializer.serialize(fragment);
+        })));
+        if (parentNode === rootNode) {
+          dom.setHTML(rootNode, value);
+        } else {
+          dom.setOuterHTML(parentNode, value);
+        }
+      }
+      reduceInlineTextElements(editor, merge);
+      moveSelectionToMarker(editor, dom.get('mce_marker'));
+      unmarkFragmentElements(editor.getBody());
+      trimBrsFromTableCell(dom, selection.getStart());
+      editor.fire('SetContent', args);
+      editor.addVisual();
+    };
+
+    var traverse = function (node, fn) {
+      fn(node);
+      if (node.firstChild) {
+        traverse(node.firstChild, fn);
+      }
+      if (node.next) {
+        traverse(node.next, fn);
+      }
+    };
+    var findMatchingNodes = function (nodeFilters, attributeFilters, node) {
+      var nodeMatches = {};
+      var attrMatches = {};
+      var matches = [];
+      if (node.firstChild) {
+        traverse(node.firstChild, function (node) {
+          each$k(nodeFilters, function (filter) {
+            if (filter.name === node.name) {
+              if (nodeMatches[filter.name]) {
+                nodeMatches[filter.name].nodes.push(node);
+              } else {
+                nodeMatches[filter.name] = {
+                  filter: filter,
+                  nodes: [node]
+                };
+              }
+            }
+          });
+          each$k(attributeFilters, function (filter) {
+            if (typeof node.attr(filter.name) === 'string') {
+              if (attrMatches[filter.name]) {
+                attrMatches[filter.name].nodes.push(node);
+              } else {
+                attrMatches[filter.name] = {
+                  filter: filter,
+                  nodes: [node]
+                };
+              }
+            }
+          });
+        });
+      }
+      for (var name_1 in nodeMatches) {
+        if (has$2(nodeMatches, name_1)) {
+          matches.push(nodeMatches[name_1]);
+        }
+      }
+      for (var name_2 in attrMatches) {
+        if (has$2(attrMatches, name_2)) {
+          matches.push(attrMatches[name_2]);
+        }
+      }
+      return matches;
+    };
+    var filter$1 = function (nodeFilters, attributeFilters, node) {
+      var matches = findMatchingNodes(nodeFilters, attributeFilters, node);
+      each$k(matches, function (match) {
+        each$k(match.filter.callbacks, function (callback) {
+          callback(match.nodes, match.filter.name, {});
+        });
+      });
+    };
+
+    var defaultFormat$1 = 'html';
+    var isTreeNode = function (content) {
+      return content instanceof AstNode;
+    };
+    var moveSelection = function (editor) {
+      if (hasFocus(editor)) {
+        firstPositionIn(editor.getBody()).each(function (pos) {
+          var node = pos.getNode();
+          var caretPos = isTable$3(node) ? firstPositionIn(node).getOr(pos) : pos;
+          editor.selection.setRng(caretPos.toRange());
+        });
+      }
+    };
+    var setEditorHtml = function (editor, html, noSelection) {
+      editor.dom.setHTML(editor.getBody(), html);
+      if (noSelection !== true) {
+        moveSelection(editor);
+      }
+    };
+    var setContentString = function (editor, body, content, args) {
+      if (content.length === 0 || /^\s+$/.test(content)) {
+        var padd = '<br data-mce-bogus="1">';
+        if (body.nodeName === 'TABLE') {
+          content = '<tr><td>' + padd + '</td></tr>';
+        } else if (/^(UL|OL)$/.test(body.nodeName)) {
+          content = '<li>' + padd + '</li>';
+        }
+        var forcedRootBlockName = getForcedRootBlock(editor);
+        if (forcedRootBlockName && editor.schema.isValidChild(body.nodeName.toLowerCase(), forcedRootBlockName.toLowerCase())) {
+          content = padd;
+          content = editor.dom.createHTML(forcedRootBlockName, getForcedRootBlockAttrs(editor), content);
+        } else if (!content) {
+          content = '<br data-mce-bogus="1">';
+        }
+        setEditorHtml(editor, content, args.no_selection);
+        editor.fire('SetContent', args);
+      } else {
+        if (args.format !== 'raw') {
+          content = HtmlSerializer({ validate: editor.validate }, editor.schema).serialize(editor.parser.parse(content, {
+            isRootContent: true,
+            insert: true
+          }));
+        }
+        args.content = isWsPreserveElement(SugarElement.fromDom(body)) ? content : Tools.trim(content);
+        setEditorHtml(editor, args.content, args.no_selection);
+        if (!args.no_events) {
+          editor.fire('SetContent', args);
+        }
+      }
+      return args.content;
+    };
+    var setContentTree = function (editor, body, content, args) {
+      filter$1(editor.parser.getNodeFilters(), editor.parser.getAttributeFilters(), content);
+      var html = HtmlSerializer({ validate: editor.validate }, editor.schema).serialize(content);
+      args.content = isWsPreserveElement(SugarElement.fromDom(body)) ? html : Tools.trim(html);
+      setEditorHtml(editor, args.content, args.no_selection);
+      if (!args.no_events) {
+        editor.fire('SetContent', args);
+      }
+      return content;
+    };
+    var setupArgs$2 = function (args, content) {
+      return __assign(__assign({ format: defaultFormat$1 }, args), {
+        set: true,
+        content: isTreeNode(content) ? '' : content
+      });
+    };
+    var setContentInternal = function (editor, content, args) {
+      var defaultedArgs = setupArgs$2(args, content);
+      var updatedArgs = args.no_events ? defaultedArgs : editor.fire('BeforeSetContent', defaultedArgs);
+      if (!isTreeNode(content)) {
+        content = updatedArgs.content;
+      }
+      return Optional.from(editor.getBody()).fold(constant(content), function (body) {
+        return isTreeNode(content) ? setContentTree(editor, body, content, updatedArgs) : setContentString(editor, body, content, updatedArgs);
+      });
+    };
+
+    var sibling = function (scope, predicate) {
+      return sibling$2(scope, predicate).isSome();
+    };
+
+    var ensureIsRoot = function (isRoot) {
+      return isFunction(isRoot) ? isRoot : never;
+    };
+    var ancestor = function (scope, transform, isRoot) {
+      var element = scope.dom;
+      var stop = ensureIsRoot(isRoot);
+      while (element.parentNode) {
+        element = element.parentNode;
+        var el = SugarElement.fromDom(element);
+        var transformed = transform(el);
+        if (transformed.isSome()) {
+          return transformed;
+        } else if (stop(el)) {
+          break;
+        }
+      }
+      return Optional.none();
+    };
+    var closest$1 = function (scope, transform, isRoot) {
+      var current = transform(scope);
+      var stop = ensureIsRoot(isRoot);
+      return current.orThunk(function () {
+        return stop(scope) ? Optional.none() : ancestor(scope, transform, stop);
+      });
+    };
+
+    var isEq$3 = isEq$5;
+    var matchesUnInheritedFormatSelector = function (ed, node, name) {
+      var formatList = ed.formatter.get(name);
+      if (formatList) {
+        for (var i = 0; i < formatList.length; i++) {
+          var format = formatList[i];
+          if (isSelectorFormat(format) && format.inherit === false && ed.dom.is(node, format.selector)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    var matchParents = function (editor, node, name, vars, similar) {
+      var root = editor.dom.getRoot();
+      if (node === root) {
+        return false;
+      }
+      node = editor.dom.getParent(node, function (node) {
+        if (matchesUnInheritedFormatSelector(editor, node, name)) {
+          return true;
+        }
+        return node.parentNode === root || !!matchNode(editor, node, name, vars, true);
+      });
+      return !!matchNode(editor, node, name, vars, similar);
+    };
+    var matchName$1 = function (dom, node, format) {
+      if (isEq$3(node, format.inline)) {
+        return true;
+      }
+      if (isEq$3(node, format.block)) {
+        return true;
+      }
+      if (format.selector) {
+        return node.nodeType === 1 && dom.is(node, format.selector);
+      }
+    };
+    var matchItems = function (dom, node, format, itemName, similar, vars) {
+      var items = format[itemName];
+      if (isFunction(format.onmatch)) {
+        return format.onmatch(node, format, itemName);
+      }
+      if (items) {
+        if (isUndefined(items.length)) {
+          for (var key in items) {
+            if (has$2(items, key)) {
+              var value = itemName === 'attributes' ? dom.getAttrib(node, key) : getStyle(dom, node, key);
+              var expectedValue = replaceVars(items[key], vars);
+              var isEmptyValue = isNullable(value) || isEmpty$3(value);
+              if (isEmptyValue && isNullable(expectedValue)) {
+                continue;
+              }
+              if (similar && isEmptyValue && !format.exact) {
+                return false;
+              }
+              if ((!similar || format.exact) && !isEq$3(value, normalizeStyleValue(dom, expectedValue, key))) {
+                return false;
+              }
+            }
+          }
+        } else {
+          for (var i = 0; i < items.length; i++) {
+            if (itemName === 'attributes' ? dom.getAttrib(node, items[i]) : getStyle(dom, node, items[i])) {
+              return true;
+            }
+          }
+        }
+      }
+      return true;
+    };
+    var matchNode = function (ed, node, name, vars, similar) {
+      var formatList = ed.formatter.get(name);
+      var dom = ed.dom;
+      if (formatList && node) {
+        for (var i = 0; i < formatList.length; i++) {
+          var format = formatList[i];
+          if (matchName$1(ed.dom, node, format) && matchItems(dom, node, format, 'attributes', similar, vars) && matchItems(dom, node, format, 'styles', similar, vars)) {
+            var classes = format.classes;
+            if (classes) {
+              for (var x = 0; x < classes.length; x++) {
+                if (!ed.dom.hasClass(node, replaceVars(classes[x], vars))) {
+                  return;
+                }
+              }
+            }
+            return format;
+          }
+        }
+      }
+    };
+    var match$2 = function (editor, name, vars, node, similar) {
+      if (node) {
+        return matchParents(editor, node, name, vars, similar);
+      }
+      node = editor.selection.getNode();
+      if (matchParents(editor, node, name, vars, similar)) {
+        return true;
+      }
+      var startNode = editor.selection.getStart();
+      if (startNode !== node) {
+        if (matchParents(editor, startNode, name, vars, similar)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    var matchAll = function (editor, names, vars) {
+      var matchedFormatNames = [];
+      var checkedMap = {};
+      var startElement = editor.selection.getStart();
+      editor.dom.getParent(startElement, function (node) {
+        for (var i = 0; i < names.length; i++) {
+          var name_1 = names[i];
+          if (!checkedMap[name_1] && matchNode(editor, node, name_1, vars)) {
+            checkedMap[name_1] = true;
+            matchedFormatNames.push(name_1);
+          }
+        }
+      }, editor.dom.getRoot());
+      return matchedFormatNames;
+    };
+    var closest = function (editor, names) {
+      var isRoot = function (elm) {
+        return eq(elm, SugarElement.fromDom(editor.getBody()));
+      };
+      var match = function (elm, name) {
+        return matchNode(editor, elm.dom, name) ? Optional.some(name) : Optional.none();
+      };
+      return Optional.from(editor.selection.getStart(true)).bind(function (rawElm) {
+        return closest$1(SugarElement.fromDom(rawElm), function (elm) {
+          return findMap(names, function (name) {
+            return match(elm, name);
+          });
+        }, isRoot);
+      }).getOrNull();
+    };
+    var canApply = function (editor, name) {
+      var formatList = editor.formatter.get(name);
+      var dom = editor.dom;
+      if (formatList) {
+        var startNode = editor.selection.getStart();
+        var parents = getParents$2(dom, startNode);
+        for (var x = formatList.length - 1; x >= 0; x--) {
+          var format = formatList[x];
+          if (!isSelectorFormat(format) || isNonNullable(format.defaultBlock)) {
+            return true;
+          }
+          for (var i = parents.length - 1; i >= 0; i--) {
+            if (dom.is(parents[i], format.selector)) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    };
+    var matchAllOnNode = function (editor, node, formatNames) {
+      return foldl(formatNames, function (acc, name) {
+        var matchSimilar = isVariableFormatName(editor, name);
+        if (editor.formatter.matchNode(node, name, {}, matchSimilar)) {
+          return acc.concat([name]);
+        } else {
+          return acc;
+        }
+      }, []);
+    };
+
+    var ZWSP = ZWSP$1, CARET_ID = '_mce_caret';
+    var importNode = function (ownerDocument, node) {
+      return ownerDocument.importNode(node, true);
+    };
+    var getEmptyCaretContainers = function (node) {
+      var nodes = [];
+      while (node) {
+        if (node.nodeType === 3 && node.nodeValue !== ZWSP || node.childNodes.length > 1) {
+          return [];
+        }
+        if (node.nodeType === 1) {
+          nodes.push(node);
+        }
+        node = node.firstChild;
+      }
+      return nodes;
+    };
+    var isCaretContainerEmpty = function (node) {
+      return getEmptyCaretContainers(node).length > 0;
+    };
+    var findFirstTextNode = function (node) {
+      if (node) {
+        var walker = new DomTreeWalker(node, node);
+        for (node = walker.current(); node; node = walker.next()) {
+          if (isText$7(node)) {
+            return node;
+          }
+        }
+      }
+      return null;
+    };
+    var createCaretContainer = function (fill) {
+      var caretContainer = SugarElement.fromTag('span');
+      setAll$1(caretContainer, {
+        'id': CARET_ID,
+        'data-mce-bogus': '1',
+        'data-mce-type': 'format-caret'
+      });
+      if (fill) {
+        append$1(caretContainer, SugarElement.fromText(ZWSP));
+      }
+      return caretContainer;
+    };
+    var trimZwspFromCaretContainer = function (caretContainerNode) {
+      var textNode = findFirstTextNode(caretContainerNode);
+      if (textNode && textNode.nodeValue.charAt(0) === ZWSP) {
+        textNode.deleteData(0, 1);
+      }
+      return textNode;
+    };
+    var removeCaretContainerNode = function (editor, node, moveCaret) {
+      if (moveCaret === void 0) {
+        moveCaret = true;
+      }
+      var dom = editor.dom, selection = editor.selection;
+      if (isCaretContainerEmpty(node)) {
+        deleteElement$2(editor, false, SugarElement.fromDom(node), moveCaret);
+      } else {
+        var rng = selection.getRng();
+        var block = dom.getParent(node, dom.isBlock);
+        var startContainer = rng.startContainer;
+        var startOffset = rng.startOffset;
+        var endContainer = rng.endContainer;
+        var endOffset = rng.endOffset;
+        var textNode = trimZwspFromCaretContainer(node);
+        dom.remove(node, true);
+        if (startContainer === textNode && startOffset > 0) {
+          rng.setStart(textNode, startOffset - 1);
+        }
+        if (endContainer === textNode && endOffset > 0) {
+          rng.setEnd(textNode, endOffset - 1);
+        }
+        if (block && dom.isEmpty(block)) {
+          fillWithPaddingBr(SugarElement.fromDom(block));
+        }
+        selection.setRng(rng);
+      }
+    };
+    var removeCaretContainer = function (editor, node, moveCaret) {
+      if (moveCaret === void 0) {
+        moveCaret = true;
+      }
+      var dom = editor.dom, selection = editor.selection;
+      if (!node) {
+        node = getParentCaretContainer(editor.getBody(), selection.getStart());
+        if (!node) {
+          while (node = dom.get(CARET_ID)) {
+            removeCaretContainerNode(editor, node, false);
+          }
+        }
+      } else {
+        removeCaretContainerNode(editor, node, moveCaret);
+      }
+    };
+    var insertCaretContainerNode = function (editor, caretContainer, formatNode) {
+      var dom = editor.dom, block = dom.getParent(formatNode, curry(isTextBlock$1, editor));
+      if (block && dom.isEmpty(block)) {
+        formatNode.parentNode.replaceChild(caretContainer, formatNode);
+      } else {
+        removeTrailingBr(SugarElement.fromDom(formatNode));
+        if (dom.isEmpty(formatNode)) {
+          formatNode.parentNode.replaceChild(caretContainer, formatNode);
+        } else {
+          dom.insertAfter(caretContainer, formatNode);
+        }
+      }
+    };
+    var appendNode = function (parentNode, node) {
+      parentNode.appendChild(node);
+      return node;
+    };
+    var insertFormatNodesIntoCaretContainer = function (formatNodes, caretContainer) {
+      var innerMostFormatNode = foldr(formatNodes, function (parentNode, formatNode) {
+        return appendNode(parentNode, formatNode.cloneNode(false));
+      }, caretContainer);
+      return appendNode(innerMostFormatNode, innerMostFormatNode.ownerDocument.createTextNode(ZWSP));
+    };
+    var cleanFormatNode = function (editor, caretContainer, formatNode, name, vars, similar) {
+      var formatter = editor.formatter;
+      var dom = editor.dom;
+      var validFormats = filter$4(keys(formatter.get()), function (formatName) {
+        return formatName !== name && !contains$2(formatName, 'removeformat');
+      });
+      var matchedFormats = matchAllOnNode(editor, formatNode, validFormats);
+      var uniqueFormats = filter$4(matchedFormats, function (fmtName) {
+        return !areSimilarFormats(editor, fmtName, name);
+      });
+      if (uniqueFormats.length > 0) {
+        var clonedFormatNode = formatNode.cloneNode(false);
+        dom.add(caretContainer, clonedFormatNode);
+        formatter.remove(name, vars, clonedFormatNode, similar);
+        dom.remove(clonedFormatNode);
+        return Optional.some(clonedFormatNode);
+      } else {
+        return Optional.none();
+      }
+    };
+    var applyCaretFormat = function (editor, name, vars) {
+      var caretContainer, textNode;
+      var selection = editor.selection;
+      var selectionRng = selection.getRng();
+      var offset = selectionRng.startOffset;
+      var container = selectionRng.startContainer;
+      var text = container.nodeValue;
+      caretContainer = getParentCaretContainer(editor.getBody(), selection.getStart());
+      if (caretContainer) {
+        textNode = findFirstTextNode(caretContainer);
+      }
+      var wordcharRegex = /[^\s\u00a0\u00ad\u200b\ufeff]/;
+      if (text && offset > 0 && offset < text.length && wordcharRegex.test(text.charAt(offset)) && wordcharRegex.test(text.charAt(offset - 1))) {
+        var bookmark = selection.getBookmark();
+        selectionRng.collapse(true);
+        var rng = expandRng(editor, selectionRng, editor.formatter.get(name));
+        rng = split(rng);
+        editor.formatter.apply(name, vars, rng);
+        selection.moveToBookmark(bookmark);
+      } else {
+        if (!caretContainer || textNode.nodeValue !== ZWSP) {
+          caretContainer = importNode(editor.getDoc(), createCaretContainer(true).dom);
+          textNode = caretContainer.firstChild;
+          selectionRng.insertNode(caretContainer);
+          offset = 1;
+          editor.formatter.apply(name, vars, caretContainer);
+        } else {
+          editor.formatter.apply(name, vars, caretContainer);
+        }
+        selection.setCursorLocation(textNode, offset);
+      }
+    };
+    var removeCaretFormat = function (editor, name, vars, similar) {
+      var dom = editor.dom;
+      var selection = editor.selection;
+      var hasContentAfter, node, formatNode;
+      var parents = [];
+      var rng = selection.getRng();
+      var container = rng.startContainer;
+      var offset = rng.startOffset;
+      node = container;
+      if (container.nodeType === 3) {
+        if (offset !== container.nodeValue.length) {
+          hasContentAfter = true;
+        }
+        node = node.parentNode;
+      }
+      while (node) {
+        if (matchNode(editor, node, name, vars, similar)) {
+          formatNode = node;
+          break;
+        }
+        if (node.nextSibling) {
+          hasContentAfter = true;
+        }
+        parents.push(node);
+        node = node.parentNode;
+      }
+      if (!formatNode) {
+        return;
+      }
+      if (hasContentAfter) {
+        var bookmark = selection.getBookmark();
+        rng.collapse(true);
+        var expandedRng = expandRng(editor, rng, editor.formatter.get(name), true);
+        expandedRng = split(expandedRng);
+        editor.formatter.remove(name, vars, expandedRng, similar);
+        selection.moveToBookmark(bookmark);
+      } else {
+        var caretContainer = getParentCaretContainer(editor.getBody(), formatNode);
+        var newCaretContainer = createCaretContainer(false).dom;
+        insertCaretContainerNode(editor, newCaretContainer, caretContainer !== null ? caretContainer : formatNode);
+        var cleanedFormatNode = cleanFormatNode(editor, newCaretContainer, formatNode, name, vars, similar);
+        var caretTextNode = insertFormatNodesIntoCaretContainer(parents.concat(cleanedFormatNode.toArray()), newCaretContainer);
+        removeCaretContainerNode(editor, caretContainer, false);
+        selection.setCursorLocation(caretTextNode, 1);
+        if (dom.isEmpty(formatNode)) {
+          dom.remove(formatNode);
+        }
+      }
+    };
+    var disableCaretContainer = function (editor, keyCode) {
+      var selection = editor.selection, body = editor.getBody();
+      removeCaretContainer(editor, null, false);
+      if ((keyCode === 8 || keyCode === 46) && selection.isCollapsed() && selection.getStart().innerHTML === ZWSP) {
+        removeCaretContainer(editor, getParentCaretContainer(body, selection.getStart()));
+      }
+      if (keyCode === 37 || keyCode === 39) {
+        removeCaretContainer(editor, getParentCaretContainer(body, selection.getStart()));
+      }
+    };
+    var setup$k = function (editor) {
+      editor.on('mouseup keydown', function (e) {
+        disableCaretContainer(editor, e.keyCode);
+      });
+    };
+    var replaceWithCaretFormat = function (targetNode, formatNodes) {
+      var caretContainer = createCaretContainer(false);
+      var innerMost = insertFormatNodesIntoCaretContainer(formatNodes, caretContainer.dom);
+      before$4(SugarElement.fromDom(targetNode), caretContainer);
+      remove$7(SugarElement.fromDom(targetNode));
+      return CaretPosition(innerMost, 0);
+    };
+    var isFormatElement = function (editor, element) {
+      var inlineElements = editor.schema.getTextInlineElements();
+      return has$2(inlineElements, name(element)) && !isCaretNode(element.dom) && !isBogus$2(element.dom);
+    };
+    var isEmptyCaretFormatElement = function (element) {
+      return isCaretNode(element.dom) && isCaretContainerEmpty(element.dom);
+    };
+
+    var postProcessHooks = {};
+    var filter = filter$2;
+    var each$c = each$i;
+    var addPostProcessHook = function (name, hook) {
+      var hooks = postProcessHooks[name];
+      if (!hooks) {
+        postProcessHooks[name] = [];
+      }
+      postProcessHooks[name].push(hook);
+    };
+    var postProcess$1 = function (name, editor) {
+      each$c(postProcessHooks[name], function (hook) {
+        hook(editor);
+      });
+    };
+    addPostProcessHook('pre', function (editor) {
+      var rng = editor.selection.getRng();
+      var blocks;
+      var hasPreSibling = function (pre) {
+        return isPre(pre.previousSibling) && indexOf$1(blocks, pre.previousSibling) !== -1;
+      };
+      var joinPre = function (pre1, pre2) {
+        DomQuery(pre2).remove();
+        DomQuery(pre1).append('<br><br>').append(pre2.childNodes);
+      };
+      var isPre = matchNodeNames(['pre']);
+      if (!rng.collapsed) {
+        blocks = editor.selection.getSelectedBlocks();
+        each$c(filter(filter(blocks, isPre), hasPreSibling), function (pre) {
+          joinPre(pre.previousSibling, pre);
+        });
+      }
+    });
+
+    var each$b = Tools.each;
+    var isElementNode$1 = function (node) {
+      return isElement$5(node) && !isBookmarkNode$1(node) && !isCaretNode(node) && !isBogus$2(node);
+    };
+    var findElementSibling = function (node, siblingName) {
+      for (var sibling = node; sibling; sibling = sibling[siblingName]) {
+        if (isText$7(sibling) && isNotEmpty(sibling.data)) {
+          return node;
+        }
+        if (isElement$5(sibling) && !isBookmarkNode$1(sibling)) {
+          return sibling;
+        }
+      }
+      return node;
+    };
+    var mergeSiblingsNodes = function (dom, prev, next) {
+      var elementUtils = ElementUtils(dom);
+      if (prev && next) {
+        prev = findElementSibling(prev, 'previousSibling');
+        next = findElementSibling(next, 'nextSibling');
+        if (elementUtils.compare(prev, next)) {
+          for (var sibling = prev.nextSibling; sibling && sibling !== next;) {
+            var tmpSibling = sibling;
+            sibling = sibling.nextSibling;
+            prev.appendChild(tmpSibling);
+          }
+          dom.remove(next);
+          Tools.each(Tools.grep(next.childNodes), function (node) {
+            prev.appendChild(node);
+          });
+          return prev;
+        }
+      }
+      return next;
+    };
+    var mergeSiblings = function (dom, format, vars, node) {
+      if (node && format.merge_siblings !== false) {
+        var newNode = mergeSiblingsNodes(dom, getNonWhiteSpaceSibling(node), node);
+        mergeSiblingsNodes(dom, newNode, getNonWhiteSpaceSibling(newNode, true));
+      }
+    };
+    var clearChildStyles = function (dom, format, node) {
+      if (format.clear_child_styles) {
+        var selector = format.links ? '*:not(a)' : '*';
+        each$b(dom.select(selector, node), function (node) {
+          if (isElementNode$1(node)) {
+            each$b(format.styles, function (value, name) {
+              dom.setStyle(node, name, '');
+            });
+          }
+        });
+      }
+    };
+    var processChildElements = function (node, filter, process) {
+      each$b(node.childNodes, function (node) {
+        if (isElementNode$1(node)) {
+          if (filter(node)) {
+            process(node);
+          }
+          if (node.hasChildNodes()) {
+            processChildElements(node, filter, process);
+          }
+        }
+      });
+    };
+    var unwrapEmptySpan = function (dom, node) {
+      if (node.nodeName === 'SPAN' && dom.getAttribs(node).length === 0) {
+        dom.remove(node, true);
+      }
+    };
+    var hasStyle = function (dom, name) {
+      return function (node) {
+        return !!(node && getStyle(dom, node, name));
+      };
+    };
+    var applyStyle = function (dom, name, value) {
+      return function (node) {
+        dom.setStyle(node, name, value);
+        if (node.getAttribute('style') === '') {
+          node.removeAttribute('style');
+        }
+        unwrapEmptySpan(dom, node);
+      };
+    };
+
+    var removeResult = Adt.generate([
+      { keep: [] },
+      { rename: ['name'] },
+      { removed: [] }
+    ]);
+    var MCE_ATTR_RE = /^(src|href|style)$/;
+    var each$a = Tools.each;
+    var isEq$2 = isEq$5;
+    var isTableCellOrRow = function (node) {
+      return /^(TR|TH|TD)$/.test(node.nodeName);
+    };
+    var isChildOfInlineParent = function (dom, node, parent) {
+      return dom.isChildOf(node, parent) && node !== parent && !dom.isBlock(parent);
+    };
+    var getContainer = function (ed, rng, start) {
+      var container = rng[start ? 'startContainer' : 'endContainer'];
+      var offset = rng[start ? 'startOffset' : 'endOffset'];
+      if (isElement$5(container)) {
+        var lastIdx = container.childNodes.length - 1;
+        if (!start && offset) {
+          offset--;
+        }
+        container = container.childNodes[offset > lastIdx ? lastIdx : offset];
+      }
+      if (isText$7(container) && start && offset >= container.nodeValue.length) {
+        container = new DomTreeWalker(container, ed.getBody()).next() || container;
+      }
+      if (isText$7(container) && !start && offset === 0) {
+        container = new DomTreeWalker(container, ed.getBody()).prev() || container;
+      }
+      return container;
+    };
+    var normalizeTableSelection = function (node, start) {
+      var prop = start ? 'firstChild' : 'lastChild';
+      if (isTableCellOrRow(node) && node[prop]) {
+        var childNode = node[prop];
+        if (node.nodeName === 'TR') {
+          return childNode[prop] || childNode;
+        } else {
+          return childNode;
+        }
+      }
+      return node;
+    };
+    var wrap$1 = function (dom, node, name, attrs) {
+      var wrapper = dom.create(name, attrs);
+      node.parentNode.insertBefore(wrapper, node);
+      wrapper.appendChild(node);
+      return wrapper;
+    };
+    var wrapWithSiblings = function (dom, node, next, name, attrs) {
+      var start = SugarElement.fromDom(node);
+      var wrapper = SugarElement.fromDom(dom.create(name, attrs));
+      var siblings = next ? nextSiblings(start) : prevSiblings(start);
+      append(wrapper, siblings);
+      if (next) {
+        before$4(start, wrapper);
+        prepend(wrapper, start);
+      } else {
+        after$3(start, wrapper);
+        append$1(wrapper, start);
+      }
+      return wrapper.dom;
+    };
+    var matchName = function (dom, node, format) {
+      if (isInlineFormat(format) && isEq$2(node, format.inline)) {
+        return true;
+      }
+      if (isBlockFormat(format) && isEq$2(node, format.block)) {
+        return true;
+      }
+      if (isSelectorFormat(format)) {
+        return isElement$5(node) && dom.is(node, format.selector);
+      }
+    };
+    var isColorFormatAndAnchor = function (node, format) {
+      return format.links && node.nodeName === 'A';
+    };
+    var find = function (dom, node, next, inc) {
+      var sibling = getNonWhiteSpaceSibling(node, next, inc);
+      return isNullable(sibling) || sibling.nodeName === 'BR' || dom.isBlock(sibling);
+    };
+    var removeNode = function (ed, node, format) {
+      var parentNode = node.parentNode;
+      var rootBlockElm;
+      var dom = ed.dom, forcedRootBlock = getForcedRootBlock(ed);
+      if (isBlockFormat(format)) {
+        if (!forcedRootBlock) {
+          if (dom.isBlock(node) && !dom.isBlock(parentNode)) {
+            if (!find(dom, node, false) && !find(dom, node.firstChild, true, true)) {
+              node.insertBefore(dom.create('br'), node.firstChild);
+            }
+            if (!find(dom, node, true) && !find(dom, node.lastChild, false, true)) {
+              node.appendChild(dom.create('br'));
+            }
+          }
+        } else {
+          if (parentNode === dom.getRoot()) {
+            if (!format.list_block || !isEq$2(node, format.list_block)) {
+              each$k(from(node.childNodes), function (node) {
+                if (isValid(ed, forcedRootBlock, node.nodeName.toLowerCase())) {
+                  if (!rootBlockElm) {
+                    rootBlockElm = wrap$1(dom, node, forcedRootBlock);
+                    dom.setAttribs(rootBlockElm, ed.settings.forced_root_block_attrs);
+                  } else {
+                    rootBlockElm.appendChild(node);
+                  }
+                } else {
+                  rootBlockElm = null;
+                }
+              });
+            }
+          }
+        }
+      }
+      if (isMixedFormat(format) && !isEq$2(format.inline, node)) {
+        return;
+      }
+      dom.remove(node, true);
+    };
+    var removeFormatInternal = function (ed, format, vars, node, compareNode) {
+      var stylesModified;
+      var dom = ed.dom;
+      if (!matchName(dom, node, format) && !isColorFormatAndAnchor(node, format)) {
+        return removeResult.keep();
+      }
+      var elm = node;
+      if (isInlineFormat(format) && format.remove === 'all' && isArray$1(format.preserve_attributes)) {
+        var attrsToPreserve = filter$4(dom.getAttribs(elm), function (attr) {
+          return contains$3(format.preserve_attributes, attr.name.toLowerCase());
+        });
+        dom.removeAllAttribs(elm);
+        each$k(attrsToPreserve, function (attr) {
+          return dom.setAttrib(elm, attr.name, attr.value);
+        });
+        if (attrsToPreserve.length > 0) {
+          return removeResult.rename('span');
+        }
+      }
+      if (format.remove !== 'all') {
+        each$a(format.styles, function (value, name) {
+          value = normalizeStyleValue(dom, replaceVars(value, vars), name + '');
+          if (isNumber(name)) {
+            name = value;
+            compareNode = null;
+          }
+          if (format.remove_similar || (!compareNode || isEq$2(getStyle(dom, compareNode, name), value))) {
+            dom.setStyle(elm, name, '');
+          }
+          stylesModified = true;
+        });
+        if (stylesModified && dom.getAttrib(elm, 'style') === '') {
+          elm.removeAttribute('style');
+          elm.removeAttribute('data-mce-style');
+        }
+        each$a(format.attributes, function (value, name) {
+          var valueOut;
+          value = replaceVars(value, vars);
+          if (isNumber(name)) {
+            name = value;
+            compareNode = null;
+          }
+          if (format.remove_similar || (!compareNode || isEq$2(dom.getAttrib(compareNode, name), value))) {
+            if (name === 'class') {
+              value = dom.getAttrib(elm, name);
+              if (value) {
+                valueOut = '';
+                each$k(value.split(/\s+/), function (cls) {
+                  if (/mce\-\w+/.test(cls)) {
+                    valueOut += (valueOut ? ' ' : '') + cls;
+                  }
+                });
+                if (valueOut) {
+                  dom.setAttrib(elm, name, valueOut);
+                  return;
+                }
+              }
+            }
+            if (MCE_ATTR_RE.test(name)) {
+              elm.removeAttribute('data-mce-' + name);
+            }
+            if (name === 'style' && matchNodeNames(['li'])(elm) && dom.getStyle(elm, 'list-style-type') === 'none') {
+              elm.removeAttribute(name);
+              dom.setStyle(elm, 'list-style-type', 'none');
+              return;
+            }
+            if (name === 'class') {
+              elm.removeAttribute('className');
+            }
+            elm.removeAttribute(name);
+          }
+        });
+        each$a(format.classes, function (value) {
+          value = replaceVars(value, vars);
+          if (!compareNode || dom.hasClass(compareNode, value)) {
+            dom.removeClass(elm, value);
+          }
+        });
+        var attrs = dom.getAttribs(elm);
+        for (var i = 0; i < attrs.length; i++) {
+          var attrName = attrs[i].nodeName;
+          if (attrName.indexOf('_') !== 0 && attrName.indexOf('data-') !== 0) {
+            return removeResult.keep();
+          }
+        }
+      }
+      if (format.remove !== 'none') {
+        removeNode(ed, elm, format);
+        return removeResult.removed();
+      }
+      return removeResult.keep();
+    };
+    var removeFormat$1 = function (ed, format, vars, node, compareNode) {
+      return removeFormatInternal(ed, format, vars, node, compareNode).fold(never, function (newName) {
+        ed.dom.rename(node, newName);
+        return true;
+      }, always);
+    };
+    var findFormatRoot = function (editor, container, name, vars, similar) {
+      var formatRoot;
+      each$k(getParents$2(editor.dom, container.parentNode).reverse(), function (parent) {
+        if (!formatRoot && parent.id !== '_start' && parent.id !== '_end') {
+          var format = matchNode(editor, parent, name, vars, similar);
+          if (format && format.split !== false) {
+            formatRoot = parent;
+          }
+        }
+      });
+      return formatRoot;
+    };
+    var removeFormatFromClone = function (editor, format, vars, clone) {
+      return removeFormatInternal(editor, format, vars, clone, clone).fold(constant(clone), function (newName) {
+        var fragment = editor.dom.createFragment();
+        fragment.appendChild(clone);
+        return editor.dom.rename(clone, newName);
+      }, constant(null));
+    };
+    var wrapAndSplit = function (editor, formatList, formatRoot, container, target, split, format, vars) {
+      var clone, lastClone, firstClone;
+      var dom = editor.dom;
+      if (formatRoot) {
+        var formatRootParent = formatRoot.parentNode;
+        for (var parent_1 = container.parentNode; parent_1 && parent_1 !== formatRootParent; parent_1 = parent_1.parentNode) {
+          clone = dom.clone(parent_1, false);
+          for (var i = 0; i < formatList.length; i++) {
+            clone = removeFormatFromClone(editor, formatList[i], vars, clone);
+            if (clone === null) {
+              break;
+            }
+          }
+          if (clone) {
+            if (lastClone) {
+              clone.appendChild(lastClone);
+            }
+            if (!firstClone) {
+              firstClone = clone;
+            }
+            lastClone = clone;
+          }
+        }
+        if (split && (!format.mixed || !dom.isBlock(formatRoot))) {
+          container = dom.split(formatRoot, container);
+        }
+        if (lastClone) {
+          target.parentNode.insertBefore(lastClone, target);
+          firstClone.appendChild(target);
+          if (isInlineFormat(format)) {
+            mergeSiblings(dom, format, vars, lastClone);
+          }
+        }
+      }
+      return container;
+    };
+    var remove$1 = function (ed, name, vars, node, similar) {
+      var formatList = ed.formatter.get(name);
+      var format = formatList[0];
+      var contentEditable = true;
+      var dom = ed.dom;
+      var selection = ed.selection;
+      var splitToFormatRoot = function (container) {
+        var formatRoot = findFormatRoot(ed, container, name, vars, similar);
+        return wrapAndSplit(ed, formatList, formatRoot, container, container, true, format, vars);
+      };
+      var isRemoveBookmarkNode = function (node) {
+        return isBookmarkNode$1(node) && isElement$5(node) && (node.id === '_start' || node.id === '_end');
+      };
+      var removeNodeFormat = function (node) {
+        return exists(formatList, function (fmt) {
+          return removeFormat$1(ed, fmt, vars, node, node);
+        });
+      };
+      var process = function (node) {
+        var lastContentEditable = true;
+        var hasContentEditableState = false;
+        if (isElement$5(node) && dom.getContentEditable(node)) {
+          lastContentEditable = contentEditable;
+          contentEditable = dom.getContentEditable(node) === 'true';
+          hasContentEditableState = true;
+        }
+        var children = from(node.childNodes);
+        if (contentEditable && !hasContentEditableState) {
+          var removed = removeNodeFormat(node);
+          var parentNode = node.parentNode;
+          if (!removed && isNonNullable(parentNode) && shouldExpandToSelector(format)) {
+            removeNodeFormat(parentNode);
+          }
+        }
+        if (format.deep) {
+          if (children.length) {
+            for (var i = 0; i < children.length; i++) {
+              process(children[i]);
+            }
+            if (hasContentEditableState) {
+              contentEditable = lastContentEditable;
+            }
+          }
+        }
+        var textDecorations = [
+          'underline',
+          'line-through',
+          'overline'
+        ];
+        each$k(textDecorations, function (decoration) {
+          if (isElement$5(node) && ed.dom.getStyle(node, 'text-decoration') === decoration && node.parentNode && getTextDecoration(dom, node.parentNode) === decoration) {
+            removeFormat$1(ed, {
+              deep: false,
+              exact: true,
+              inline: 'span',
+              styles: { textDecoration: decoration }
+            }, null, node);
+          }
+        });
+      };
+      var unwrap = function (start) {
+        var node = dom.get(start ? '_start' : '_end');
+        var out = node[start ? 'firstChild' : 'lastChild'];
+        if (isRemoveBookmarkNode(out)) {
+          out = out[start ? 'firstChild' : 'lastChild'];
+        }
+        if (isText$7(out) && out.data.length === 0) {
+          out = start ? node.previousSibling || node.nextSibling : node.nextSibling || node.previousSibling;
+        }
+        dom.remove(node, true);
+        return out;
+      };
+      var removeRngStyle = function (rng) {
+        var startContainer, endContainer;
+        var expandedRng = expandRng(ed, rng, formatList, rng.collapsed);
+        if (format.split) {
+          expandedRng = split(expandedRng);
+          startContainer = getContainer(ed, expandedRng, true);
+          endContainer = getContainer(ed, expandedRng);
+          if (startContainer !== endContainer) {
+            startContainer = normalizeTableSelection(startContainer, true);
+            endContainer = normalizeTableSelection(endContainer, false);
+            if (isChildOfInlineParent(dom, startContainer, endContainer)) {
+              var marker = Optional.from(startContainer.firstChild).getOr(startContainer);
+              splitToFormatRoot(wrapWithSiblings(dom, marker, true, 'span', {
+                'id': '_start',
+                'data-mce-type': 'bookmark'
+              }));
+              unwrap(true);
+              return;
+            }
+            if (isChildOfInlineParent(dom, endContainer, startContainer)) {
+              var marker = Optional.from(endContainer.lastChild).getOr(endContainer);
+              splitToFormatRoot(wrapWithSiblings(dom, marker, false, 'span', {
+                'id': '_end',
+                'data-mce-type': 'bookmark'
+              }));
+              unwrap(false);
+              return;
+            }
+            startContainer = wrap$1(dom, startContainer, 'span', {
+              'id': '_start',
+              'data-mce-type': 'bookmark'
+            });
+            endContainer = wrap$1(dom, endContainer, 'span', {
+              'id': '_end',
+              'data-mce-type': 'bookmark'
+            });
+            var newRng = dom.createRng();
+            newRng.setStartAfter(startContainer);
+            newRng.setEndBefore(endContainer);
+            walk$2(dom, newRng, function (nodes) {
+              each$k(nodes, function (n) {
+                if (!isBookmarkNode$1(n) && !isBookmarkNode$1(n.parentNode)) {
+                  splitToFormatRoot(n);
+                }
+              });
+            });
+            splitToFormatRoot(startContainer);
+            splitToFormatRoot(endContainer);
+            startContainer = unwrap(true);
+            endContainer = unwrap();
+          } else {
+            startContainer = endContainer = splitToFormatRoot(startContainer);
+          }
+          expandedRng.startContainer = startContainer.parentNode ? startContainer.parentNode : startContainer;
+          expandedRng.startOffset = dom.nodeIndex(startContainer);
+          expandedRng.endContainer = endContainer.parentNode ? endContainer.parentNode : endContainer;
+          expandedRng.endOffset = dom.nodeIndex(endContainer) + 1;
+        }
+        walk$2(dom, expandedRng, function (nodes) {
+          each$k(nodes, process);
+        });
+      };
+      if (node) {
+        if (isNode(node)) {
+          var rng = dom.createRng();
+          rng.setStartBefore(node);
+          rng.setEndAfter(node);
+          removeRngStyle(rng);
+        } else {
+          removeRngStyle(node);
+        }
+        fireFormatRemove(ed, name, node, vars);
+        return;
+      }
+      if (dom.getContentEditable(selection.getNode()) === 'false') {
+        node = selection.getNode();
+        for (var i = 0; i < formatList.length; i++) {
+          if (formatList[i].ceFalseOverride) {
+            if (removeFormat$1(ed, formatList[i], vars, node, node)) {
+              break;
+            }
+          }
+        }
+        fireFormatRemove(ed, name, node, vars);
+        return;
+      }
+      if (!selection.isCollapsed() || !isInlineFormat(format) || getCellsFromEditor(ed).length) {
+        preserve(selection, true, function () {
+          runOnRanges(ed, removeRngStyle);
+        });
+        if (isInlineFormat(format) && match$2(ed, name, vars, selection.getStart())) {
+          moveStart(dom, selection, selection.getRng());
+        }
+        ed.nodeChanged();
+      } else {
+        removeCaretFormat(ed, name, vars, similar);
+      }
+      fireFormatRemove(ed, name, node, vars);
+    };
+
+    var each$9 = Tools.each;
+    var mergeTextDecorationsAndColor = function (dom, format, vars, node) {
+      var processTextDecorationsAndColor = function (n) {
+        if (n.nodeType === 1 && n.parentNode && n.parentNode.nodeType === 1) {
+          var textDecoration = getTextDecoration(dom, n.parentNode);
+          if (dom.getStyle(n, 'color') && textDecoration) {
+            dom.setStyle(n, 'text-decoration', textDecoration);
+          } else if (dom.getStyle(n, 'text-decoration') === textDecoration) {
+            dom.setStyle(n, 'text-decoration', null);
+          }
+        }
+      };
+      if (format.styles && (format.styles.color || format.styles.textDecoration)) {
+        Tools.walk(node, processTextDecorationsAndColor, 'childNodes');
+        processTextDecorationsAndColor(node);
+      }
+    };
+    var mergeBackgroundColorAndFontSize = function (dom, format, vars, node) {
+      if (format.styles && format.styles.backgroundColor) {
+        processChildElements(node, hasStyle(dom, 'fontSize'), applyStyle(dom, 'backgroundColor', replaceVars(format.styles.backgroundColor, vars)));
+      }
+    };
+    var mergeSubSup = function (dom, format, vars, node) {
+      if (isInlineFormat(format) && (format.inline === 'sub' || format.inline === 'sup')) {
+        processChildElements(node, hasStyle(dom, 'fontSize'), applyStyle(dom, 'fontSize', ''));
+        dom.remove(dom.select(format.inline === 'sup' ? 'sub' : 'sup', node), true);
+      }
+    };
+    var mergeWithChildren = function (editor, formatList, vars, node) {
+      each$9(formatList, function (format) {
+        if (isInlineFormat(format)) {
+          each$9(editor.dom.select(format.inline, node), function (child) {
+            if (!isElementNode$1(child)) {
+              return;
+            }
+            removeFormat$1(editor, format, vars, child, format.exact ? child : null);
+          });
+        }
+        clearChildStyles(editor.dom, format, node);
+      });
+    };
+    var mergeWithParents = function (editor, format, name, vars, node) {
+      if (matchNode(editor, node.parentNode, name, vars)) {
+        if (removeFormat$1(editor, format, vars, node)) {
+          return;
+        }
+      }
+      if (format.merge_with_parents) {
+        editor.dom.getParent(node.parentNode, function (parent) {
+          if (matchNode(editor, parent, name, vars)) {
+            removeFormat$1(editor, format, vars, node);
+            return true;
+          }
+        });
+      }
+    };
+
+    var each$8 = Tools.each;
+    var isElementNode = function (node) {
+      return isElement$5(node) && !isBookmarkNode$1(node) && !isCaretNode(node) && !isBogus$2(node);
+    };
+    var canFormatBR = function (editor, format, node, parentName) {
+      if (canFormatEmptyLines(editor) && isInlineFormat(format)) {
+        var validBRParentElements = __assign(__assign({}, editor.schema.getTextBlockElements()), {
+          td: {},
+          th: {},
+          li: {},
+          dt: {},
+          dd: {},
+          figcaption: {},
+          caption: {},
+          details: {},
+          summary: {}
+        });
+        var hasCaretNodeSibling = sibling(SugarElement.fromDom(node), function (sibling) {
+          return isCaretNode(sibling.dom);
+        });
+        return hasNonNullableKey(validBRParentElements, parentName) && isEmpty$2(SugarElement.fromDom(node.parentNode), false) && !hasCaretNodeSibling;
+      } else {
+        return false;
+      }
+    };
+    var applyFormat$1 = function (ed, name, vars, node) {
+      var formatList = ed.formatter.get(name);
+      var format = formatList[0];
+      var isCollapsed = !node && ed.selection.isCollapsed();
+      var dom = ed.dom;
+      var selection = ed.selection;
+      var setElementFormat = function (elm, fmt) {
+        if (fmt === void 0) {
+          fmt = format;
+        }
+        if (isFunction(fmt.onformat)) {
+          fmt.onformat(elm, fmt, vars, node);
+        }
+        each$8(fmt.styles, function (value, name) {
+          dom.setStyle(elm, name, replaceVars(value, vars));
+        });
+        if (fmt.styles) {
+          var styleVal = dom.getAttrib(elm, 'style');
+          if (styleVal) {
+            dom.setAttrib(elm, 'data-mce-style', styleVal);
+          }
+        }
+        each$8(fmt.attributes, function (value, name) {
+          dom.setAttrib(elm, name, replaceVars(value, vars));
+        });
+        each$8(fmt.classes, function (value) {
+          value = replaceVars(value, vars);
+          if (!dom.hasClass(elm, value)) {
+            dom.addClass(elm, value);
+          }
+        });
+      };
+      var applyNodeStyle = function (formatList, node) {
+        var found = false;
+        each$8(formatList, function (format) {
+          if (!isSelectorFormat(format)) {
+            return false;
+          }
+          if (isNonNullable(format.collapsed) && format.collapsed !== isCollapsed) {
+            return;
+          }
+          if (dom.is(node, format.selector) && !isCaretNode(node)) {
+            setElementFormat(node, format);
+            found = true;
+            return false;
+          }
+        });
+        return found;
+      };
+      var createWrapElement = function (wrapName) {
+        if (isString$1(wrapName)) {
+          var wrapElm = dom.create(wrapName);
+          setElementFormat(wrapElm);
+          return wrapElm;
+        } else {
+          return null;
+        }
+      };
+      var applyRngStyle = function (dom, rng, nodeSpecific) {
+        var newWrappers = [];
+        var contentEditable = true;
+        var wrapName = format.inline || format.block;
+        var wrapElm = createWrapElement(wrapName);
+        walk$2(dom, rng, function (nodes) {
+          var currentWrapElm;
+          var process = function (node) {
+            var hasContentEditableState = false;
+            var lastContentEditable = contentEditable;
+            var nodeName = node.nodeName.toLowerCase();
+            var parentNode = node.parentNode;
+            var parentName = parentNode.nodeName.toLowerCase();
+            if (isElement$5(node) && dom.getContentEditable(node)) {
+              lastContentEditable = contentEditable;
+              contentEditable = dom.getContentEditable(node) === 'true';
+              hasContentEditableState = true;
+            }
+            if (isBr$5(node) && !canFormatBR(ed, format, node, parentName)) {
+              currentWrapElm = null;
+              if (isBlockFormat(format)) {
+                dom.remove(node);
+              }
+              return;
+            }
+            if (isBlockFormat(format) && format.wrapper && matchNode(ed, node, name, vars)) {
+              currentWrapElm = null;
+              return;
+            }
+            if (contentEditable && !hasContentEditableState && isBlockFormat(format) && !format.wrapper && isTextBlock$1(ed, nodeName) && isValid(ed, parentName, wrapName)) {
+              var elm = dom.rename(node, wrapName);
+              setElementFormat(elm);
+              newWrappers.push(elm);
+              currentWrapElm = null;
+              return;
+            }
+            if (isSelectorFormat(format)) {
+              var found = applyNodeStyle(formatList, node);
+              if (!found && isNonNullable(parentNode) && shouldExpandToSelector(format)) {
+                found = applyNodeStyle(formatList, parentNode);
+              }
+              if (!isInlineFormat(format) || found) {
+                currentWrapElm = null;
+                return;
+              }
+            }
+            if (contentEditable && !hasContentEditableState && isValid(ed, wrapName, nodeName) && isValid(ed, parentName, wrapName) && !(!nodeSpecific && isText$7(node) && isZwsp(node.data)) && !isCaretNode(node) && (!isInlineFormat(format) || !dom.isBlock(node))) {
+              if (!currentWrapElm) {
+                currentWrapElm = dom.clone(wrapElm, false);
+                node.parentNode.insertBefore(currentWrapElm, node);
+                newWrappers.push(currentWrapElm);
+              }
+              currentWrapElm.appendChild(node);
+            } else {
+              currentWrapElm = null;
+              each$k(from(node.childNodes), process);
+              if (hasContentEditableState) {
+                contentEditable = lastContentEditable;
+              }
+              currentWrapElm = null;
+            }
+          };
+          each$k(nodes, process);
+        });
+        if (format.links === true) {
+          each$k(newWrappers, function (node) {
+            var process = function (node) {
+              if (node.nodeName === 'A') {
+                setElementFormat(node, format);
+              }
+              each$k(from(node.childNodes), process);
+            };
+            process(node);
+          });
+        }
+        each$k(newWrappers, function (node) {
+          var getChildCount = function (node) {
+            var count = 0;
+            each$k(node.childNodes, function (node) {
+              if (!isEmptyTextNode$1(node) && !isBookmarkNode$1(node)) {
+                count++;
+              }
+            });
+            return count;
+          };
+          var mergeStyles = function (node) {
+            var childElement = find$3(node.childNodes, isElementNode).filter(function (child) {
+              return matchName$1(dom, child, format);
+            });
+            return childElement.map(function (child) {
+              var clone = dom.clone(child, false);
+              setElementFormat(clone);
+              dom.replace(clone, node, true);
+              dom.remove(child, true);
+              return clone;
+            }).getOr(node);
+          };
+          var childCount = getChildCount(node);
+          if ((newWrappers.length > 1 || !dom.isBlock(node)) && childCount === 0) {
+            dom.remove(node, true);
+            return;
+          }
+          if (isInlineFormat(format) || isBlockFormat(format) && format.wrapper) {
+            if (!format.exact && childCount === 1) {
+              node = mergeStyles(node);
+            }
+            mergeWithChildren(ed, formatList, vars, node);
+            mergeWithParents(ed, format, name, vars, node);
+            mergeBackgroundColorAndFontSize(dom, format, vars, node);
+            mergeTextDecorationsAndColor(dom, format, vars, node);
+            mergeSubSup(dom, format, vars, node);
+            mergeSiblings(dom, format, vars, node);
+          }
+        });
+      };
+      if (dom.getContentEditable(selection.getNode()) === 'false') {
+        node = selection.getNode();
+        for (var i = 0, l = formatList.length; i < l; i++) {
+          var formatItem = formatList[i];
+          if (formatItem.ceFalseOverride && isSelectorFormat(formatItem) && dom.is(node, formatItem.selector)) {
+            setElementFormat(node, formatItem);
+            break;
+          }
+        }
+        fireFormatApply(ed, name, node, vars);
+        return;
+      }
+      if (format) {
+        if (node) {
+          if (isNode(node)) {
+            if (!applyNodeStyle(formatList, node)) {
+              var rng = dom.createRng();
+              rng.setStartBefore(node);
+              rng.setEndAfter(node);
+              applyRngStyle(dom, expandRng(ed, rng, formatList), true);
+            }
+          } else {
+            applyRngStyle(dom, node, true);
+          }
+        } else {
+          if (!isCollapsed || !isInlineFormat(format) || getCellsFromEditor(ed).length) {
+            var curSelNode = selection.getNode();
+            var firstFormat = formatList[0];
+            if (!ed.settings.forced_root_block && firstFormat.defaultBlock && !dom.getParent(curSelNode, dom.isBlock)) {
+              applyFormat$1(ed, firstFormat.defaultBlock);
+            }
+            selection.setRng(normalize(selection.getRng()));
+            preserve(selection, true, function () {
+              runOnRanges(ed, function (selectionRng, fake) {
+                var expandedRng = fake ? selectionRng : expandRng(ed, selectionRng, formatList);
+                applyRngStyle(dom, expandedRng, false);
+              });
+            });
+            moveStart(dom, selection, selection.getRng());
+            ed.nodeChanged();
+          } else {
+            applyCaretFormat(ed, name, vars);
+          }
+        }
+        postProcess$1(name, ed);
+      }
+      fireFormatApply(ed, name, node, vars);
+    };
+
+    var hasVars = function (value) {
+      return has$2(value, 'vars');
+    };
+    var setup$j = function (registeredFormatListeners, editor) {
+      registeredFormatListeners.set({});
+      editor.on('NodeChange', function (e) {
+        updateAndFireChangeCallbacks(editor, e.element, registeredFormatListeners.get());
+      });
+      editor.on('FormatApply FormatRemove', function (e) {
+        var element = Optional.from(e.node).map(function (nodeOrRange) {
+          return isNode(nodeOrRange) ? nodeOrRange : nodeOrRange.startContainer;
+        }).bind(function (node) {
+          return isElement$5(node) ? Optional.some(node) : Optional.from(node.parentElement);
+        }).getOrThunk(function () {
+          return fallbackElement(editor);
+        });
+        updateAndFireChangeCallbacks(editor, element, registeredFormatListeners.get());
+      });
+    };
+    var fallbackElement = function (editor) {
+      return editor.selection.getStart();
+    };
+    var matchingNode = function (editor, parents, format, similar, vars) {
+      var isMatchingNode = function (node) {
+        var matchingFormat = editor.formatter.matchNode(node, format, vars !== null && vars !== void 0 ? vars : {}, similar);
+        return !isUndefined(matchingFormat);
+      };
+      var isUnableToMatch = function (node) {
+        if (matchesUnInheritedFormatSelector(editor, node, format)) {
+          return true;
+        } else {
+          if (!similar) {
+            return isNonNullable(editor.formatter.matchNode(node, format, vars, true));
+          } else {
+            return false;
+          }
+        }
+      };
+      return findUntil$1(parents, isMatchingNode, isUnableToMatch);
+    };
+    var getParents = function (editor, elm) {
+      var element = elm !== null && elm !== void 0 ? elm : fallbackElement(editor);
+      return filter$4(getParents$2(editor.dom, element), function (node) {
+        return isElement$5(node) && !isBogus$2(node);
+      });
+    };
+    var updateAndFireChangeCallbacks = function (editor, elm, registeredCallbacks) {
+      var parents = getParents(editor, elm);
+      each$j(registeredCallbacks, function (data, format) {
+        var runIfChanged = function (spec) {
+          var match = matchingNode(editor, parents, format, spec.similar, hasVars(spec) ? spec.vars : undefined);
+          var isSet = match.isSome();
+          if (spec.state.get() !== isSet) {
+            spec.state.set(isSet);
+            var node_1 = match.getOr(elm);
+            if (hasVars(spec)) {
+              spec.callback(isSet, {
+                node: node_1,
+                format: format,
+                parents: parents
+              });
+            } else {
+              each$k(spec.callbacks, function (callback) {
+                return callback(isSet, {
+                  node: node_1,
+                  format: format,
+                  parents: parents
+                });
+              });
+            }
+          }
+        };
+        each$k([
+          data.withSimilar,
+          data.withoutSimilar
+        ], runIfChanged);
+        each$k(data.withVars, runIfChanged);
+      });
+    };
+    var addListeners = function (editor, registeredFormatListeners, formats, callback, similar, vars) {
+      var formatChangeItems = registeredFormatListeners.get();
+      each$k(formats.split(','), function (format) {
+        var group = get$9(formatChangeItems, format).getOrThunk(function () {
+          var base = {
+            withSimilar: {
+              state: Cell(false),
+              similar: true,
+              callbacks: []
+            },
+            withoutSimilar: {
+              state: Cell(false),
+              similar: false,
+              callbacks: []
+            },
+            withVars: []
+          };
+          formatChangeItems[format] = base;
+          return base;
+        });
+        var getCurrent = function () {
+          var parents = getParents(editor);
+          return matchingNode(editor, parents, format, similar, vars).isSome();
+        };
+        if (isUndefined(vars)) {
+          var toAppendTo = similar ? group.withSimilar : group.withoutSimilar;
+          toAppendTo.callbacks.push(callback);
+          if (toAppendTo.callbacks.length === 1) {
+            toAppendTo.state.set(getCurrent());
+          }
+        } else {
+          group.withVars.push({
+            state: Cell(getCurrent()),
+            similar: similar,
+            vars: vars,
+            callback: callback
+          });
+        }
+      });
+      registeredFormatListeners.set(formatChangeItems);
+    };
+    var removeListeners = function (registeredFormatListeners, formats, callback) {
+      var formatChangeItems = registeredFormatListeners.get();
+      each$k(formats.split(','), function (format) {
+        return get$9(formatChangeItems, format).each(function (group) {
+          formatChangeItems[format] = {
+            withSimilar: __assign(__assign({}, group.withSimilar), {
+              callbacks: filter$4(group.withSimilar.callbacks, function (cb) {
+                return cb !== callback;
+              })
+            }),
+            withoutSimilar: __assign(__assign({}, group.withoutSimilar), {
+              callbacks: filter$4(group.withoutSimilar.callbacks, function (cb) {
+                return cb !== callback;
+              })
+            }),
+            withVars: filter$4(group.withVars, function (item) {
+              return item.callback !== callback;
+            })
+          };
+        });
+      });
+      registeredFormatListeners.set(formatChangeItems);
+    };
+    var formatChangedInternal = function (editor, registeredFormatListeners, formats, callback, similar, vars) {
+      if (registeredFormatListeners.get() === null) {
+        setup$j(registeredFormatListeners, editor);
+      }
+      addListeners(editor, registeredFormatListeners, formats, callback, similar, vars);
+      return {
+        unbind: function () {
+          return removeListeners(registeredFormatListeners, formats, callback);
+        }
+      };
+    };
+
+    var toggle = function (editor, name, vars, node) {
+      var fmt = editor.formatter.get(name);
+      if (match$2(editor, name, vars, node) && (!('toggle' in fmt[0]) || fmt[0].toggle)) {
+        remove$1(editor, name, vars, node);
+      } else {
+        applyFormat$1(editor, name, vars, node);
+      }
+    };
+
+    var fromElements = function (elements, scope) {
+      var doc = scope || document;
+      var fragment = doc.createDocumentFragment();
+      each$k(elements, function (element) {
+        fragment.appendChild(element.dom);
+      });
+      return SugarElement.fromDom(fragment);
+    };
+
+    var tableModel = function (element, width, rows) {
+      return {
+        element: element,
+        width: width,
+        rows: rows
+      };
+    };
+    var tableRow = function (element, cells) {
+      return {
+        element: element,
+        cells: cells
+      };
+    };
+    var cellPosition = function (x, y) {
+      return {
+        x: x,
+        y: y
+      };
+    };
+    var getSpan = function (td, key) {
+      var value = parseInt(get$6(td, key), 10);
+      return isNaN(value) ? 1 : value;
+    };
+    var fillout = function (table, x, y, tr, td) {
+      var rowspan = getSpan(td, 'rowspan');
+      var colspan = getSpan(td, 'colspan');
+      var rows = table.rows;
+      for (var y2 = y; y2 < y + rowspan; y2++) {
+        if (!rows[y2]) {
+          rows[y2] = tableRow(deep$1(tr), []);
+        }
+        for (var x2 = x; x2 < x + colspan; x2++) {
+          var cells = rows[y2].cells;
+          cells[x2] = y2 === y && x2 === x ? td : shallow(td);
+        }
+      }
+    };
+    var cellExists = function (table, x, y) {
+      var rows = table.rows;
+      var cells = rows[y] ? rows[y].cells : [];
+      return !!cells[x];
+    };
+    var skipCellsX = function (table, x, y) {
+      while (cellExists(table, x, y)) {
+        x++;
+      }
+      return x;
+    };
+    var getWidth = function (rows) {
+      return foldl(rows, function (acc, row) {
+        return row.cells.length > acc ? row.cells.length : acc;
+      }, 0);
+    };
+    var findElementPos = function (table, element) {
+      var rows = table.rows;
+      for (var y = 0; y < rows.length; y++) {
+        var cells = rows[y].cells;
+        for (var x = 0; x < cells.length; x++) {
+          if (eq(cells[x], element)) {
+            return Optional.some(cellPosition(x, y));
+          }
+        }
+      }
+      return Optional.none();
+    };
+    var extractRows = function (table, sx, sy, ex, ey) {
+      var newRows = [];
+      var rows = table.rows;
+      for (var y = sy; y <= ey; y++) {
+        var cells = rows[y].cells;
+        var slice = sx < ex ? cells.slice(sx, ex + 1) : cells.slice(ex, sx + 1);
+        newRows.push(tableRow(rows[y].element, slice));
+      }
+      return newRows;
+    };
+    var subTable = function (table, startPos, endPos) {
+      var sx = startPos.x, sy = startPos.y;
+      var ex = endPos.x, ey = endPos.y;
+      var newRows = sy < ey ? extractRows(table, sx, sy, ex, ey) : extractRows(table, sx, ey, ex, sy);
+      return tableModel(table.element, getWidth(newRows), newRows);
+    };
+    var createDomTable = function (table, rows) {
+      var tableElement = shallow(table.element);
+      var tableBody = SugarElement.fromTag('tbody');
+      append(tableBody, rows);
+      append$1(tableElement, tableBody);
+      return tableElement;
+    };
+    var modelRowsToDomRows = function (table) {
+      return map$3(table.rows, function (row) {
+        var cells = map$3(row.cells, function (cell) {
+          var td = deep$1(cell);
+          remove$6(td, 'colspan');
+          remove$6(td, 'rowspan');
+          return td;
+        });
+        var tr = shallow(row.element);
+        append(tr, cells);
+        return tr;
+      });
+    };
+    var fromDom = function (tableElm) {
+      var table = tableModel(shallow(tableElm), 0, []);
+      each$k(descendants(tableElm, 'tr'), function (tr, y) {
+        each$k(descendants(tr, 'td,th'), function (td, x) {
+          fillout(table, skipCellsX(table, x, y), y, tr, td);
+        });
+      });
+      return tableModel(table.element, getWidth(table.rows), table.rows);
+    };
+    var toDom = function (table) {
+      return createDomTable(table, modelRowsToDomRows(table));
+    };
+    var subsection = function (table, startElement, endElement) {
+      return findElementPos(table, startElement).bind(function (startPos) {
+        return findElementPos(table, endElement).map(function (endPos) {
+          return subTable(table, startPos, endPos);
+        });
+      });
+    };
+
+    var findParentListContainer = function (parents) {
+      return find$3(parents, function (elm) {
+        return name(elm) === 'ul' || name(elm) === 'ol';
+      });
+    };
+    var getFullySelectedListWrappers = function (parents, rng) {
+      return find$3(parents, function (elm) {
+        return name(elm) === 'li' && hasAllContentsSelected(elm, rng);
+      }).fold(constant([]), function (_li) {
+        return findParentListContainer(parents).map(function (listCont) {
+          var listElm = SugarElement.fromTag(name(listCont));
+          var listStyles = filter$3(getAllRaw(listCont), function (_style, name) {
+            return startsWith(name, 'list-style');
+          });
+          setAll(listElm, listStyles);
+          return [
+            SugarElement.fromTag('li'),
+            listElm
+          ];
+        }).getOr([]);
+      });
+    };
+    var wrap = function (innerElm, elms) {
+      var wrapped = foldl(elms, function (acc, elm) {
+        append$1(elm, acc);
+        return elm;
+      }, innerElm);
+      return elms.length > 0 ? fromElements([wrapped]) : wrapped;
+    };
+    var directListWrappers = function (commonAnchorContainer) {
+      if (isListItem(commonAnchorContainer)) {
+        return parent(commonAnchorContainer).filter(isList).fold(constant([]), function (listElm) {
+          return [
+            commonAnchorContainer,
+            listElm
+          ];
+        });
+      } else {
+        return isList(commonAnchorContainer) ? [commonAnchorContainer] : [];
+      }
+    };
+    var getWrapElements = function (rootNode, rng) {
+      var commonAnchorContainer = SugarElement.fromDom(rng.commonAncestorContainer);
+      var parents = parentsAndSelf(commonAnchorContainer, rootNode);
+      var wrapElements = filter$4(parents, function (elm) {
+        return isInline$1(elm) || isHeading(elm);
+      });
+      var listWrappers = getFullySelectedListWrappers(parents, rng);
+      var allWrappers = wrapElements.concat(listWrappers.length ? listWrappers : directListWrappers(commonAnchorContainer));
+      return map$3(allWrappers, shallow);
+    };
+    var emptyFragment = function () {
+      return fromElements([]);
+    };
+    var getFragmentFromRange = function (rootNode, rng) {
+      return wrap(SugarElement.fromDom(rng.cloneContents()), getWrapElements(rootNode, rng));
+    };
+    var getParentTable = function (rootElm, cell) {
+      return ancestor$2(cell, 'table', curry(eq, rootElm));
+    };
+    var getTableFragment = function (rootNode, selectedTableCells) {
+      return getParentTable(rootNode, selectedTableCells[0]).bind(function (tableElm) {
+        var firstCell = selectedTableCells[0];
+        var lastCell = selectedTableCells[selectedTableCells.length - 1];
+        var fullTableModel = fromDom(tableElm);
+        return subsection(fullTableModel, firstCell, lastCell).map(function (sectionedTableModel) {
+          return fromElements([toDom(sectionedTableModel)]);
+        });
+      }).getOrThunk(emptyFragment);
+    };
+    var getSelectionFragment = function (rootNode, ranges) {
+      return ranges.length > 0 && ranges[0].collapsed ? emptyFragment() : getFragmentFromRange(rootNode, ranges[0]);
+    };
+    var read$3 = function (rootNode, ranges) {
+      var selectedCells = getCellsFromElementOrRanges(ranges, rootNode);
+      return selectedCells.length > 0 ? getTableFragment(rootNode, selectedCells) : getSelectionFragment(rootNode, ranges);
+    };
+
+    var trimLeadingCollapsibleText = function (text) {
+      return text.replace(/^[ \f\n\r\t\v]+/, '');
+    };
+    var isCollapsibleWhitespace = function (text, index) {
+      return index >= 0 && index < text.length && isWhiteSpace(text.charAt(index));
+    };
+    var getInnerText = function (bin, shouldTrim) {
+      var text = trim$2(bin.innerText);
+      return shouldTrim ? trimLeadingCollapsibleText(text) : text;
+    };
+    var getContextNodeName = function (parentBlockOpt) {
+      return parentBlockOpt.map(function (block) {
+        return block.nodeName;
+      }).getOr('div').toLowerCase();
+    };
+    var getTextContent = function (editor) {
+      return Optional.from(editor.selection.getRng()).map(function (rng) {
+        var parentBlockOpt = Optional.from(editor.dom.getParent(rng.commonAncestorContainer, editor.dom.isBlock));
+        var body = editor.getBody();
+        var contextNodeName = getContextNodeName(parentBlockOpt);
+        var shouldTrimSpaces = Env.browser.isIE() && contextNodeName !== 'pre';
+        var bin = editor.dom.add(body, contextNodeName, {
+          'data-mce-bogus': 'all',
+          'style': 'overflow: hidden; opacity: 0;'
+        }, rng.cloneContents());
+        var text = getInnerText(bin, shouldTrimSpaces);
+        var nonRenderedText = trim$2(bin.textContent);
+        editor.dom.remove(bin);
+        if (isCollapsibleWhitespace(nonRenderedText, 0) || isCollapsibleWhitespace(nonRenderedText, nonRenderedText.length - 1)) {
+          var parentBlock = parentBlockOpt.getOr(body);
+          var parentBlockText = getInnerText(parentBlock, shouldTrimSpaces);
+          var textIndex = parentBlockText.indexOf(text);
+          if (textIndex === -1) {
+            return text;
+          } else {
+            var hasProceedingSpace = isCollapsibleWhitespace(parentBlockText, textIndex - 1);
+            var hasTrailingSpace = isCollapsibleWhitespace(parentBlockText, textIndex + text.length);
+            return (hasProceedingSpace ? ' ' : '') + text + (hasTrailingSpace ? ' ' : '');
+          }
+        } else {
+          return text;
+        }
+      }).getOr('');
+    };
+    var getSerializedContent = function (editor, args) {
+      var rng = editor.selection.getRng(), tmpElm = editor.dom.create('body');
+      var sel = editor.selection.getSel();
+      var ranges = processRanges(editor, getRanges(sel));
+      var fragment = args.contextual ? read$3(SugarElement.fromDom(editor.getBody()), ranges).dom : rng.cloneContents();
+      if (fragment) {
+        tmpElm.appendChild(fragment);
+      }
+      return editor.selection.serializer.serialize(tmpElm, args);
+    };
+    var setupArgs$1 = function (args, format) {
+      return __assign(__assign({}, args), {
+        format: format,
+        get: true,
+        selection: true
+      });
+    };
+    var getSelectedContentInternal = function (editor, format, args) {
+      if (args === void 0) {
+        args = {};
+      }
+      var defaultedArgs = setupArgs$1(args, format);
+      var updatedArgs = editor.fire('BeforeGetContent', defaultedArgs);
+      if (updatedArgs.isDefaultPrevented()) {
+        editor.fire('GetContent', updatedArgs);
+        return updatedArgs.content;
+      }
+      if (updatedArgs.format === 'text') {
+        return getTextContent(editor);
+      } else {
+        updatedArgs.getInner = true;
+        var content = getSerializedContent(editor, updatedArgs);
+        if (updatedArgs.format === 'tree') {
+          return content;
+        } else {
+          updatedArgs.content = editor.selection.isCollapsed() ? '' : content;
+          editor.fire('GetContent', updatedArgs);
+          return updatedArgs.content;
+        }
+      }
+    };
+
+    var KEEP = 0, INSERT = 1, DELETE = 2;
+    var diff = function (left, right) {
+      var size = left.length + right.length + 2;
+      var vDown = new Array(size);
+      var vUp = new Array(size);
+      var snake = function (start, end, diag) {
+        return {
+          start: start,
+          end: end,
+          diag: diag
+        };
+      };
+      var buildScript = function (start1, end1, start2, end2, script) {
+        var middle = getMiddleSnake(start1, end1, start2, end2);
+        if (middle === null || middle.start === end1 && middle.diag === end1 - end2 || middle.end === start1 && middle.diag === start1 - start2) {
+          var i = start1;
+          var j = start2;
+          while (i < end1 || j < end2) {
+            if (i < end1 && j < end2 && left[i] === right[j]) {
+              script.push([
+                KEEP,
+                left[i]
+              ]);
+              ++i;
+              ++j;
+            } else {
+              if (end1 - start1 > end2 - start2) {
+                script.push([
+                  DELETE,
+                  left[i]
+                ]);
+                ++i;
+              } else {
+                script.push([
+                  INSERT,
+                  right[j]
+                ]);
+                ++j;
+              }
+            }
+          }
+        } else {
+          buildScript(start1, middle.start, start2, middle.start - middle.diag, script);
+          for (var i2 = middle.start; i2 < middle.end; ++i2) {
+            script.push([
+              KEEP,
+              left[i2]
+            ]);
+          }
+          buildScript(middle.end, end1, middle.end - middle.diag, end2, script);
+        }
+      };
+      var buildSnake = function (start, diag, end1, end2) {
+        var end = start;
+        while (end - diag < end2 && end < end1 && left[end] === right[end - diag]) {
+          ++end;
+        }
+        return snake(start, end, diag);
+      };
+      var getMiddleSnake = function (start1, end1, start2, end2) {
+        var m = end1 - start1;
+        var n = end2 - start2;
+        if (m === 0 || n === 0) {
+          return null;
+        }
+        var delta = m - n;
+        var sum = n + m;
+        var offset = (sum % 2 === 0 ? sum : sum + 1) / 2;
+        vDown[1 + offset] = start1;
+        vUp[1 + offset] = end1 + 1;
+        var d, k, i, x, y;
+        for (d = 0; d <= offset; ++d) {
+          for (k = -d; k <= d; k += 2) {
+            i = k + offset;
+            if (k === -d || k !== d && vDown[i - 1] < vDown[i + 1]) {
+              vDown[i] = vDown[i + 1];
+            } else {
+              vDown[i] = vDown[i - 1] + 1;
+            }
+            x = vDown[i];
+            y = x - start1 + start2 - k;
+            while (x < end1 && y < end2 && left[x] === right[y]) {
+              vDown[i] = ++x;
+              ++y;
+            }
+            if (delta % 2 !== 0 && delta - d <= k && k <= delta + d) {
+              if (vUp[i - delta] <= vDown[i]) {
+                return buildSnake(vUp[i - delta], k + start1 - start2, end1, end2);
+              }
+            }
+          }
+          for (k = delta - d; k <= delta + d; k += 2) {
+            i = k + offset - delta;
+            if (k === delta - d || k !== delta + d && vUp[i + 1] <= vUp[i - 1]) {
+              vUp[i] = vUp[i + 1] - 1;
+            } else {
+              vUp[i] = vUp[i - 1];
+            }
+            x = vUp[i] - 1;
+            y = x - start1 + start2 - k;
+            while (x >= start1 && y >= start2 && left[x] === right[y]) {
+              vUp[i] = x--;
+              y--;
+            }
+            if (delta % 2 === 0 && -d <= k && k <= d) {
+              if (vUp[i] <= vDown[i + delta]) {
+                return buildSnake(vUp[i], k + start1 - start2, end1, end2);
+              }
+            }
+          }
+        }
+      };
+      var script = [];
+      buildScript(0, left.length, 0, right.length, script);
+      return script;
+    };
+
+    var getOuterHtml = function (elm) {
+      if (isElement$5(elm)) {
+        return elm.outerHTML;
+      } else if (isText$7(elm)) {
+        return Entities.encodeRaw(elm.data, false);
+      } else if (isComment(elm)) {
+        return '<!--' + elm.data + '-->';
+      }
+      return '';
+    };
+    var createFragment = function (html) {
+      var node;
+      var container = document.createElement('div');
+      var frag = document.createDocumentFragment();
+      if (html) {
+        container.innerHTML = html;
+      }
+      while (node = container.firstChild) {
+        frag.appendChild(node);
+      }
+      return frag;
+    };
+    var insertAt = function (elm, html, index) {
+      var fragment = createFragment(html);
+      if (elm.hasChildNodes() && index < elm.childNodes.length) {
+        var target = elm.childNodes[index];
+        target.parentNode.insertBefore(fragment, target);
+      } else {
+        elm.appendChild(fragment);
+      }
+    };
+    var removeAt = function (elm, index) {
+      if (elm.hasChildNodes() && index < elm.childNodes.length) {
+        var target = elm.childNodes[index];
+        target.parentNode.removeChild(target);
+      }
+    };
+    var applyDiff = function (diff, elm) {
+      var index = 0;
+      each$k(diff, function (action) {
+        if (action[0] === KEEP) {
+          index++;
+        } else if (action[0] === INSERT) {
+          insertAt(elm, action[1], index);
+          index++;
+        } else if (action[0] === DELETE) {
+          removeAt(elm, index);
+        }
+      });
+    };
+    var read$2 = function (elm) {
+      return filter$4(map$3(from(elm.childNodes), getOuterHtml), function (item) {
+        return item.length > 0;
+      });
+    };
+    var write = function (fragments, elm) {
+      var currentFragments = map$3(from(elm.childNodes), getOuterHtml);
+      applyDiff(diff(currentFragments, fragments), elm);
+      return elm;
+    };
+
+    var lazyTempDocument = cached(function () {
+      return document.implementation.createHTMLDocument('undo');
+    });
+    var hasIframes = function (html) {
+      return html.indexOf('</iframe>') !== -1;
+    };
+    var createFragmentedLevel = function (fragments) {
+      return {
+        type: 'fragmented',
+        fragments: fragments,
+        content: '',
+        bookmark: null,
+        beforeBookmark: null
+      };
+    };
+    var createCompleteLevel = function (content) {
+      return {
+        type: 'complete',
+        fragments: null,
+        content: content,
+        bookmark: null,
+        beforeBookmark: null
+      };
+    };
+    var createFromEditor = function (editor) {
+      var fragments = read$2(editor.getBody());
+      var trimmedFragments = bind(fragments, function (html) {
+        var trimmed = trimInternal(editor.serializer, html);
+        return trimmed.length > 0 ? [trimmed] : [];
+      });
+      var content = trimmedFragments.join('');
+      return hasIframes(content) ? createFragmentedLevel(trimmedFragments) : createCompleteLevel(content);
+    };
+    var applyToEditor = function (editor, level, before) {
+      var bookmark = before ? level.beforeBookmark : level.bookmark;
+      if (level.type === 'fragmented') {
+        write(level.fragments, editor.getBody());
+      } else {
+        editor.setContent(level.content, {
+          format: 'raw',
+          no_selection: isNonNullable(bookmark) && isPathBookmark(bookmark) ? !bookmark.isFakeCaret : true
+        });
+      }
+      editor.selection.moveToBookmark(bookmark);
+    };
+    var getLevelContent = function (level) {
+      return level.type === 'fragmented' ? level.fragments.join('') : level.content;
+    };
+    var getCleanLevelContent = function (level) {
+      var elm = SugarElement.fromTag('body', lazyTempDocument());
+      set(elm, getLevelContent(level));
+      each$k(descendants(elm, '*[data-mce-bogus]'), unwrap);
+      return get$3(elm);
+    };
+    var hasEqualContent = function (level1, level2) {
+      return getLevelContent(level1) === getLevelContent(level2);
+    };
+    var hasEqualCleanedContent = function (level1, level2) {
+      return getCleanLevelContent(level1) === getCleanLevelContent(level2);
+    };
+    var isEq$1 = function (level1, level2) {
+      if (!level1 || !level2) {
+        return false;
+      } else if (hasEqualContent(level1, level2)) {
+        return true;
+      } else {
+        return hasEqualCleanedContent(level1, level2);
+      }
+    };
+
+    var isUnlocked = function (locks) {
+      return locks.get() === 0;
+    };
+
+    var setTyping = function (undoManager, typing, locks) {
+      if (isUnlocked(locks)) {
+        undoManager.typing = typing;
+      }
+    };
+    var endTyping = function (undoManager, locks) {
+      if (undoManager.typing) {
+        setTyping(undoManager, false, locks);
+        undoManager.add();
+      }
+    };
+    var endTypingLevelIgnoreLocks = function (undoManager) {
+      if (undoManager.typing) {
+        undoManager.typing = false;
+        undoManager.add();
+      }
+    };
+
+    var beforeChange$1 = function (editor, locks, beforeBookmark) {
+      if (isUnlocked(locks)) {
+        beforeBookmark.set(getUndoBookmark(editor.selection));
+      }
+    };
+    var addUndoLevel$1 = function (editor, undoManager, index, locks, beforeBookmark, level, event) {
+      var currentLevel = createFromEditor(editor);
+      level = level || {};
+      level = Tools.extend(level, currentLevel);
+      if (isUnlocked(locks) === false || editor.removed) {
+        return null;
+      }
+      var lastLevel = undoManager.data[index.get()];
+      if (editor.fire('BeforeAddUndo', {
+          level: level,
+          lastLevel: lastLevel,
+          originalEvent: event
+        }).isDefaultPrevented()) {
+        return null;
+      }
+      if (lastLevel && isEq$1(lastLevel, level)) {
+        return null;
+      }
+      if (undoManager.data[index.get()]) {
+        beforeBookmark.get().each(function (bm) {
+          undoManager.data[index.get()].beforeBookmark = bm;
+        });
+      }
+      var customUndoRedoLevels = getCustomUndoRedoLevels(editor);
+      if (customUndoRedoLevels) {
+        if (undoManager.data.length > customUndoRedoLevels) {
+          for (var i = 0; i < undoManager.data.length - 1; i++) {
+            undoManager.data[i] = undoManager.data[i + 1];
+          }
+          undoManager.data.length--;
+          index.set(undoManager.data.length);
+        }
+      }
+      level.bookmark = getUndoBookmark(editor.selection);
+      if (index.get() < undoManager.data.length - 1) {
+        undoManager.data.length = index.get() + 1;
+      }
+      undoManager.data.push(level);
+      index.set(undoManager.data.length - 1);
+      var args = {
+        level: level,
+        lastLevel: lastLevel,
+        originalEvent: event
+      };
+      if (index.get() > 0) {
+        editor.setDirty(true);
+        editor.fire('AddUndo', args);
+        editor.fire('change', args);
+      } else {
+        editor.fire('AddUndo', args);
+      }
+      return level;
+    };
+    var clear$1 = function (editor, undoManager, index) {
+      undoManager.data = [];
+      index.set(0);
+      undoManager.typing = false;
+      editor.fire('ClearUndos');
+    };
+    var extra$1 = function (editor, undoManager, index, callback1, callback2) {
+      if (undoManager.transact(callback1)) {
+        var bookmark = undoManager.data[index.get()].bookmark;
+        var lastLevel = undoManager.data[index.get() - 1];
+        applyToEditor(editor, lastLevel, true);
+        if (undoManager.transact(callback2)) {
+          undoManager.data[index.get() - 1].beforeBookmark = bookmark;
+        }
+      }
+    };
+    var redo$1 = function (editor, index, data) {
+      var level;
+      if (index.get() < data.length - 1) {
+        index.set(index.get() + 1);
+        level = data[index.get()];
+        applyToEditor(editor, level, false);
+        editor.setDirty(true);
+        editor.fire('Redo', { level: level });
+      }
+      return level;
+    };
+    var undo$1 = function (editor, undoManager, locks, index) {
+      var level;
+      if (undoManager.typing) {
+        undoManager.add();
+        undoManager.typing = false;
+        setTyping(undoManager, false, locks);
+      }
+      if (index.get() > 0) {
+        index.set(index.get() - 1);
+        level = undoManager.data[index.get()];
+        applyToEditor(editor, level, true);
+        editor.setDirty(true);
+        editor.fire('Undo', { level: level });
+      }
+      return level;
+    };
+    var reset$1 = function (undoManager) {
+      undoManager.clear();
+      undoManager.add();
+    };
+    var hasUndo$1 = function (editor, undoManager, index) {
+      return index.get() > 0 || undoManager.typing && undoManager.data[0] && !isEq$1(createFromEditor(editor), undoManager.data[0]);
+    };
+    var hasRedo$1 = function (undoManager, index) {
+      return index.get() < undoManager.data.length - 1 && !undoManager.typing;
+    };
+    var transact$1 = function (undoManager, locks, callback) {
+      endTyping(undoManager, locks);
+      undoManager.beforeChange();
+      undoManager.ignore(callback);
+      return undoManager.add();
+    };
+    var ignore$1 = function (locks, callback) {
+      try {
+        locks.set(locks.get() + 1);
+        callback();
+      } finally {
+        locks.set(locks.get() - 1);
+      }
+    };
+
+    var addVisualInternal = function (editor, elm) {
+      var dom = editor.dom;
+      var scope = isNonNullable(elm) ? elm : editor.getBody();
+      if (isUndefined(editor.hasVisual)) {
+        editor.hasVisual = isVisualAidsEnabled(editor);
+      }
+      each$k(dom.select('table,a', scope), function (matchedElm) {
+        switch (matchedElm.nodeName) {
+        case 'TABLE':
+          var cls = getVisualAidsTableClass(editor);
+          var value = dom.getAttrib(matchedElm, 'border');
+          if ((!value || value === '0') && editor.hasVisual) {
+            dom.addClass(matchedElm, cls);
+          } else {
+            dom.removeClass(matchedElm, cls);
+          }
+          break;
+        case 'A':
+          if (!dom.getAttrib(matchedElm, 'href')) {
+            var value_1 = dom.getAttrib(matchedElm, 'name') || matchedElm.id;
+            var cls_1 = getVisualAidsAnchorClass(editor);
+            if (value_1 && editor.hasVisual) {
+              dom.addClass(matchedElm, cls_1);
+            } else {
+              dom.removeClass(matchedElm, cls_1);
+            }
+          }
+          break;
+        }
+      });
+      editor.fire('VisualAid', {
+        element: elm,
+        hasVisual: editor.hasVisual
+      });
+    };
+
+    var makePlainAdaptor = function (editor) {
+      return {
+        undoManager: {
+          beforeChange: function (locks, beforeBookmark) {
+            return beforeChange$1(editor, locks, beforeBookmark);
+          },
+          add: function (undoManager, index, locks, beforeBookmark, level, event) {
+            return addUndoLevel$1(editor, undoManager, index, locks, beforeBookmark, level, event);
+          },
+          undo: function (undoManager, locks, index) {
+            return undo$1(editor, undoManager, locks, index);
+          },
+          redo: function (index, data) {
+            return redo$1(editor, index, data);
+          },
+          clear: function (undoManager, index) {
+            return clear$1(editor, undoManager, index);
+          },
+          reset: function (undoManager) {
+            return reset$1(undoManager);
+          },
+          hasUndo: function (undoManager, index) {
+            return hasUndo$1(editor, undoManager, index);
+          },
+          hasRedo: function (undoManager, index) {
+            return hasRedo$1(undoManager, index);
+          },
+          transact: function (undoManager, locks, callback) {
+            return transact$1(undoManager, locks, callback);
+          },
+          ignore: function (locks, callback) {
+            return ignore$1(locks, callback);
+          },
+          extra: function (undoManager, index, callback1, callback2) {
+            return extra$1(editor, undoManager, index, callback1, callback2);
+          }
+        },
+        formatter: {
+          match: function (name, vars, node, similar) {
+            return match$2(editor, name, vars, node, similar);
+          },
+          matchAll: function (names, vars) {
+            return matchAll(editor, names, vars);
+          },
+          matchNode: function (node, name, vars, similar) {
+            return matchNode(editor, node, name, vars, similar);
+          },
+          canApply: function (name) {
+            return canApply(editor, name);
+          },
+          closest: function (names) {
+            return closest(editor, names);
+          },
+          apply: function (name, vars, node) {
+            return applyFormat$1(editor, name, vars, node);
+          },
+          remove: function (name, vars, node, similar) {
+            return remove$1(editor, name, vars, node, similar);
+          },
+          toggle: function (name, vars, node) {
+            return toggle(editor, name, vars, node);
+          },
+          formatChanged: function (registeredFormatListeners, formats, callback, similar, vars) {
+            return formatChangedInternal(editor, registeredFormatListeners, formats, callback, similar, vars);
+          }
+        },
+        editor: {
+          getContent: function (args, format) {
+            return getContentInternal(editor, args, format);
+          },
+          setContent: function (content, args) {
+            return setContentInternal(editor, content, args);
+          },
+          insertContent: function (value, details) {
+            return insertHtmlAtCaret(editor, value, details);
+          },
+          addVisual: function (elm) {
+            return addVisualInternal(editor, elm);
+          }
+        },
+        selection: {
+          getContent: function (format, args) {
+            return getSelectedContentInternal(editor, format, args);
+          }
+        },
+        raw: {
+          getModel: function () {
+            return Optional.none();
+          }
+        }
+      };
+    };
+    var makeRtcAdaptor = function (rtcEditor) {
+      var defaultVars = function (vars) {
+        return isObject(vars) ? vars : {};
+      };
+      var undoManager = rtcEditor.undoManager, formatter = rtcEditor.formatter, editor = rtcEditor.editor, selection = rtcEditor.selection, raw = rtcEditor.raw;
+      return {
+        undoManager: {
+          beforeChange: undoManager.beforeChange,
+          add: undoManager.add,
+          undo: undoManager.undo,
+          redo: undoManager.redo,
+          clear: undoManager.clear,
+          reset: undoManager.reset,
+          hasUndo: undoManager.hasUndo,
+          hasRedo: undoManager.hasRedo,
+          transact: function (_undoManager, _locks, fn) {
+            return undoManager.transact(fn);
+          },
+          ignore: function (_locks, callback) {
+            return undoManager.ignore(callback);
+          },
+          extra: function (_undoManager, _index, callback1, callback2) {
+            return undoManager.extra(callback1, callback2);
+          }
+        },
+        formatter: {
+          match: function (name, vars, _node, similar) {
+            return formatter.match(name, defaultVars(vars), similar);
+          },
+          matchAll: formatter.matchAll,
+          matchNode: formatter.matchNode,
+          canApply: function (name) {
+            return formatter.canApply(name);
+          },
+          closest: function (names) {
+            return formatter.closest(names);
+          },
+          apply: function (name, vars, _node) {
+            return formatter.apply(name, defaultVars(vars));
+          },
+          remove: function (name, vars, _node, _similar) {
+            return formatter.remove(name, defaultVars(vars));
+          },
+          toggle: function (name, vars, _node) {
+            return formatter.toggle(name, defaultVars(vars));
+          },
+          formatChanged: function (_rfl, formats, callback, similar, vars) {
+            return formatter.formatChanged(formats, callback, similar, vars);
+          }
+        },
+        editor: {
+          getContent: function (args, _format) {
+            return editor.getContent(args);
+          },
+          setContent: function (content, args) {
+            return editor.setContent(content, args);
+          },
+          insertContent: function (content, _details) {
+            return editor.insertContent(content);
+          },
+          addVisual: editor.addVisual
+        },
+        selection: {
+          getContent: function (_format, args) {
+            return selection.getContent(args);
+          }
+        },
+        raw: {
+          getModel: function () {
+            return Optional.some(raw.getRawModel());
+          }
+        }
+      };
+    };
+    var makeNoopAdaptor = function () {
+      var nul = constant(null);
+      var empty = constant('');
+      return {
+        undoManager: {
+          beforeChange: noop,
+          add: nul,
+          undo: nul,
+          redo: nul,
+          clear: noop,
+          reset: noop,
+          hasUndo: never,
+          hasRedo: never,
+          transact: nul,
+          ignore: noop,
+          extra: noop
+        },
+        formatter: {
+          match: never,
+          matchAll: constant([]),
+          matchNode: constant(undefined),
+          canApply: never,
+          closest: empty,
+          apply: noop,
+          remove: noop,
+          toggle: noop,
+          formatChanged: constant({ unbind: noop })
+        },
+        editor: {
+          getContent: empty,
+          setContent: empty,
+          insertContent: noop,
+          addVisual: noop
+        },
+        selection: { getContent: empty },
+        raw: { getModel: constant(Optional.none()) }
+      };
+    };
+    var isRtc = function (editor) {
+      return has$2(editor.plugins, 'rtc');
+    };
+    var getRtcSetup = function (editor) {
+      return get$9(editor.plugins, 'rtc').bind(function (rtcPlugin) {
+        return Optional.from(rtcPlugin.setup);
+      });
+    };
+    var setup$i = function (editor) {
+      var editorCast = editor;
+      return getRtcSetup(editor).fold(function () {
+        editorCast.rtcInstance = makePlainAdaptor(editor);
+        return Optional.none();
+      }, function (setup) {
+        editorCast.rtcInstance = makeNoopAdaptor();
+        return Optional.some(function () {
+          return setup().then(function (rtcEditor) {
+            editorCast.rtcInstance = makeRtcAdaptor(rtcEditor);
+            return rtcEditor.rtc.isRemote;
+          });
+        });
+      });
+    };
+    var getRtcInstanceWithFallback = function (editor) {
+      return editor.rtcInstance ? editor.rtcInstance : makePlainAdaptor(editor);
+    };
+    var getRtcInstanceWithError = function (editor) {
+      var rtcInstance = editor.rtcInstance;
+      if (!rtcInstance) {
+        throw new Error('Failed to get RTC instance not yet initialized.');
+      } else {
+        return rtcInstance;
+      }
+    };
+    var beforeChange = function (editor, locks, beforeBookmark) {
+      getRtcInstanceWithError(editor).undoManager.beforeChange(locks, beforeBookmark);
+    };
+    var addUndoLevel = function (editor, undoManager, index, locks, beforeBookmark, level, event) {
+      return getRtcInstanceWithError(editor).undoManager.add(undoManager, index, locks, beforeBookmark, level, event);
+    };
+    var undo = function (editor, undoManager, locks, index) {
+      return getRtcInstanceWithError(editor).undoManager.undo(undoManager, locks, index);
+    };
+    var redo = function (editor, index, data) {
+      return getRtcInstanceWithError(editor).undoManager.redo(index, data);
+    };
+    var clear = function (editor, undoManager, index) {
+      getRtcInstanceWithError(editor).undoManager.clear(undoManager, index);
+    };
+    var reset = function (editor, undoManager) {
+      getRtcInstanceWithError(editor).undoManager.reset(undoManager);
+    };
+    var hasUndo = function (editor, undoManager, index) {
+      return getRtcInstanceWithError(editor).undoManager.hasUndo(undoManager, index);
+    };
+    var hasRedo = function (editor, undoManager, index) {
+      return getRtcInstanceWithError(editor).undoManager.hasRedo(undoManager, index);
+    };
+    var transact = function (editor, undoManager, locks, callback) {
+      return getRtcInstanceWithError(editor).undoManager.transact(undoManager, locks, callback);
+    };
+    var ignore = function (editor, locks, callback) {
+      getRtcInstanceWithError(editor).undoManager.ignore(locks, callback);
+    };
+    var extra = function (editor, undoManager, index, callback1, callback2) {
+      getRtcInstanceWithError(editor).undoManager.extra(undoManager, index, callback1, callback2);
+    };
+    var matchFormat = function (editor, name, vars, node, similar) {
+      return getRtcInstanceWithError(editor).formatter.match(name, vars, node, similar);
+    };
+    var matchAllFormats = function (editor, names, vars) {
+      return getRtcInstanceWithError(editor).formatter.matchAll(names, vars);
+    };
+    var matchNodeFormat = function (editor, node, name, vars, similar) {
+      return getRtcInstanceWithError(editor).formatter.matchNode(node, name, vars, similar);
+    };
+    var canApplyFormat = function (editor, name) {
+      return getRtcInstanceWithError(editor).formatter.canApply(name);
+    };
+    var closestFormat = function (editor, names) {
+      return getRtcInstanceWithError(editor).formatter.closest(names);
+    };
+    var applyFormat = function (editor, name, vars, node) {
+      getRtcInstanceWithError(editor).formatter.apply(name, vars, node);
+    };
+    var removeFormat = function (editor, name, vars, node, similar) {
+      getRtcInstanceWithError(editor).formatter.remove(name, vars, node, similar);
+    };
+    var toggleFormat = function (editor, name, vars, node) {
+      getRtcInstanceWithError(editor).formatter.toggle(name, vars, node);
+    };
+    var formatChanged = function (editor, registeredFormatListeners, formats, callback, similar, vars) {
+      return getRtcInstanceWithError(editor).formatter.formatChanged(registeredFormatListeners, formats, callback, similar, vars);
+    };
+    var getContent$2 = function (editor, args, format) {
+      return getRtcInstanceWithFallback(editor).editor.getContent(args, format);
+    };
+    var setContent$2 = function (editor, content, args) {
+      return getRtcInstanceWithFallback(editor).editor.setContent(content, args);
+    };
+    var insertContent = function (editor, value, details) {
+      return getRtcInstanceWithFallback(editor).editor.insertContent(value, details);
+    };
+    var getSelectedContent = function (editor, format, args) {
+      return getRtcInstanceWithError(editor).selection.getContent(format, args);
+    };
+    var addVisual$1 = function (editor, elm) {
+      return getRtcInstanceWithError(editor).editor.addVisual(elm);
+    };
+
+    var getContent$1 = function (editor, args) {
+      if (args === void 0) {
+        args = {};
+      }
+      var format = args.format ? args.format : 'html';
+      return getSelectedContent(editor, format, args);
+    };
+
+    var removeEmpty = function (text) {
+      if (text.dom.length === 0) {
+        remove$7(text);
+        return Optional.none();
+      } else {
+        return Optional.some(text);
+      }
+    };
+    var walkPastBookmark = function (node, start) {
+      return node.filter(function (elm) {
+        return BookmarkManager.isBookmarkNode(elm.dom);
+      }).bind(start ? nextSibling : prevSibling);
+    };
+    var merge = function (outer, inner, rng, start) {
+      var outerElm = outer.dom;
+      var innerElm = inner.dom;
+      var oldLength = start ? outerElm.length : innerElm.length;
+      if (start) {
+        mergeTextNodes(outerElm, innerElm, false, !start);
+        rng.setStart(innerElm, oldLength);
+      } else {
+        mergeTextNodes(innerElm, outerElm, false, !start);
+        rng.setEnd(innerElm, oldLength);
+      }
+    };
+    var normalizeTextIfRequired = function (inner, start) {
+      parent(inner).each(function (root) {
+        var text = inner.dom;
+        if (start && needsToBeNbspLeft(root, CaretPosition(text, 0))) {
+          normalizeWhitespaceAfter(text, 0);
+        } else if (!start && needsToBeNbspRight(root, CaretPosition(text, text.length))) {
+          normalizeWhitespaceBefore(text, text.length);
+        }
+      });
+    };
+    var mergeAndNormalizeText = function (outerNode, innerNode, rng, start) {
+      outerNode.bind(function (outer) {
+        var normalizer = start ? normalizeWhitespaceBefore : normalizeWhitespaceAfter;
+        normalizer(outer.dom, start ? outer.dom.length : 0);
+        return innerNode.filter(isText$8).map(function (inner) {
+          return merge(outer, inner, rng, start);
+        });
+      }).orThunk(function () {
+        var innerTextNode = walkPastBookmark(innerNode, start).or(innerNode).filter(isText$8);
+        return innerTextNode.map(function (inner) {
+          return normalizeTextIfRequired(inner, start);
+        });
+      });
+    };
+    var rngSetContent = function (rng, fragment) {
+      var firstChild = Optional.from(fragment.firstChild).map(SugarElement.fromDom);
+      var lastChild = Optional.from(fragment.lastChild).map(SugarElement.fromDom);
+      rng.deleteContents();
+      rng.insertNode(fragment);
+      var prevText = firstChild.bind(prevSibling).filter(isText$8).bind(removeEmpty);
+      var nextText = lastChild.bind(nextSibling).filter(isText$8).bind(removeEmpty);
+      mergeAndNormalizeText(prevText, firstChild, rng, true);
+      mergeAndNormalizeText(nextText, lastChild, rng, false);
+      rng.collapse(false);
+    };
+    var setupArgs = function (args, content) {
+      return __assign(__assign({ format: 'html' }, args), {
+        set: true,
+        selection: true,
+        content: content
+      });
+    };
+    var cleanContent = function (editor, args) {
+      if (args.format !== 'raw') {
+        var rng = editor.selection.getRng();
+        var contextBlock = editor.dom.getParent(rng.commonAncestorContainer, editor.dom.isBlock);
+        var contextArgs = contextBlock ? { context: contextBlock.nodeName.toLowerCase() } : {};
+        var node = editor.parser.parse(args.content, __assign(__assign({
+          isRootContent: true,
+          forced_root_block: false
+        }, contextArgs), args));
+        return HtmlSerializer({ validate: editor.validate }, editor.schema).serialize(node);
+      } else {
+        return args.content;
+      }
+    };
+    var setContent$1 = function (editor, content, args) {
+      if (args === void 0) {
+        args = {};
+      }
+      var defaultedArgs = setupArgs(args, content);
+      var updatedArgs = defaultedArgs;
+      if (!defaultedArgs.no_events) {
+        var eventArgs = editor.fire('BeforeSetContent', defaultedArgs);
+        if (eventArgs.isDefaultPrevented()) {
+          editor.fire('SetContent', eventArgs);
+          return;
+        } else {
+          updatedArgs = eventArgs;
+        }
+      }
+      updatedArgs.content = cleanContent(editor, updatedArgs);
+      var rng = editor.selection.getRng();
+      rngSetContent(rng, rng.createContextualFragment(updatedArgs.content));
+      editor.selection.setRng(rng);
+      scrollRangeIntoView(editor, rng);
+      if (!updatedArgs.no_events) {
+        editor.fire('SetContent', updatedArgs);
+      }
+    };
+
+    var deleteFromCallbackMap = function (callbackMap, selector, callback) {
+      if (callbackMap && has$2(callbackMap, selector)) {
+        var newCallbacks = filter$4(callbackMap[selector], function (cb) {
+          return cb !== callback;
+        });
+        if (newCallbacks.length === 0) {
+          delete callbackMap[selector];
+        } else {
+          callbackMap[selector] = newCallbacks;
+        }
+      }
+    };
+    function SelectorChanged (dom, editor) {
+      var selectorChangedData;
+      var currentSelectors;
+      return {
+        selectorChangedWithUnbind: function (selector, callback) {
+          if (!selectorChangedData) {
+            selectorChangedData = {};
+            currentSelectors = {};
+            editor.on('NodeChange', function (e) {
+              var node = e.element, parents = dom.getParents(node, null, dom.getRoot()), matchedSelectors = {};
+              Tools.each(selectorChangedData, function (callbacks, selector) {
+                Tools.each(parents, function (node) {
+                  if (dom.is(node, selector)) {
+                    if (!currentSelectors[selector]) {
+                      Tools.each(callbacks, function (callback) {
+                        callback(true, {
+                          node: node,
+                          selector: selector,
+                          parents: parents
+                        });
+                      });
+                      currentSelectors[selector] = callbacks;
+                    }
+                    matchedSelectors[selector] = callbacks;
+                    return false;
+                  }
+                });
+              });
+              Tools.each(currentSelectors, function (callbacks, selector) {
+                if (!matchedSelectors[selector]) {
+                  delete currentSelectors[selector];
+                  Tools.each(callbacks, function (callback) {
+                    callback(false, {
+                      node: node,
+                      selector: selector,
+                      parents: parents
+                    });
+                  });
+                }
+              });
+            });
+          }
+          if (!selectorChangedData[selector]) {
+            selectorChangedData[selector] = [];
+          }
+          selectorChangedData[selector].push(callback);
+          return {
+            unbind: function () {
+              deleteFromCallbackMap(selectorChangedData, selector, callback);
+              deleteFromCallbackMap(currentSelectors, selector, callback);
+            }
+          };
+        }
+      };
+    }
+
+    var isNativeIeSelection = function (rng) {
+      return !!rng.select;
+    };
+    var isAttachedToDom = function (node) {
+      return !!(node && node.ownerDocument) && contains$1(SugarElement.fromDom(node.ownerDocument), SugarElement.fromDom(node));
+    };
+    var isValidRange = function (rng) {
+      if (!rng) {
+        return false;
+      } else if (isNativeIeSelection(rng)) {
+        return true;
+      } else {
+        return isAttachedToDom(rng.startContainer) && isAttachedToDom(rng.endContainer);
+      }
+    };
+    var EditorSelection = function (dom, win, serializer, editor) {
+      var selectedRange;
+      var explicitRange;
+      var selectorChangedWithUnbind = SelectorChanged(dom, editor).selectorChangedWithUnbind;
+      var setCursorLocation = function (node, offset) {
+        var rng = dom.createRng();
+        if (isNonNullable(node) && isNonNullable(offset)) {
+          rng.setStart(node, offset);
+          rng.setEnd(node, offset);
+          setRng(rng);
+          collapse(false);
+        } else {
+          moveEndPoint(dom, rng, editor.getBody(), true);
+          setRng(rng);
+        }
+      };
+      var getContent = function (args) {
+        return getContent$1(editor, args);
+      };
+      var setContent = function (content, args) {
+        return setContent$1(editor, content, args);
+      };
+      var getStart$1 = function (real) {
+        return getStart(editor.getBody(), getRng$1(), real);
+      };
+      var getEnd$1 = function (real) {
+        return getEnd(editor.getBody(), getRng$1(), real);
+      };
+      var getBookmark = function (type, normalized) {
+        return bookmarkManager.getBookmark(type, normalized);
+      };
+      var moveToBookmark = function (bookmark) {
+        return bookmarkManager.moveToBookmark(bookmark);
+      };
+      var select$1 = function (node, content) {
+        select(dom, node, content).each(setRng);
+        return node;
+      };
+      var isCollapsed = function () {
+        var rng = getRng$1(), sel = getSel();
+        if (!rng || rng.item) {
+          return false;
+        }
+        if (rng.compareEndPoints) {
+          return rng.compareEndPoints('StartToEnd', rng) === 0;
+        }
+        return !sel || rng.collapsed;
+      };
+      var collapse = function (toStart) {
+        var rng = getRng$1();
+        rng.collapse(!!toStart);
+        setRng(rng);
+      };
+      var getSel = function () {
+        return win.getSelection ? win.getSelection() : win.document.selection;
+      };
+      var getRng$1 = function () {
+        var selection, rng, elm;
+        var tryCompareBoundaryPoints = function (how, sourceRange, destinationRange) {
+          try {
+            return sourceRange.compareBoundaryPoints(how, destinationRange);
+          } catch (ex) {
+            return -1;
+          }
+        };
+        var doc = win.document;
+        if (editor.bookmark !== undefined && hasFocus(editor) === false) {
+          var bookmark = getRng(editor);
+          if (bookmark.isSome()) {
+            return bookmark.map(function (r) {
+              return processRanges(editor, [r])[0];
+            }).getOr(doc.createRange());
+          }
+        }
+        try {
+          if ((selection = getSel()) && !isRestrictedNode(selection.anchorNode)) {
+            if (selection.rangeCount > 0) {
+              rng = selection.getRangeAt(0);
+            } else {
+              rng = selection.createRange ? selection.createRange() : doc.createRange();
+            }
+            rng = processRanges(editor, [rng])[0];
+          }
+        } catch (ex) {
+        }
+        if (!rng) {
+          rng = doc.createRange ? doc.createRange() : doc.body.createTextRange();
+        }
+        if (rng.setStart && rng.startContainer.nodeType === 9 && rng.collapsed) {
+          elm = dom.getRoot();
+          rng.setStart(elm, 0);
+          rng.setEnd(elm, 0);
+        }
+        if (selectedRange && explicitRange) {
+          if (tryCompareBoundaryPoints(rng.START_TO_START, rng, selectedRange) === 0 && tryCompareBoundaryPoints(rng.END_TO_END, rng, selectedRange) === 0) {
+            rng = explicitRange;
+          } else {
+            selectedRange = null;
+            explicitRange = null;
+          }
+        }
+        return rng;
+      };
+      var setRng = function (rng, forward) {
+        var node;
+        if (!isValidRange(rng)) {
+          return;
+        }
+        var ieRange = isNativeIeSelection(rng) ? rng : null;
+        if (ieRange) {
+          explicitRange = null;
+          try {
+            ieRange.select();
+          } catch (ex) {
+          }
+          return;
+        }
+        var sel = getSel();
+        var evt = editor.fire('SetSelectionRange', {
+          range: rng,
+          forward: forward
+        });
+        rng = evt.range;
+        if (sel) {
+          explicitRange = rng;
+          try {
+            sel.removeAllRanges();
+            sel.addRange(rng);
+          } catch (ex) {
+          }
+          if (forward === false && sel.extend) {
+            sel.collapse(rng.endContainer, rng.endOffset);
+            sel.extend(rng.startContainer, rng.startOffset);
+          }
+          selectedRange = sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+        }
+        if (!rng.collapsed && rng.startContainer === rng.endContainer && sel.setBaseAndExtent && !Env.ie) {
+          if (rng.endOffset - rng.startOffset < 2) {
+            if (rng.startContainer.hasChildNodes()) {
+              node = rng.startContainer.childNodes[rng.startOffset];
+              if (node && node.tagName === 'IMG') {
+                sel.setBaseAndExtent(rng.startContainer, rng.startOffset, rng.endContainer, rng.endOffset);
+                if (sel.anchorNode !== rng.startContainer || sel.focusNode !== rng.endContainer) {
+                  sel.setBaseAndExtent(node, 0, node, 1);
+                }
+              }
+            }
+          }
+        }
+        editor.fire('AfterSetSelectionRange', {
+          range: rng,
+          forward: forward
+        });
+      };
+      var setNode = function (elm) {
+        setContent(dom.getOuterHTML(elm));
+        return elm;
+      };
+      var getNode$1 = function () {
+        return getNode(editor.getBody(), getRng$1());
+      };
+      var getSelectedBlocks$1 = function (startElm, endElm) {
+        return getSelectedBlocks(dom, getRng$1(), startElm, endElm);
+      };
+      var isForward = function () {
+        var sel = getSel();
+        var anchorNode = sel === null || sel === void 0 ? void 0 : sel.anchorNode;
+        var focusNode = sel === null || sel === void 0 ? void 0 : sel.focusNode;
+        if (!sel || !anchorNode || !focusNode || isRestrictedNode(anchorNode) || isRestrictedNode(focusNode)) {
+          return true;
+        }
+        var anchorRange = dom.createRng();
+        anchorRange.setStart(anchorNode, sel.anchorOffset);
+        anchorRange.collapse(true);
+        var focusRange = dom.createRng();
+        focusRange.setStart(focusNode, sel.focusOffset);
+        focusRange.collapse(true);
+        return anchorRange.compareBoundaryPoints(anchorRange.START_TO_START, focusRange) <= 0;
+      };
+      var normalize = function () {
+        var rng = getRng$1();
+        var sel = getSel();
+        if (!hasMultipleRanges(sel) && hasAnyRanges(editor)) {
+          var normRng = normalize$2(dom, rng);
+          normRng.each(function (normRng) {
+            setRng(normRng, isForward());
+          });
+          return normRng.getOr(rng);
+        }
+        return rng;
+      };
+      var selectorChanged = function (selector, callback) {
+        selectorChangedWithUnbind(selector, callback);
+        return exports;
+      };
+      var getScrollContainer = function () {
+        var scrollContainer;
+        var node = dom.getRoot();
+        while (node && node.nodeName !== 'BODY') {
+          if (node.scrollHeight > node.clientHeight) {
+            scrollContainer = node;
+            break;
+          }
+          node = node.parentNode;
+        }
+        return scrollContainer;
+      };
+      var scrollIntoView = function (elm, alignToTop) {
+        return scrollElementIntoView(editor, elm, alignToTop);
+      };
+      var placeCaretAt = function (clientX, clientY) {
+        return setRng(fromPoint(clientX, clientY, editor.getDoc()));
+      };
+      var getBoundingClientRect = function () {
+        var rng = getRng$1();
+        return rng.collapsed ? CaretPosition.fromRangeStart(rng).getClientRects()[0] : rng.getBoundingClientRect();
+      };
+      var destroy = function () {
+        win = selectedRange = explicitRange = null;
+        controlSelection.destroy();
+      };
+      var exports = {
+        bookmarkManager: null,
+        controlSelection: null,
+        dom: dom,
+        win: win,
+        serializer: serializer,
+        editor: editor,
+        collapse: collapse,
+        setCursorLocation: setCursorLocation,
+        getContent: getContent,
+        setContent: setContent,
+        getBookmark: getBookmark,
+        moveToBookmark: moveToBookmark,
+        select: select$1,
+        isCollapsed: isCollapsed,
+        isForward: isForward,
+        setNode: setNode,
+        getNode: getNode$1,
+        getSel: getSel,
+        setRng: setRng,
+        getRng: getRng$1,
+        getStart: getStart$1,
+        getEnd: getEnd$1,
+        getSelectedBlocks: getSelectedBlocks$1,
+        normalize: normalize,
+        selectorChanged: selectorChanged,
+        selectorChangedWithUnbind: selectorChangedWithUnbind,
+        getScrollContainer: getScrollContainer,
+        scrollIntoView: scrollIntoView,
+        placeCaretAt: placeCaretAt,
+        getBoundingClientRect: getBoundingClientRect,
+        destroy: destroy
+      };
+      var bookmarkManager = BookmarkManager(exports);
+      var controlSelection = ControlSelection(exports, editor);
+      exports.bookmarkManager = bookmarkManager;
+      exports.controlSelection = controlSelection;
+      return exports;
+    };
+
+    var removeAttrs = function (node, names) {
+      each$k(names, function (name) {
+        node.attr(name, null);
+      });
+    };
+    var addFontToSpansFilter = function (domParser, styles, fontSizes) {
+      domParser.addNodeFilter('font', function (nodes) {
+        each$k(nodes, function (node) {
+          var props = styles.parse(node.attr('style'));
+          var color = node.attr('color');
+          var face = node.attr('face');
+          var size = node.attr('size');
+          if (color) {
+            props.color = color;
+          }
+          if (face) {
+            props['font-family'] = face;
+          }
+          if (size) {
+            props['font-size'] = fontSizes[parseInt(node.attr('size'), 10) - 1];
+          }
+          node.name = 'span';
+          node.attr('style', styles.serialize(props));
+          removeAttrs(node, [
+            'color',
+            'face',
+            'size'
+          ]);
+        });
+      });
+    };
+    var addStrikeToSpanFilter = function (domParser, styles) {
+      domParser.addNodeFilter('strike', function (nodes) {
+        each$k(nodes, function (node) {
+          var props = styles.parse(node.attr('style'));
+          props['text-decoration'] = 'line-through';
+          node.name = 'span';
+          node.attr('style', styles.serialize(props));
+        });
+      });
+    };
+    var addFilters = function (domParser, settings) {
+      var styles = Styles();
+      if (settings.convert_fonts_to_spans) {
+        addFontToSpansFilter(domParser, styles, Tools.explode(settings.font_size_legacy_values));
+      }
+      addStrikeToSpanFilter(domParser, styles);
+    };
+    var register$2 = function (domParser, settings) {
+      if (settings.inline_styles) {
+        addFilters(domParser, settings);
+      }
+    };
+
+    var blobUriToBlob = function (url) {
+      return new promiseObj(function (resolve, reject) {
+        var rejectWithError = function () {
+          reject('Cannot convert ' + url + ' to Blob. Resource might not exist or is inaccessible.');
+        };
+        try {
+          var xhr_1 = new XMLHttpRequest();
+          xhr_1.open('GET', url, true);
+          xhr_1.responseType = 'blob';
+          xhr_1.onload = function () {
+            if (xhr_1.status === 200) {
+              resolve(xhr_1.response);
+            } else {
+              rejectWithError();
+            }
+          };
+          xhr_1.onerror = rejectWithError;
+          xhr_1.send();
+        } catch (ex) {
+          rejectWithError();
+        }
+      });
+    };
+    var parseDataUri = function (uri) {
+      var type;
+      var uriParts = decodeURIComponent(uri).split(',');
+      var matches = /data:([^;]+)/.exec(uriParts[0]);
+      if (matches) {
+        type = matches[1];
+      }
+      return {
+        type: type,
+        data: uriParts[1]
+      };
+    };
+    var buildBlob = function (type, data) {
+      var str;
+      try {
+        str = atob(data);
+      } catch (e) {
+        return Optional.none();
+      }
+      var arr = new Uint8Array(str.length);
+      for (var i = 0; i < arr.length; i++) {
+        arr[i] = str.charCodeAt(i);
+      }
+      return Optional.some(new Blob([arr], { type: type }));
+    };
+    var dataUriToBlob = function (uri) {
+      return new promiseObj(function (resolve) {
+        var _a = parseDataUri(uri), type = _a.type, data = _a.data;
+        buildBlob(type, data).fold(function () {
+          return resolve(new Blob([]));
+        }, resolve);
+      });
+    };
+    var uriToBlob = function (url) {
+      if (url.indexOf('blob:') === 0) {
+        return blobUriToBlob(url);
+      }
+      if (url.indexOf('data:') === 0) {
+        return dataUriToBlob(url);
+      }
+      return null;
+    };
+    var blobToDataUri = function (blob) {
+      return new promiseObj(function (resolve) {
+        var reader = new FileReader();
+        reader.onloadend = function () {
+          resolve(reader.result);
+        };
+        reader.readAsDataURL(blob);
+      });
+    };
+
+    var count$1 = 0;
+    var uniqueId = function (prefix) {
+      return (prefix || 'blobid') + count$1++;
+    };
+    var imageToBlobInfo = function (blobCache, img, resolve, reject) {
+      var base64, blobInfo;
+      if (img.src.indexOf('blob:') === 0) {
+        blobInfo = blobCache.getByUri(img.src);
+        if (blobInfo) {
+          resolve({
+            image: img,
+            blobInfo: blobInfo
+          });
+        } else {
+          uriToBlob(img.src).then(function (blob) {
+            blobToDataUri(blob).then(function (dataUri) {
+              base64 = parseDataUri(dataUri).data;
+              blobInfo = blobCache.create(uniqueId(), blob, base64);
+              blobCache.add(blobInfo);
+              resolve({
+                image: img,
+                blobInfo: blobInfo
+              });
+            });
+          }, function (err) {
+            reject(err);
+          });
+        }
+        return;
+      }
+      var _a = parseDataUri(img.src), data = _a.data, type = _a.type;
+      base64 = data;
+      blobInfo = blobCache.getByData(base64, type);
+      if (blobInfo) {
+        resolve({
+          image: img,
+          blobInfo: blobInfo
+        });
+      } else {
+        uriToBlob(img.src).then(function (blob) {
+          blobInfo = blobCache.create(uniqueId(), blob, base64);
+          blobCache.add(blobInfo);
+          resolve({
+            image: img,
+            blobInfo: blobInfo
+          });
+        }, function (err) {
+          reject(err);
+        });
+      }
+    };
+    var getAllImages = function (elm) {
+      return elm ? from(elm.getElementsByTagName('img')) : [];
+    };
+    var ImageScanner = function (uploadStatus, blobCache) {
+      var cachedPromises = {};
+      var findAll = function (elm, predicate) {
+        if (!predicate) {
+          predicate = always;
+        }
+        var images = filter$4(getAllImages(elm), function (img) {
+          var src = img.src;
+          if (!Env.fileApi) {
+            return false;
+          }
+          if (img.hasAttribute('data-mce-bogus')) {
+            return false;
+          }
+          if (img.hasAttribute('data-mce-placeholder')) {
+            return false;
+          }
+          if (!src || src === Env.transparentSrc) {
+            return false;
+          }
+          if (src.indexOf('blob:') === 0) {
+            return !uploadStatus.isUploaded(src) && predicate(img);
+          }
+          if (src.indexOf('data:') === 0) {
+            return predicate(img);
+          }
+          return false;
+        });
+        var promises = map$3(images, function (img) {
+          if (cachedPromises[img.src] !== undefined) {
+            return new promiseObj(function (resolve) {
+              cachedPromises[img.src].then(function (imageInfo) {
+                if (typeof imageInfo === 'string') {
+                  return imageInfo;
+                }
+                resolve({
+                  image: img,
+                  blobInfo: imageInfo.blobInfo
+                });
+              });
+            });
+          }
+          var newPromise = new promiseObj(function (resolve, reject) {
+            imageToBlobInfo(blobCache, img, resolve, reject);
+          }).then(function (result) {
+            delete cachedPromises[result.image.src];
+            return result;
+          }).catch(function (error) {
+            delete cachedPromises[img.src];
+            return error;
+          });
+          cachedPromises[img.src] = newPromise;
+          return newPromise;
+        });
+        return promiseObj.all(promises);
+      };
+      return { findAll: findAll };
+    };
+
+    var paddEmptyNode = function (settings, args, blockElements, node) {
+      var brPreferred = settings.padd_empty_with_br || args.insert;
+      if (brPreferred && blockElements[node.name]) {
+        node.empty().append(new AstNode('br', 1)).shortEnded = true;
+      } else {
+        node.empty().append(new AstNode('#text', 3)).value = nbsp;
+      }
+    };
+    var isPaddedWithNbsp = function (node) {
+      return hasOnlyChild(node, '#text') && node.firstChild.value === nbsp;
+    };
+    var hasOnlyChild = function (node, name) {
+      return node && node.firstChild && node.firstChild === node.lastChild && node.firstChild.name === name;
+    };
+    var isPadded = function (schema, node) {
+      var rule = schema.getElementRule(node.name);
+      return rule && rule.paddEmpty;
+    };
+    var isEmpty = function (schema, nonEmptyElements, whitespaceElements, node) {
+      return node.isEmpty(nonEmptyElements, whitespaceElements, function (node) {
+        return isPadded(schema, node);
+      });
+    };
+    var isLineBreakNode = function (node, blockElements) {
+      return node && (has$2(blockElements, node.name) || node.name === 'br');
+    };
+
+    var isBogusImage = function (img) {
+      return isNonNullable(img.attr('data-mce-bogus'));
+    };
+    var isInternalImageSource = function (img) {
+      return img.attr('src') === Env.transparentSrc || isNonNullable(img.attr('data-mce-placeholder'));
+    };
+    var isValidDataImg = function (img, settings) {
+      if (settings.images_dataimg_filter) {
+        var imgElem_1 = new Image();
+        imgElem_1.src = img.attr('src');
+        each$j(img.attributes.map, function (value, key) {
+          imgElem_1.setAttribute(key, value);
+        });
+        return settings.images_dataimg_filter(imgElem_1);
+      } else {
+        return true;
+      }
+    };
+    var registerBase64ImageFilter = function (parser, settings) {
+      var blobCache = settings.blob_cache;
+      var processImage = function (img) {
+        var inputSrc = img.attr('src');
+        if (isInternalImageSource(img) || isBogusImage(img)) {
+          return;
+        }
+        parseDataUri$1(inputSrc).filter(function () {
+          return isValidDataImg(img, settings);
+        }).bind(function (_a) {
+          var type = _a.type, data = _a.data;
+          return Optional.from(blobCache.getByData(data, type)).orThunk(function () {
+            return buildBlob(type, data).map(function (blob) {
+              var blobInfo = blobCache.create(uniqueId(), blob, data);
+              blobCache.add(blobInfo);
+              return blobInfo;
+            });
+          });
+        }).each(function (blobInfo) {
+          img.attr('src', blobInfo.blobUri());
+        });
+      };
+      if (blobCache) {
+        parser.addAttributeFilter('src', function (nodes) {
+          return each$k(nodes, processImage);
+        });
+      }
+    };
+    var register$1 = function (parser, settings) {
+      var schema = parser.schema;
+      if (settings.remove_trailing_brs) {
+        parser.addNodeFilter('br', function (nodes, _, args) {
+          var i;
+          var l = nodes.length;
+          var node;
+          var blockElements = Tools.extend({}, schema.getBlockElements());
+          var nonEmptyElements = schema.getNonEmptyElements();
+          var parent, lastParent, prev, prevName;
+          var whiteSpaceElements = schema.getWhiteSpaceElements();
+          var elementRule, textNode;
+          blockElements.body = 1;
+          for (i = 0; i < l; i++) {
+            node = nodes[i];
+            parent = node.parent;
+            if (blockElements[node.parent.name] && node === parent.lastChild) {
+              prev = node.prev;
+              while (prev) {
+                prevName = prev.name;
+                if (prevName !== 'span' || prev.attr('data-mce-type') !== 'bookmark') {
+                  if (prevName === 'br') {
+                    node = null;
+                  }
+                  break;
+                }
+                prev = prev.prev;
+              }
+              if (node) {
+                node.remove();
+                if (isEmpty(schema, nonEmptyElements, whiteSpaceElements, parent)) {
+                  elementRule = schema.getElementRule(parent.name);
+                  if (elementRule) {
+                    if (elementRule.removeEmpty) {
+                      parent.remove();
+                    } else if (elementRule.paddEmpty) {
+                      paddEmptyNode(settings, args, blockElements, parent);
+                    }
+                  }
+                }
+              }
+            } else {
+              lastParent = node;
+              while (parent && parent.firstChild === lastParent && parent.lastChild === lastParent) {
+                lastParent = parent;
+                if (blockElements[parent.name]) {
+                  break;
+                }
+                parent = parent.parent;
+              }
+              if (lastParent === parent && settings.padd_empty_with_br !== true) {
+                textNode = new AstNode('#text', 3);
+                textNode.value = nbsp;
+                node.replace(textNode);
+              }
+            }
+          }
+        });
+      }
+      parser.addAttributeFilter('href', function (nodes) {
+        var i = nodes.length;
+        var appendRel = function (rel) {
+          var parts = rel.split(' ').filter(function (p) {
+            return p.length > 0;
+          });
+          return parts.concat(['noopener']).sort().join(' ');
+        };
+        var addNoOpener = function (rel) {
+          var newRel = rel ? Tools.trim(rel) : '';
+          if (!/\b(noopener)\b/g.test(newRel)) {
+            return appendRel(newRel);
+          } else {
+            return newRel;
+          }
+        };
+        if (!settings.allow_unsafe_link_target) {
+          while (i--) {
+            var node = nodes[i];
+            if (node.name === 'a' && node.attr('target') === '_blank') {
+              node.attr('rel', addNoOpener(node.attr('rel')));
+            }
+          }
+        }
+      });
+      if (!settings.allow_html_in_named_anchor) {
+        parser.addAttributeFilter('id,name', function (nodes) {
+          var i = nodes.length, sibling, prevSibling, parent, node;
+          while (i--) {
+            node = nodes[i];
+            if (node.name === 'a' && node.firstChild && !node.attr('href')) {
+              parent = node.parent;
+              sibling = node.lastChild;
+              do {
+                prevSibling = sibling.prev;
+                parent.insert(sibling, node);
+                sibling = prevSibling;
+              } while (sibling);
+            }
+          }
+        });
+      }
+      if (settings.fix_list_elements) {
+        parser.addNodeFilter('ul,ol', function (nodes) {
+          var i = nodes.length, node, parentNode;
+          while (i--) {
+            node = nodes[i];
+            parentNode = node.parent;
+            if (parentNode.name === 'ul' || parentNode.name === 'ol') {
+              if (node.prev && node.prev.name === 'li') {
+                node.prev.append(node);
+              } else {
+                var li = new AstNode('li', 1);
+                li.attr('style', 'list-style-type: none');
+                node.wrap(li);
+              }
+            }
+          }
+        });
+      }
+      if (settings.validate && schema.getValidClasses()) {
+        parser.addAttributeFilter('class', function (nodes) {
+          var validClasses = schema.getValidClasses();
+          var i = nodes.length;
+          while (i--) {
+            var node = nodes[i];
+            var classList = node.attr('class').split(' ');
+            var classValue = '';
+            for (var ci = 0; ci < classList.length; ci++) {
+              var className = classList[ci];
+              var valid = false;
+              var validClassesMap = validClasses['*'];
+              if (validClassesMap && validClassesMap[className]) {
+                valid = true;
+              }
+              validClassesMap = validClasses[node.name];
+              if (!valid && validClassesMap && validClassesMap[className]) {
+                valid = true;
+              }
+              if (valid) {
+                if (classValue) {
+                  classValue += ' ';
+                }
+                classValue += className;
+              }
+            }
+            if (!classValue.length) {
+              classValue = null;
+            }
+            node.attr('class', classValue);
+          }
+        });
+      }
+      registerBase64ImageFilter(parser, settings);
+    };
+
+    var makeMap = Tools.makeMap, each$7 = Tools.each, explode$2 = Tools.explode, extend$4 = Tools.extend;
+    var DomParser = function (settings, schema) {
+      if (schema === void 0) {
+        schema = Schema();
+      }
+      var nodeFilters = {};
+      var attributeFilters = [];
+      var matchedNodes = {};
+      var matchedAttributes = {};
+      settings = settings || {};
+      settings.validate = 'validate' in settings ? settings.validate : true;
+      settings.root_name = settings.root_name || 'body';
+      var fixInvalidChildren = function (nodes) {
+        var nonSplitableElements = makeMap('tr,td,th,tbody,thead,tfoot,table');
+        var nonEmptyElements = schema.getNonEmptyElements();
+        var whitespaceElements = schema.getWhiteSpaceElements();
+        var textBlockElements = schema.getTextBlockElements();
+        var specialElements = schema.getSpecialElements();
+        var removeOrUnwrapInvalidNode = function (node, originalNodeParent) {
+          if (originalNodeParent === void 0) {
+            originalNodeParent = node.parent;
+          }
+          if (specialElements[node.name]) {
+            node.empty().remove();
+          } else {
+            var children = node.children();
+            for (var _i = 0, children_1 = children; _i < children_1.length; _i++) {
+              var childNode = children_1[_i];
+              if (!schema.isValidChild(originalNodeParent.name, childNode.name)) {
+                removeOrUnwrapInvalidNode(childNode, originalNodeParent);
+              }
+            }
+            node.unwrap();
+          }
+        };
+        for (var ni = 0; ni < nodes.length; ni++) {
+          var node = nodes[ni];
+          var parent_1 = void 0, newParent = void 0, tempNode = void 0;
+          if (!node.parent || node.fixed) {
+            continue;
+          }
+          if (textBlockElements[node.name] && node.parent.name === 'li') {
+            var sibling = node.next;
+            while (sibling) {
+              if (textBlockElements[sibling.name]) {
+                sibling.name = 'li';
+                sibling.fixed = true;
+                node.parent.insert(sibling, node.parent);
+              } else {
+                break;
+              }
+              sibling = sibling.next;
+            }
+            node.unwrap();
+            continue;
+          }
+          var parents = [node];
+          for (parent_1 = node.parent; parent_1 && !schema.isValidChild(parent_1.name, node.name) && !nonSplitableElements[parent_1.name]; parent_1 = parent_1.parent) {
+            parents.push(parent_1);
+          }
+          if (parent_1 && parents.length > 1) {
+            if (schema.isValidChild(parent_1.name, node.name)) {
+              parents.reverse();
+              newParent = filterNode(parents[0].clone());
+              var currentNode = newParent;
+              for (var i = 0; i < parents.length - 1; i++) {
+                if (schema.isValidChild(currentNode.name, parents[i].name)) {
+                  tempNode = filterNode(parents[i].clone());
+                  currentNode.append(tempNode);
+                } else {
+                  tempNode = currentNode;
+                }
+                for (var childNode = parents[i].firstChild; childNode && childNode !== parents[i + 1];) {
+                  var nextNode = childNode.next;
+                  tempNode.append(childNode);
+                  childNode = nextNode;
+                }
+                currentNode = tempNode;
+              }
+              if (!isEmpty(schema, nonEmptyElements, whitespaceElements, newParent)) {
+                parent_1.insert(newParent, parents[0], true);
+                parent_1.insert(node, newParent);
+              } else {
+                parent_1.insert(node, parents[0], true);
+              }
+              parent_1 = parents[0];
+              if (isEmpty(schema, nonEmptyElements, whitespaceElements, parent_1) || hasOnlyChild(parent_1, 'br')) {
+                parent_1.empty().remove();
+              }
+            } else {
+              removeOrUnwrapInvalidNode(node);
+            }
+          } else if (node.parent) {
+            if (node.name === 'li') {
+              var sibling = node.prev;
+              if (sibling && (sibling.name === 'ul' || sibling.name === 'ol')) {
+                sibling.append(node);
+                continue;
+              }
+              sibling = node.next;
+              if (sibling && (sibling.name === 'ul' || sibling.name === 'ol')) {
+                sibling.insert(node, sibling.firstChild, true);
+                continue;
+              }
+              node.wrap(filterNode(new AstNode('ul', 1)));
+              continue;
+            }
+            if (schema.isValidChild(node.parent.name, 'div') && schema.isValidChild('div', node.name)) {
+              node.wrap(filterNode(new AstNode('div', 1)));
+            } else {
+              removeOrUnwrapInvalidNode(node);
+            }
+          }
+        }
+      };
+      var filterNode = function (node) {
+        var name = node.name;
+        if (name in nodeFilters) {
+          var list = matchedNodes[name];
+          if (list) {
+            list.push(node);
+          } else {
+            matchedNodes[name] = [node];
+          }
+        }
+        var i = attributeFilters.length;
+        while (i--) {
+          var attrName = attributeFilters[i].name;
+          if (attrName in node.attributes.map) {
+            var list = matchedAttributes[attrName];
+            if (list) {
+              list.push(node);
+            } else {
+              matchedAttributes[attrName] = [node];
+            }
+          }
+        }
+        return node;
+      };
+      var addNodeFilter = function (name, callback) {
+        each$7(explode$2(name), function (name) {
+          var list = nodeFilters[name];
+          if (!list) {
+            nodeFilters[name] = list = [];
+          }
+          list.push(callback);
+        });
+      };
+      var getNodeFilters = function () {
+        var out = [];
+        for (var name_1 in nodeFilters) {
+          if (has$2(nodeFilters, name_1)) {
+            out.push({
+              name: name_1,
+              callbacks: nodeFilters[name_1]
+            });
+          }
+        }
+        return out;
+      };
+      var addAttributeFilter = function (name, callback) {
+        each$7(explode$2(name), function (name) {
+          var i;
+          for (i = 0; i < attributeFilters.length; i++) {
+            if (attributeFilters[i].name === name) {
+              attributeFilters[i].callbacks.push(callback);
+              return;
+            }
+          }
+          attributeFilters.push({
+            name: name,
+            callbacks: [callback]
+          });
+        });
+      };
+      var getAttributeFilters = function () {
+        return [].concat(attributeFilters);
+      };
+      var parse = function (html, args) {
+        var nodes, i, l, fi, fl, list, name;
+        var invalidChildren = [];
+        var node;
+        var getRootBlockName = function (name) {
+          if (name === false) {
+            return '';
+          } else if (name === true) {
+            return 'p';
+          } else {
+            return name;
+          }
+        };
+        args = args || {};
+        matchedNodes = {};
+        matchedAttributes = {};
+        var blockElements = extend$4(makeMap('script,style,head,html,body,title,meta,param'), schema.getBlockElements());
+        var nonEmptyElements = schema.getNonEmptyElements();
+        var children = schema.children;
+        var validate = settings.validate;
+        var forcedRootBlockName = 'forced_root_block' in args ? args.forced_root_block : settings.forced_root_block;
+        var rootBlockName = getRootBlockName(forcedRootBlockName);
+        var whiteSpaceElements = schema.getWhiteSpaceElements();
+        var startWhiteSpaceRegExp = /^[ \t\r\n]+/;
+        var endWhiteSpaceRegExp = /[ \t\r\n]+$/;
+        var allWhiteSpaceRegExp = /[ \t\r\n]+/g;
+        var isAllWhiteSpaceRegExp = /^[ \t\r\n]+$/;
+        var isInWhiteSpacePreservedElement = has$2(whiteSpaceElements, args.context) || has$2(whiteSpaceElements, settings.root_name);
+        var addRootBlocks = function () {
+          var node = rootNode.firstChild, rootBlockNode = null;
+          var trim = function (rootBlock) {
+            if (rootBlock) {
+              node = rootBlock.firstChild;
+              if (node && node.type === 3) {
+                node.value = node.value.replace(startWhiteSpaceRegExp, '');
+              }
+              node = rootBlock.lastChild;
+              if (node && node.type === 3) {
+                node.value = node.value.replace(endWhiteSpaceRegExp, '');
+              }
+            }
+          };
+          if (!schema.isValidChild(rootNode.name, rootBlockName.toLowerCase())) {
+            return;
+          }
+          while (node) {
+            var next = node.next;
+            if (node.type === 3 || node.type === 1 && node.name !== 'p' && !blockElements[node.name] && !node.attr('data-mce-type')) {
+              if (!rootBlockNode) {
+                rootBlockNode = createNode(rootBlockName, 1);
+                rootBlockNode.attr(settings.forced_root_block_attrs);
+                rootNode.insert(rootBlockNode, node);
+                rootBlockNode.append(node);
+              } else {
+                rootBlockNode.append(node);
+              }
+            } else {
+              trim(rootBlockNode);
+              rootBlockNode = null;
+            }
+            node = next;
+          }
+          trim(rootBlockNode);
+        };
+        var createNode = function (name, type) {
+          var node = new AstNode(name, type);
+          var list;
+          if (name in nodeFilters) {
+            list = matchedNodes[name];
+            if (list) {
+              list.push(node);
+            } else {
+              matchedNodes[name] = [node];
+            }
+          }
+          return node;
+        };
+        var removeWhitespaceBefore = function (node) {
+          var blockElements = schema.getBlockElements();
+          for (var textNode = node.prev; textNode && textNode.type === 3;) {
+            var textVal = textNode.value.replace(endWhiteSpaceRegExp, '');
+            if (textVal.length > 0) {
+              textNode.value = textVal;
+              return;
+            }
+            var textNodeNext = textNode.next;
+            if (textNodeNext) {
+              if (textNodeNext.type === 3 && textNodeNext.value.length) {
+                textNode = textNode.prev;
+                continue;
+              }
+              if (!blockElements[textNodeNext.name] && textNodeNext.name !== 'script' && textNodeNext.name !== 'style') {
+                textNode = textNode.prev;
+                continue;
+              }
+            }
+            var sibling = textNode.prev;
+            textNode.remove();
+            textNode = sibling;
+          }
+        };
+        var cloneAndExcludeBlocks = function (input) {
+          var output = {};
+          for (var name_2 in input) {
+            if (name_2 !== 'li' && name_2 !== 'p') {
+              output[name_2] = input[name_2];
+            }
+          }
+          return output;
+        };
+        var parser = SaxParser({
+          validate: validate,
+          document: settings.document,
+          allow_html_data_urls: settings.allow_html_data_urls,
+          allow_svg_data_urls: settings.allow_svg_data_urls,
+          allow_script_urls: settings.allow_script_urls,
+          allow_conditional_comments: settings.allow_conditional_comments,
+          preserve_cdata: settings.preserve_cdata,
+          self_closing_elements: cloneAndExcludeBlocks(schema.getSelfClosingElements()),
+          cdata: function (text) {
+            node.append(createNode('#cdata', 4)).value = text;
+          },
+          text: function (text, raw) {
+            var textNode;
+            if (!isInWhiteSpacePreservedElement) {
+              text = text.replace(allWhiteSpaceRegExp, ' ');
+              if (isLineBreakNode(node.lastChild, blockElements)) {
+                text = text.replace(startWhiteSpaceRegExp, '');
+              }
+            }
+            if (text.length !== 0) {
+              textNode = createNode('#text', 3);
+              textNode.raw = !!raw;
+              node.append(textNode).value = text;
+            }
+          },
+          comment: function (text) {
+            node.append(createNode('#comment', 8)).value = text;
+          },
+          pi: function (name, text) {
+            node.append(createNode(name, 7)).value = text;
+            removeWhitespaceBefore(node);
+          },
+          doctype: function (text) {
+            var newNode = node.append(createNode('#doctype', 10));
+            newNode.value = text;
+            removeWhitespaceBefore(node);
+          },
+          start: function (name, attrs, empty) {
+            var elementRule = validate ? schema.getElementRule(name) : {};
+            if (elementRule) {
+              var newNode = createNode(elementRule.outputName || name, 1);
+              newNode.attributes = attrs;
+              newNode.shortEnded = empty;
+              node.append(newNode);
+              var parent_2 = children[node.name];
+              if (parent_2 && children[newNode.name] && !parent_2[newNode.name]) {
+                invalidChildren.push(newNode);
+              }
+              var attrFiltersLen = attributeFilters.length;
+              while (attrFiltersLen--) {
+                var attrName = attributeFilters[attrFiltersLen].name;
+                if (attrName in attrs.map) {
+                  list = matchedAttributes[attrName];
+                  if (list) {
+                    list.push(newNode);
+                  } else {
+                    matchedAttributes[attrName] = [newNode];
+                  }
+                }
+              }
+              if (blockElements[name]) {
+                removeWhitespaceBefore(newNode);
+              }
+              if (!empty) {
+                node = newNode;
+              }
+              if (!isInWhiteSpacePreservedElement && whiteSpaceElements[name]) {
+                isInWhiteSpacePreservedElement = true;
+              }
+            }
+          },
+          end: function (name) {
+            var textNode, text, sibling, tempNode;
+            var elementRule = validate ? schema.getElementRule(name) : {};
+            if (elementRule) {
+              if (blockElements[name]) {
+                if (!isInWhiteSpacePreservedElement) {
+                  textNode = node.firstChild;
+                  if (textNode && textNode.type === 3) {
+                    text = textNode.value.replace(startWhiteSpaceRegExp, '');
+                    if (text.length > 0) {
+                      textNode.value = text;
+                      textNode = textNode.next;
+                    } else {
+                      sibling = textNode.next;
+                      textNode.remove();
+                      textNode = sibling;
+                      while (textNode && textNode.type === 3) {
+                        text = textNode.value;
+                        sibling = textNode.next;
+                        if (text.length === 0 || isAllWhiteSpaceRegExp.test(text)) {
+                          textNode.remove();
+                          textNode = sibling;
+                        }
+                        textNode = sibling;
+                      }
+                    }
+                  }
+                  textNode = node.lastChild;
+                  if (textNode && textNode.type === 3) {
+                    text = textNode.value.replace(endWhiteSpaceRegExp, '');
+                    if (text.length > 0) {
+                      textNode.value = text;
+                      textNode = textNode.prev;
+                    } else {
+                      sibling = textNode.prev;
+                      textNode.remove();
+                      textNode = sibling;
+                      while (textNode && textNode.type === 3) {
+                        text = textNode.value;
+                        sibling = textNode.prev;
+                        if (text.length === 0 || isAllWhiteSpaceRegExp.test(text)) {
+                          textNode.remove();
+                          textNode = sibling;
+                        }
+                        textNode = sibling;
+                      }
+                    }
+                  }
+                }
+              }
+              if (isInWhiteSpacePreservedElement && whiteSpaceElements[name]) {
+                isInWhiteSpacePreservedElement = false;
+              }
+              if (elementRule.removeEmpty && isEmpty(schema, nonEmptyElements, whiteSpaceElements, node)) {
+                tempNode = node.parent;
+                if (blockElements[node.name]) {
+                  node.empty().remove();
+                } else {
+                  node.unwrap();
+                }
+                node = tempNode;
+                return;
+              }
+              if (elementRule.paddEmpty && (isPaddedWithNbsp(node) || isEmpty(schema, nonEmptyElements, whiteSpaceElements, node))) {
+                paddEmptyNode(settings, args, blockElements, node);
+              }
+              node = node.parent;
+            }
+          }
+        }, schema);
+        var rootNode = node = new AstNode(args.context || settings.root_name, 11);
+        parser.parse(html, args.format);
+        if (validate && invalidChildren.length) {
+          if (!args.context) {
+            fixInvalidChildren(invalidChildren);
+          } else {
+            args.invalid = true;
+          }
+        }
+        if (rootBlockName && (rootNode.name === 'body' || args.isRootContent)) {
+          addRootBlocks();
+        }
+        if (!args.invalid) {
+          for (name in matchedNodes) {
+            if (!has$2(matchedNodes, name)) {
+              continue;
+            }
+            list = nodeFilters[name];
+            nodes = matchedNodes[name];
+            fi = nodes.length;
+            while (fi--) {
+              if (!nodes[fi].parent) {
+                nodes.splice(fi, 1);
+              }
+            }
+            for (i = 0, l = list.length; i < l; i++) {
+              list[i](nodes, name, args);
+            }
+          }
+          for (i = 0, l = attributeFilters.length; i < l; i++) {
+            list = attributeFilters[i];
+            if (list.name in matchedAttributes) {
+              nodes = matchedAttributes[list.name];
+              fi = nodes.length;
+              while (fi--) {
+                if (!nodes[fi].parent) {
+                  nodes.splice(fi, 1);
+                }
+              }
+              for (fi = 0, fl = list.callbacks.length; fi < fl; fi++) {
+                list.callbacks[fi](nodes, list.name, args);
+              }
+            }
+          }
+        }
+        return rootNode;
+      };
+      var exports = {
+        schema: schema,
+        addAttributeFilter: addAttributeFilter,
+        getAttributeFilters: getAttributeFilters,
+        addNodeFilter: addNodeFilter,
+        getNodeFilters: getNodeFilters,
+        filterNode: filterNode,
+        parse: parse
+      };
+      register$1(exports, settings);
+      register$2(exports, settings);
+      return exports;
+    };
+
+    var register = function (htmlParser, settings, dom) {
+      htmlParser.addAttributeFilter('data-mce-tabindex', function (nodes, name) {
+        var i = nodes.length;
+        while (i--) {
+          var node = nodes[i];
+          node.attr('tabindex', node.attr('data-mce-tabindex'));
+          node.attr(name, null);
+        }
+      });
+      htmlParser.addAttributeFilter('src,href,style', function (nodes, name) {
+        var internalName = 'data-mce-' + name;
+        var urlConverter = settings.url_converter;
+        var urlConverterScope = settings.url_converter_scope;
+        var i = nodes.length;
+        while (i--) {
+          var node = nodes[i];
+          var value = node.attr(internalName);
+          if (value !== undefined) {
+            node.attr(name, value.length > 0 ? value : null);
+            node.attr(internalName, null);
+          } else {
+            value = node.attr(name);
+            if (name === 'style') {
+              value = dom.serializeStyle(dom.parseStyle(value), node.name);
+            } else if (urlConverter) {
+              value = urlConverter.call(urlConverterScope, value, name, node.name);
+            }
+            node.attr(name, value.length > 0 ? value : null);
+          }
+        }
+      });
+      htmlParser.addAttributeFilter('class', function (nodes) {
+        var i = nodes.length;
+        while (i--) {
+          var node = nodes[i];
+          var value = node.attr('class');
+          if (value) {
+            value = node.attr('class').replace(/(?:^|\s)mce-item-\w+(?!\S)/g, '');
+            node.attr('class', value.length > 0 ? value : null);
+          }
+        }
+      });
+      htmlParser.addAttributeFilter('data-mce-type', function (nodes, name, args) {
+        var i = nodes.length;
+        while (i--) {
+          var node = nodes[i];
+          if (node.attr('data-mce-type') === 'bookmark' && !args.cleanup) {
+            var hasChildren = Optional.from(node.firstChild).exists(function (firstChild) {
+              return !isZwsp(firstChild.value);
+            });
+            if (hasChildren) {
+              node.unwrap();
+            } else {
+              node.remove();
+            }
+          }
+        }
+      });
+      htmlParser.addNodeFilter('noscript', function (nodes) {
+        var i = nodes.length;
+        while (i--) {
+          var node = nodes[i].firstChild;
+          if (node) {
+            node.value = Entities.decode(node.value);
+          }
+        }
+      });
+      htmlParser.addNodeFilter('script,style', function (nodes, name) {
+        var trim = function (value) {
+          return value.replace(/(<!--\[CDATA\[|\]\]-->)/g, '\n').replace(/^[\r\n]*|[\r\n]*$/g, '').replace(/^\s*((<!--)?(\s*\/\/)?\s*<!\[CDATA\[|(<!--\s*)?\/\*\s*<!\[CDATA\[\s*\*\/|(\/\/)?\s*<!--|\/\*\s*<!--\s*\*\/)\s*[\r\n]*/gi, '').replace(/\s*(\/\*\s*\]\]>\s*\*\/(-->)?|\s*\/\/\s*\]\]>(-->)?|\/\/\s*(-->)?|\]\]>|\/\*\s*-->\s*\*\/|\s*-->\s*)\s*$/g, '');
+        };
+        var i = nodes.length;
+        while (i--) {
+          var node = nodes[i];
+          var value = node.firstChild ? node.firstChild.value : '';
+          if (name === 'script') {
+            var type = node.attr('type');
+            if (type) {
+              node.attr('type', type === 'mce-no/type' ? null : type.replace(/^mce\-/, ''));
+            }
+            if (settings.element_format === 'xhtml' && value.length > 0) {
+              node.firstChild.value = '// <![CDATA[\n' + trim(value) + '\n// ]]>';
+            }
+          } else {
+            if (settings.element_format === 'xhtml' && value.length > 0) {
+              node.firstChild.value = '<!--\n' + trim(value) + '\n-->';
+            }
+          }
+        }
+      });
+      htmlParser.addNodeFilter('#comment', function (nodes) {
+        var i = nodes.length;
+        while (i--) {
+          var node = nodes[i];
+          if (settings.preserve_cdata && node.value.indexOf('[CDATA[') === 0) {
+            node.name = '#cdata';
+            node.type = 4;
+            node.value = dom.decode(node.value.replace(/^\[CDATA\[|\]\]$/g, ''));
+          } else if (node.value.indexOf('mce:protected ') === 0) {
+            node.name = '#text';
+            node.type = 3;
+            node.raw = true;
+            node.value = unescape(node.value).substr(14);
+          }
+        }
+      });
+      htmlParser.addNodeFilter('xml:namespace,input', function (nodes, name) {
+        var i = nodes.length;
+        while (i--) {
+          var node = nodes[i];
+          if (node.type === 7) {
+            node.remove();
+          } else if (node.type === 1) {
+            if (name === 'input' && !node.attr('type')) {
+              node.attr('type', 'text');
+            }
+          }
+        }
+      });
+      htmlParser.addAttributeFilter('data-mce-type', function (nodes) {
+        each$k(nodes, function (node) {
+          if (node.attr('data-mce-type') === 'format-caret') {
+            if (node.isEmpty(htmlParser.schema.getNonEmptyElements())) {
+              node.remove();
+            } else {
+              node.unwrap();
+            }
+          }
+        });
+      });
+      htmlParser.addAttributeFilter('data-mce-src,data-mce-href,data-mce-style,' + 'data-mce-selected,data-mce-expando,' + 'data-mce-type,data-mce-resize,data-mce-placeholder', function (nodes, name) {
+        var i = nodes.length;
+        while (i--) {
+          nodes[i].attr(name, null);
+        }
+      });
+    };
+    var trimTrailingBr = function (rootNode) {
+      var isBr = function (node) {
+        return node && node.name === 'br';
+      };
+      var brNode1 = rootNode.lastChild;
+      if (isBr(brNode1)) {
+        var brNode2 = brNode1.prev;
+        if (isBr(brNode2)) {
+          brNode1.remove();
+          brNode2.remove();
+        }
+      }
+    };
+
+    var preProcess = function (editor, node, args) {
+      var oldDoc;
+      var dom = editor.dom;
+      var clonedNode = node.cloneNode(true);
+      var impl = document.implementation;
+      if (impl.createHTMLDocument) {
+        var doc_1 = impl.createHTMLDocument('');
+        Tools.each(clonedNode.nodeName === 'BODY' ? clonedNode.childNodes : [clonedNode], function (node) {
+          doc_1.body.appendChild(doc_1.importNode(node, true));
+        });
+        if (clonedNode.nodeName !== 'BODY') {
+          clonedNode = doc_1.body.firstChild;
+        } else {
+          clonedNode = doc_1.body;
+        }
+        oldDoc = dom.doc;
+        dom.doc = doc_1;
+      }
+      firePreProcess(editor, __assign(__assign({}, args), { node: clonedNode }));
+      if (oldDoc) {
+        dom.doc = oldDoc;
+      }
+      return clonedNode;
+    };
+    var shouldFireEvent = function (editor, args) {
+      return editor && editor.hasEventListeners('PreProcess') && !args.no_events;
+    };
+    var process = function (editor, node, args) {
+      return shouldFireEvent(editor, args) ? preProcess(editor, node, args) : node;
+    };
+
+    var addTempAttr = function (htmlParser, tempAttrs, name) {
+      if (Tools.inArray(tempAttrs, name) === -1) {
+        htmlParser.addAttributeFilter(name, function (nodes, name) {
+          var i = nodes.length;
+          while (i--) {
+            nodes[i].attr(name, null);
+          }
+        });
+        tempAttrs.push(name);
+      }
+    };
+    var postProcess = function (editor, args, content) {
+      if (!args.no_events && editor) {
+        var outArgs = firePostProcess(editor, __assign(__assign({}, args), { content: content }));
+        return outArgs.content;
+      } else {
+        return content;
+      }
+    };
+    var getHtmlFromNode = function (dom, node, args) {
+      var html = trim$2(args.getInner ? node.innerHTML : dom.getOuterHTML(node));
+      return args.selection || isWsPreserveElement(SugarElement.fromDom(node)) ? html : Tools.trim(html);
+    };
+    var parseHtml = function (htmlParser, html, args) {
+      var parserArgs = args.selection ? __assign({ forced_root_block: false }, args) : args;
+      var rootNode = htmlParser.parse(html, parserArgs);
+      trimTrailingBr(rootNode);
+      return rootNode;
+    };
+    var serializeNode = function (settings, schema, node) {
+      var htmlSerializer = HtmlSerializer(settings, schema);
+      return htmlSerializer.serialize(node);
+    };
+    var toHtml = function (editor, settings, schema, rootNode, args) {
+      var content = serializeNode(settings, schema, rootNode);
+      return postProcess(editor, args, content);
+    };
+    var DomSerializerImpl = function (settings, editor) {
+      var tempAttrs = ['data-mce-selected'];
+      var dom = editor && editor.dom ? editor.dom : DOMUtils.DOM;
+      var schema = editor && editor.schema ? editor.schema : Schema(settings);
+      settings.entity_encoding = settings.entity_encoding || 'named';
+      settings.remove_trailing_brs = 'remove_trailing_brs' in settings ? settings.remove_trailing_brs : true;
+      var htmlParser = DomParser(settings, schema);
+      register(htmlParser, settings, dom);
+      var serialize = function (node, parserArgs) {
+        if (parserArgs === void 0) {
+          parserArgs = {};
+        }
+        var args = __assign({ format: 'html' }, parserArgs);
+        var targetNode = process(editor, node, args);
+        var html = getHtmlFromNode(dom, targetNode, args);
+        var rootNode = parseHtml(htmlParser, html, args);
+        return args.format === 'tree' ? rootNode : toHtml(editor, settings, schema, rootNode, args);
+      };
+      return {
+        schema: schema,
+        addNodeFilter: htmlParser.addNodeFilter,
+        addAttributeFilter: htmlParser.addAttributeFilter,
+        serialize: serialize,
+        addRules: schema.addValidElements,
+        setRules: schema.setValidElements,
+        addTempAttr: curry(addTempAttr, htmlParser, tempAttrs),
+        getTempAttrs: constant(tempAttrs),
+        getNodeFilters: htmlParser.getNodeFilters,
+        getAttributeFilters: htmlParser.getAttributeFilters
+      };
+    };
+
+    var DomSerializer = function (settings, editor) {
+      var domSerializer = DomSerializerImpl(settings, editor);
+      return {
+        schema: domSerializer.schema,
+        addNodeFilter: domSerializer.addNodeFilter,
+        addAttributeFilter: domSerializer.addAttributeFilter,
+        serialize: domSerializer.serialize,
+        addRules: domSerializer.addRules,
+        setRules: domSerializer.setRules,
+        addTempAttr: domSerializer.addTempAttr,
+        getTempAttrs: domSerializer.getTempAttrs,
+        getNodeFilters: domSerializer.getNodeFilters,
+        getAttributeFilters: domSerializer.getAttributeFilters
+      };
+    };
+
+    var defaultFormat = 'html';
+    var getContent = function (editor, args) {
+      if (args === void 0) {
+        args = {};
+      }
+      var format = args.format ? args.format : defaultFormat;
+      return getContent$2(editor, args, format);
+    };
+
+    var setContent = function (editor, content, args) {
+      if (args === void 0) {
+        args = {};
+      }
+      return setContent$2(editor, content, args);
+    };
+
+    var DOM$7 = DOMUtils.DOM;
+    var restoreOriginalStyles = function (editor) {
+      DOM$7.setStyle(editor.id, 'display', editor.orgDisplay);
+    };
+    var safeDestroy = function (x) {
+      return Optional.from(x).each(function (x) {
+        return x.destroy();
+      });
+    };
+    var clearDomReferences = function (editor) {
+      editor.contentAreaContainer = editor.formElement = editor.container = editor.editorContainer = null;
+      editor.bodyElement = editor.contentDocument = editor.contentWindow = null;
+      editor.iframeElement = editor.targetElm = null;
+      if (editor.selection) {
+        editor.selection = editor.selection.win = editor.selection.dom = editor.selection.dom.doc = null;
+      }
+    };
+    var restoreForm = function (editor) {
+      var form = editor.formElement;
+      if (form) {
+        if (form._mceOldSubmit) {
+          form.submit = form._mceOldSubmit;
+          form._mceOldSubmit = null;
+        }
+        DOM$7.unbind(form, 'submit reset', editor.formEventDelegate);
+      }
+    };
+    var remove = function (editor) {
+      if (!editor.removed) {
+        var _selectionOverrides = editor._selectionOverrides, editorUpload = editor.editorUpload;
+        var body = editor.getBody();
+        var element = editor.getElement();
+        if (body) {
+          editor.save({ is_removing: true });
+        }
+        editor.removed = true;
+        editor.unbindAllNativeEvents();
+        if (editor.hasHiddenInput && element) {
+          DOM$7.remove(element.nextSibling);
+        }
+        fireRemove(editor);
+        editor.editorManager.remove(editor);
+        if (!editor.inline && body) {
+          restoreOriginalStyles(editor);
+        }
+        fireDetach(editor);
+        DOM$7.remove(editor.getContainer());
+        safeDestroy(_selectionOverrides);
+        safeDestroy(editorUpload);
+        editor.destroy();
+      }
+    };
+    var destroy = function (editor, automatic) {
+      var selection = editor.selection, dom = editor.dom;
+      if (editor.destroyed) {
+        return;
+      }
+      if (!automatic && !editor.removed) {
+        editor.remove();
+        return;
+      }
+      if (!automatic) {
+        editor.editorManager.off('beforeunload', editor._beforeUnload);
+        if (editor.theme && editor.theme.destroy) {
+          editor.theme.destroy();
+        }
+        safeDestroy(selection);
+        safeDestroy(dom);
+      }
+      restoreForm(editor);
+      clearDomReferences(editor);
+      editor.destroyed = true;
+    };
+
+    var deep = function (old, nu) {
+      var bothObjects = isObject(old) && isObject(nu);
+      return bothObjects ? deepMerge(old, nu) : nu;
+    };
+    var baseMerge = function (merger) {
+      return function () {
+        var objects = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+          objects[_i] = arguments[_i];
+        }
+        if (objects.length === 0) {
+          throw new Error('Can\'t merge zero objects');
+        }
+        var ret = {};
+        for (var j = 0; j < objects.length; j++) {
+          var curObject = objects[j];
+          for (var key in curObject) {
+            if (has$2(curObject, key)) {
+              ret[key] = merger(ret[key], curObject[key]);
+            }
+          }
+        }
+        return ret;
+      };
+    };
+    var deepMerge = baseMerge(deep);
+
+    var sectionResult = function (sections, settings) {
+      return {
+        sections: constant(sections),
+        settings: constant(settings)
+      };
+    };
+    var deviceDetection = detect().deviceType;
+    var isTouch = deviceDetection.isTouch();
+    var isPhone = deviceDetection.isPhone();
+    var isTablet = deviceDetection.isTablet();
+    var legacyMobilePlugins = [
+      'lists',
+      'autolink',
+      'autosave'
+    ];
+    var defaultTouchSettings = {
+      table_grid: false,
+      object_resizing: false,
+      resize: false
+    };
+    var normalizePlugins = function (plugins) {
+      var pluginNames = isArray$1(plugins) ? plugins.join(' ') : plugins;
+      var trimmedPlugins = map$3(isString$1(pluginNames) ? pluginNames.split(' ') : [], trim$4);
+      return filter$4(trimmedPlugins, function (item) {
+        return item.length > 0;
+      });
+    };
+    var filterLegacyMobilePlugins = function (plugins) {
+      return filter$4(plugins, curry(contains$3, legacyMobilePlugins));
+    };
+    var extractSections = function (keys, settings) {
+      var result = bifilter(settings, function (value, key) {
+        return contains$3(keys, key);
+      });
+      return sectionResult(result.t, result.f);
+    };
+    var getSection = function (sectionResult, name, defaults) {
+      if (defaults === void 0) {
+        defaults = {};
+      }
+      var sections = sectionResult.sections();
+      var sectionSettings = get$9(sections, name).getOr({});
+      return Tools.extend({}, defaults, sectionSettings);
+    };
+    var hasSection = function (sectionResult, name) {
+      return has$2(sectionResult.sections(), name);
+    };
+    var isSectionTheme = function (sectionResult, name, theme) {
+      var section = sectionResult.sections();
+      return hasSection(sectionResult, name) && section[name].theme === theme;
+    };
+    var getSectionConfig = function (sectionResult, name) {
+      return hasSection(sectionResult, name) ? sectionResult.sections()[name] : {};
+    };
+    var getToolbarMode = function (settings, defaultVal) {
+      return get$9(settings, 'toolbar_mode').orThunk(function () {
+        return get$9(settings, 'toolbar_drawer').map(function (val) {
+          return val === false ? 'wrap' : val;
+        });
+      }).getOr(defaultVal);
+    };
+    var getDefaultSettings = function (settings, id, documentBaseUrl, isTouch, editor) {
+      var baseDefaults = {
+        id: id,
+        theme: 'silver',
+        toolbar_mode: getToolbarMode(settings, 'floating'),
+        plugins: '',
+        document_base_url: documentBaseUrl,
+        add_form_submit_trigger: true,
+        submit_patch: true,
+        add_unload_trigger: true,
+        convert_urls: true,
+        relative_urls: true,
+        remove_script_host: true,
+        object_resizing: true,
+        doctype: '<!DOCTYPE html>',
+        visual: true,
+        font_size_legacy_values: 'xx-small,small,medium,large,x-large,xx-large,300%',
+        forced_root_block: 'p',
+        hidden_input: true,
+        inline_styles: true,
+        convert_fonts_to_spans: true,
+        indent: true,
+        indent_before: 'p,h1,h2,h3,h4,h5,h6,blockquote,div,title,style,pre,script,td,th,ul,ol,li,dl,dt,dd,area,table,thead,' + 'tfoot,tbody,tr,section,summary,article,hgroup,aside,figure,figcaption,option,optgroup,datalist',
+        indent_after: 'p,h1,h2,h3,h4,h5,h6,blockquote,div,title,style,pre,script,td,th,ul,ol,li,dl,dt,dd,area,table,thead,' + 'tfoot,tbody,tr,section,summary,article,hgroup,aside,figure,figcaption,option,optgroup,datalist',
+        entity_encoding: 'named',
+        url_converter: editor.convertURL,
+        url_converter_scope: editor
+      };
+      return __assign(__assign({}, baseDefaults), isTouch ? defaultTouchSettings : {});
+    };
+    var getDefaultMobileSettings = function (mobileSettings, isPhone) {
+      var defaultMobileSettings = {
+        resize: false,
+        toolbar_mode: getToolbarMode(mobileSettings, 'scrolling'),
+        toolbar_sticky: false
+      };
+      var defaultPhoneSettings = { menubar: false };
+      return __assign(__assign(__assign({}, defaultTouchSettings), defaultMobileSettings), isPhone ? defaultPhoneSettings : {});
+    };
+    var getExternalPlugins = function (overrideSettings, settings) {
+      var userDefinedExternalPlugins = settings.external_plugins ? settings.external_plugins : {};
+      if (overrideSettings && overrideSettings.external_plugins) {
+        return Tools.extend({}, overrideSettings.external_plugins, userDefinedExternalPlugins);
+      } else {
+        return userDefinedExternalPlugins;
+      }
+    };
+    var combinePlugins = function (forcedPlugins, plugins) {
+      return [].concat(normalizePlugins(forcedPlugins)).concat(normalizePlugins(plugins));
+    };
+    var getPlatformPlugins = function (isMobileDevice, sectionResult, desktopPlugins, mobilePlugins) {
+      if (isMobileDevice && isSectionTheme(sectionResult, 'mobile', 'mobile')) {
+        return filterLegacyMobilePlugins(mobilePlugins);
+      } else if (isMobileDevice && hasSection(sectionResult, 'mobile')) {
+        return mobilePlugins;
+      } else {
+        return desktopPlugins;
+      }
+    };
+    var processPlugins = function (isMobileDevice, sectionResult, defaultOverrideSettings, settings) {
+      var forcedPlugins = normalizePlugins(defaultOverrideSettings.forced_plugins);
+      var desktopPlugins = normalizePlugins(settings.plugins);
+      var mobileConfig = getSectionConfig(sectionResult, 'mobile');
+      var mobilePlugins = mobileConfig.plugins ? normalizePlugins(mobileConfig.plugins) : desktopPlugins;
+      var platformPlugins = getPlatformPlugins(isMobileDevice, sectionResult, desktopPlugins, mobilePlugins);
+      var combinedPlugins = combinePlugins(forcedPlugins, platformPlugins);
+      if (Env.browser.isIE() && contains$3(combinedPlugins, 'rtc')) {
+        throw new Error('RTC plugin is not supported on IE 11.');
+      }
+      return Tools.extend(settings, { plugins: combinedPlugins.join(' ') });
+    };
+    var isOnMobile = function (isMobileDevice, sectionResult) {
+      return isMobileDevice && hasSection(sectionResult, 'mobile');
+    };
+    var combineSettings = function (isMobileDevice, isPhone, defaultSettings, defaultOverrideSettings, settings) {
+      var defaultDeviceSettings = isMobileDevice ? { mobile: getDefaultMobileSettings(settings.mobile || {}, isPhone) } : {};
+      var sectionResult = extractSections(['mobile'], deepMerge(defaultDeviceSettings, settings));
+      var extendedSettings = Tools.extend(defaultSettings, defaultOverrideSettings, sectionResult.settings(), isOnMobile(isMobileDevice, sectionResult) ? getSection(sectionResult, 'mobile') : {}, {
+        validate: true,
+        external_plugins: getExternalPlugins(defaultOverrideSettings, sectionResult.settings())
+      });
+      return processPlugins(isMobileDevice, sectionResult, defaultOverrideSettings, extendedSettings);
+    };
+    var getEditorSettings = function (editor, id, documentBaseUrl, defaultOverrideSettings, settings) {
+      var defaultSettings = getDefaultSettings(settings, id, documentBaseUrl, isTouch, editor);
+      return combineSettings(isPhone || isTablet, isPhone, defaultSettings, defaultOverrideSettings, settings);
+    };
+    var getFiltered = function (predicate, editor, name) {
+      return Optional.from(editor.settings[name]).filter(predicate);
+    };
+    var getParamObject = function (value) {
+      var output = {};
+      if (typeof value === 'string') {
+        each$k(value.indexOf('=') > 0 ? value.split(/[;,](?![^=;,]*(?:[;,]|$))/) : value.split(','), function (val) {
+          var arr = val.split('=');
+          if (arr.length > 1) {
+            output[Tools.trim(arr[0])] = Tools.trim(arr[1]);
+          } else {
+            output[Tools.trim(arr[0])] = Tools.trim(arr[0]);
+          }
+        });
+      } else {
+        output = value;
+      }
+      return output;
+    };
+    var isArrayOf = function (p) {
+      return function (a) {
+        return isArray$1(a) && forall(a, p);
+      };
+    };
+    var getParam = function (editor, name, defaultVal, type) {
+      var value = name in editor.settings ? editor.settings[name] : defaultVal;
+      if (type === 'hash') {
+        return getParamObject(value);
+      } else if (type === 'string') {
+        return getFiltered(isString$1, editor, name).getOr(defaultVal);
+      } else if (type === 'number') {
+        return getFiltered(isNumber, editor, name).getOr(defaultVal);
+      } else if (type === 'boolean') {
+        return getFiltered(isBoolean, editor, name).getOr(defaultVal);
+      } else if (type === 'object') {
+        return getFiltered(isObject, editor, name).getOr(defaultVal);
+      } else if (type === 'array') {
+        return getFiltered(isArray$1, editor, name).getOr(defaultVal);
+      } else if (type === 'string[]') {
+        return getFiltered(isArrayOf(isString$1), editor, name).getOr(defaultVal);
+      } else if (type === 'function') {
+        return getFiltered(isFunction, editor, name).getOr(defaultVal);
+      } else {
+        return value;
+      }
+    };
+
+    var CreateIconManager = function () {
+      var lookup = {};
+      var add = function (id, iconPack) {
+        lookup[id] = iconPack;
+      };
+      var get = function (id) {
+        if (lookup[id]) {
+          return lookup[id];
+        }
+        return { icons: {} };
+      };
+      var has = function (id) {
+        return has$2(lookup, id);
+      };
+      return {
+        add: add,
+        get: get,
+        has: has
+      };
+    };
+    var IconManager = CreateIconManager();
+
+    var getProp = function (propName, elm) {
+      var rawElm = elm.dom;
+      return rawElm[propName];
+    };
+    var getComputedSizeProp = function (propName, elm) {
+      return parseInt(get$5(elm, propName), 10);
+    };
+    var getClientWidth = curry(getProp, 'clientWidth');
+    var getClientHeight = curry(getProp, 'clientHeight');
+    var getMarginTop = curry(getComputedSizeProp, 'margin-top');
+    var getMarginLeft = curry(getComputedSizeProp, 'margin-left');
+    var getBoundingClientRect = function (elm) {
+      return elm.dom.getBoundingClientRect();
+    };
+    var isInsideElementContentArea = function (bodyElm, clientX, clientY) {
+      var clientWidth = getClientWidth(bodyElm);
+      var clientHeight = getClientHeight(bodyElm);
+      return clientX >= 0 && clientY >= 0 && clientX <= clientWidth && clientY <= clientHeight;
+    };
+    var transpose = function (inline, elm, clientX, clientY) {
+      var clientRect = getBoundingClientRect(elm);
+      var deltaX = inline ? clientRect.left + elm.dom.clientLeft + getMarginLeft(elm) : 0;
+      var deltaY = inline ? clientRect.top + elm.dom.clientTop + getMarginTop(elm) : 0;
+      var x = clientX - deltaX;
+      var y = clientY - deltaY;
+      return {
+        x: x,
+        y: y
+      };
+    };
+    var isXYInContentArea = function (editor, clientX, clientY) {
+      var bodyElm = SugarElement.fromDom(editor.getBody());
+      var targetElm = editor.inline ? bodyElm : documentElement(bodyElm);
+      var transposedPoint = transpose(editor.inline, targetElm, clientX, clientY);
+      return isInsideElementContentArea(targetElm, transposedPoint.x, transposedPoint.y);
+    };
+    var fromDomSafe = function (node) {
+      return Optional.from(node).map(SugarElement.fromDom);
+    };
+    var isEditorAttachedToDom = function (editor) {
+      var rawContainer = editor.inline ? editor.getBody() : editor.getContentAreaContainer();
+      return fromDomSafe(rawContainer).map(inBody).getOr(false);
+    };
+
+    var NotificationManagerImpl = function () {
+      var unimplemented = function () {
+        throw new Error('Theme did not provide a NotificationManager implementation.');
+      };
+      return {
+        open: unimplemented,
+        close: unimplemented,
+        reposition: unimplemented,
+        getArgs: unimplemented
+      };
+    };
+
+    var NotificationManager = function (editor) {
+      var notifications = [];
+      var getImplementation = function () {
+        var theme = editor.theme;
+        return theme && theme.getNotificationManagerImpl ? theme.getNotificationManagerImpl() : NotificationManagerImpl();
+      };
+      var getTopNotification = function () {
+        return Optional.from(notifications[0]);
+      };
+      var isEqual = function (a, b) {
+        return a.type === b.type && a.text === b.text && !a.progressBar && !a.timeout && !b.progressBar && !b.timeout;
+      };
+      var reposition = function () {
+        if (notifications.length > 0) {
+          getImplementation().reposition(notifications);
+        }
+      };
+      var addNotification = function (notification) {
+        notifications.push(notification);
+      };
+      var closeNotification = function (notification) {
+        findIndex$2(notifications, function (otherNotification) {
+          return otherNotification === notification;
+        }).each(function (index) {
+          notifications.splice(index, 1);
+        });
+      };
+      var open = function (spec, fireEvent) {
+        if (fireEvent === void 0) {
+          fireEvent = true;
+        }
+        if (editor.removed || !isEditorAttachedToDom(editor)) {
+          return;
+        }
+        if (fireEvent) {
+          editor.fire('BeforeOpenNotification', { notification: spec });
+        }
+        return find$3(notifications, function (notification) {
+          return isEqual(getImplementation().getArgs(notification), spec);
+        }).getOrThunk(function () {
+          editor.editorManager.setActive(editor);
+          var notification = getImplementation().open(spec, function () {
+            closeNotification(notification);
+            reposition();
+            getTopNotification().fold(function () {
+              return editor.focus();
+            }, function (top) {
+              return focus$1(SugarElement.fromDom(top.getEl()));
+            });
+          });
+          addNotification(notification);
+          reposition();
+          editor.fire('OpenNotification', { notification: __assign({}, notification) });
+          return notification;
+        });
+      };
+      var close = function () {
+        getTopNotification().each(function (notification) {
+          getImplementation().close(notification);
+          closeNotification(notification);
+          reposition();
+        });
+      };
+      var getNotifications = constant(notifications);
+      var registerEvents = function (editor) {
+        editor.on('SkinLoaded', function () {
+          var serviceMessage = getServiceMessage(editor);
+          if (serviceMessage) {
+            open({
+              text: serviceMessage,
+              type: 'warning',
+              timeout: 0
+            }, false);
+          }
+        });
+        editor.on('ResizeEditor ResizeWindow NodeChange', function () {
+          Delay.requestAnimationFrame(reposition);
+        });
+        editor.on('remove', function () {
+          each$k(notifications.slice(), function (notification) {
+            getImplementation().close(notification);
+          });
+        });
+      };
+      registerEvents(editor);
+      return {
+        open: open,
+        close: close,
+        getNotifications: getNotifications
+      };
+    };
+
+    var PluginManager = AddOnManager.PluginManager;
+
+    var ThemeManager = AddOnManager.ThemeManager;
+
+    function WindowManagerImpl () {
+      var unimplemented = function () {
+        throw new Error('Theme did not provide a WindowManager implementation.');
+      };
+      return {
+        open: unimplemented,
+        openUrl: unimplemented,
+        alert: unimplemented,
+        confirm: unimplemented,
+        close: unimplemented,
+        getParams: unimplemented,
+        setParams: unimplemented
+      };
+    }
+
+    var WindowManager = function (editor) {
+      var dialogs = [];
+      var getImplementation = function () {
+        var theme = editor.theme;
+        return theme && theme.getWindowManagerImpl ? theme.getWindowManagerImpl() : WindowManagerImpl();
+      };
+      var funcBind = function (scope, f) {
+        return function () {
+          var args = [];
+          for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+          }
+          return f ? f.apply(scope, args) : undefined;
+        };
+      };
+      var fireOpenEvent = function (dialog) {
+        editor.fire('OpenWindow', { dialog: dialog });
+      };
+      var fireCloseEvent = function (dialog) {
+        editor.fire('CloseWindow', { dialog: dialog });
+      };
+      var addDialog = function (dialog) {
+        dialogs.push(dialog);
+        fireOpenEvent(dialog);
+      };
+      var closeDialog = function (dialog) {
+        fireCloseEvent(dialog);
+        dialogs = filter$4(dialogs, function (otherDialog) {
+          return otherDialog !== dialog;
+        });
+        if (dialogs.length === 0) {
+          editor.focus();
+        }
+      };
+      var getTopDialog = function () {
+        return Optional.from(dialogs[dialogs.length - 1]);
+      };
+      var storeSelectionAndOpenDialog = function (openDialog) {
+        editor.editorManager.setActive(editor);
+        store(editor);
+        var dialog = openDialog();
+        addDialog(dialog);
+        return dialog;
+      };
+      var open = function (args, params) {
+        return storeSelectionAndOpenDialog(function () {
+          return getImplementation().open(args, params, closeDialog);
+        });
+      };
+      var openUrl = function (args) {
+        return storeSelectionAndOpenDialog(function () {
+          return getImplementation().openUrl(args, closeDialog);
+        });
+      };
+      var alert = function (message, callback, scope) {
+        var windowManagerImpl = getImplementation();
+        windowManagerImpl.alert(message, funcBind(scope ? scope : windowManagerImpl, callback));
+      };
+      var confirm = function (message, callback, scope) {
+        var windowManagerImpl = getImplementation();
+        windowManagerImpl.confirm(message, funcBind(scope ? scope : windowManagerImpl, callback));
+      };
+      var close = function () {
+        getTopDialog().each(function (dialog) {
+          getImplementation().close(dialog);
+          closeDialog(dialog);
+        });
+      };
+      editor.on('remove', function () {
+        each$k(dialogs, function (dialog) {
+          getImplementation().close(dialog);
+        });
+      });
+      return {
+        open: open,
+        openUrl: openUrl,
+        alert: alert,
+        confirm: confirm,
+        close: close
+      };
+    };
+
+    var displayNotification = function (editor, message) {
+      editor.notificationManager.open({
+        type: 'error',
+        text: message
+      });
+    };
+    var displayError = function (editor, message) {
+      if (editor._skinLoaded) {
+        displayNotification(editor, message);
+      } else {
+        editor.on('SkinLoaded', function () {
+          displayNotification(editor, message);
+        });
+      }
+    };
+    var uploadError = function (editor, message) {
+      displayError(editor, I18n.translate([
+        'Failed to upload image: {0}',
+        message
+      ]));
+    };
+    var logError = function (editor, errorType, msg) {
+      fireError(editor, errorType, { message: msg });
+      console.error(msg);
+    };
+    var createLoadError = function (type, url, name) {
+      return name ? 'Failed to load ' + type + ': ' + name + ' from url ' + url : 'Failed to load ' + type + ' url: ' + url;
+    };
+    var pluginLoadError = function (editor, url, name) {
+      logError(editor, 'PluginLoadError', createLoadError('plugin', url, name));
+    };
+    var iconsLoadError = function (editor, url, name) {
+      logError(editor, 'IconsLoadError', createLoadError('icons', url, name));
+    };
+    var languageLoadError = function (editor, url, name) {
+      logError(editor, 'LanguageLoadError', createLoadError('language', url, name));
+    };
+    var pluginInitError = function (editor, name, err) {
+      var message = I18n.translate([
+        'Failed to initialize plugin: {0}',
+        name
+      ]);
+      fireError(editor, 'PluginLoadError', { message: message });
+      initError(message, err);
+      displayError(editor, message);
+    };
+    var initError = function (message) {
+      var x = [];
+      for (var _i = 1; _i < arguments.length; _i++) {
+        x[_i - 1] = arguments[_i];
+      }
+      var console = window.console;
+      if (console) {
+        if (console.error) {
+          console.error.apply(console, __spreadArray([message], x));
+        } else {
+          console.log.apply(console, __spreadArray([message], x));
+        }
+      }
+    };
+
+    var isContentCssSkinName = function (url) {
+      return /^[a-z0-9\-]+$/i.test(url);
+    };
+    var getContentCssUrls = function (editor) {
+      return transformToUrls(editor, getContentCss(editor));
+    };
+    var getFontCssUrls = function (editor) {
+      return transformToUrls(editor, getFontCss(editor));
+    };
+    var transformToUrls = function (editor, cssLinks) {
+      var skinUrl = editor.editorManager.baseURL + '/skins/content';
+      var suffix = editor.editorManager.suffix;
+      var contentCssFile = 'content' + suffix + '.css';
+      var inline = editor.inline === true;
+      return map$3(cssLinks, function (url) {
+        if (isContentCssSkinName(url) && !inline) {
+          return skinUrl + '/' + url + '/' + contentCssFile;
+        } else {
+          return editor.documentBaseURI.toAbsolute(url);
+        }
+      });
+    };
+    var appendContentCssFromSettings = function (editor) {
+      editor.contentCSS = editor.contentCSS.concat(getContentCssUrls(editor), getFontCssUrls(editor));
+    };
+
+    var UploadStatus = function () {
+      var PENDING = 1, UPLOADED = 2;
+      var blobUriStatuses = {};
+      var createStatus = function (status, resultUri) {
+        return {
+          status: status,
+          resultUri: resultUri
+        };
+      };
+      var hasBlobUri = function (blobUri) {
+        return blobUri in blobUriStatuses;
+      };
+      var getResultUri = function (blobUri) {
+        var result = blobUriStatuses[blobUri];
+        return result ? result.resultUri : null;
+      };
+      var isPending = function (blobUri) {
+        return hasBlobUri(blobUri) ? blobUriStatuses[blobUri].status === PENDING : false;
+      };
+      var isUploaded = function (blobUri) {
+        return hasBlobUri(blobUri) ? blobUriStatuses[blobUri].status === UPLOADED : false;
+      };
+      var markPending = function (blobUri) {
+        blobUriStatuses[blobUri] = createStatus(PENDING, null);
+      };
+      var markUploaded = function (blobUri, resultUri) {
+        blobUriStatuses[blobUri] = createStatus(UPLOADED, resultUri);
+      };
+      var removeFailed = function (blobUri) {
+        delete blobUriStatuses[blobUri];
+      };
+      var destroy = function () {
+        blobUriStatuses = {};
+      };
+      return {
+        hasBlobUri: hasBlobUri,
+        getResultUri: getResultUri,
+        isPending: isPending,
+        isUploaded: isUploaded,
+        markPending: markPending,
+        markUploaded: markUploaded,
+        removeFailed: removeFailed,
+        destroy: destroy
+      };
+    };
+
+    var count = 0;
+    var seed = function () {
+      var rnd = function () {
+        return Math.round(Math.random() * 4294967295).toString(36);
+      };
+      var now = new Date().getTime();
+      return 's' + now.toString(36) + rnd() + rnd() + rnd();
+    };
+    var uuid = function (prefix) {
+      return prefix + count++ + seed();
+    };
+
+    var BlobCache = function () {
+      var cache = [];
+      var mimeToExt = function (mime) {
+        var mimes = {
+          'image/jpeg': 'jpg',
+          'image/jpg': 'jpg',
+          'image/gif': 'gif',
+          'image/png': 'png',
+          'image/apng': 'apng',
+          'image/avif': 'avif',
+          'image/svg+xml': 'svg',
+          'image/webp': 'webp',
+          'image/bmp': 'bmp',
+          'image/tiff': 'tiff'
+        };
+        return mimes[mime.toLowerCase()] || 'dat';
+      };
+      var create = function (o, blob, base64, name, filename) {
+        if (isString$1(o)) {
+          var id = o;
+          return toBlobInfo({
+            id: id,
+            name: name,
+            filename: filename,
+            blob: blob,
+            base64: base64
+          });
+        } else if (isObject(o)) {
+          return toBlobInfo(o);
+        } else {
+          throw new Error('Unknown input type');
+        }
+      };
+      var toBlobInfo = function (o) {
+        if (!o.blob || !o.base64) {
+          throw new Error('blob and base64 representations of the image are required for BlobInfo to be created');
+        }
+        var id = o.id || uuid('blobid');
+        var name = o.name || id;
+        var blob = o.blob;
+        return {
+          id: constant(id),
+          name: constant(name),
+          filename: constant(o.filename || name + '.' + mimeToExt(blob.type)),
+          blob: constant(blob),
+          base64: constant(o.base64),
+          blobUri: constant(o.blobUri || URL.createObjectURL(blob)),
+          uri: constant(o.uri)
+        };
+      };
+      var add = function (blobInfo) {
+        if (!get(blobInfo.id())) {
+          cache.push(blobInfo);
+        }
+      };
+      var findFirst = function (predicate) {
+        return find$3(cache, predicate).getOrUndefined();
+      };
+      var get = function (id) {
+        return findFirst(function (cachedBlobInfo) {
+          return cachedBlobInfo.id() === id;
+        });
+      };
+      var getByUri = function (blobUri) {
+        return findFirst(function (blobInfo) {
+          return blobInfo.blobUri() === blobUri;
+        });
+      };
+      var getByData = function (base64, type) {
+        return findFirst(function (blobInfo) {
+          return blobInfo.base64() === base64 && blobInfo.blob().type === type;
+        });
+      };
+      var removeByUri = function (blobUri) {
+        cache = filter$4(cache, function (blobInfo) {
+          if (blobInfo.blobUri() === blobUri) {
+            URL.revokeObjectURL(blobInfo.blobUri());
+            return false;
+          }
+          return true;
+        });
+      };
+      var destroy = function () {
+        each$k(cache, function (cachedBlobInfo) {
+          URL.revokeObjectURL(cachedBlobInfo.blobUri());
+        });
+        cache = [];
+      };
+      return {
+        create: create,
+        add: add,
+        get: get,
+        getByUri: getByUri,
+        getByData: getByData,
+        findFirst: findFirst,
+        removeByUri: removeByUri,
+        destroy: destroy
+      };
+    };
+
+    var Uploader = function (uploadStatus, settings) {
+      var pendingPromises = {};
+      var pathJoin = function (path1, path2) {
+        if (path1) {
+          return path1.replace(/\/$/, '') + '/' + path2.replace(/^\//, '');
+        }
+        return path2;
+      };
+      var defaultHandler = function (blobInfo, success, failure, progress) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', settings.url);
+        xhr.withCredentials = settings.credentials;
+        xhr.upload.onprogress = function (e) {
+          progress(e.loaded / e.total * 100);
+        };
+        xhr.onerror = function () {
+          failure('Image upload failed due to a XHR Transport error. Code: ' + xhr.status);
+        };
+        xhr.onload = function () {
+          if (xhr.status < 200 || xhr.status >= 300) {
+            failure('HTTP Error: ' + xhr.status);
+            return;
+          }
+          var json = JSON.parse(xhr.responseText);
+          if (!json || typeof json.location !== 'string') {
+            failure('Invalid JSON: ' + xhr.responseText);
+            return;
+          }
+          success(pathJoin(settings.basePath, json.location));
+        };
+        var formData = new FormData();
+        formData.append('file', blobInfo.blob(), blobInfo.filename());
+        xhr.send(formData);
+      };
+      var noUpload = function () {
+        return new promiseObj(function (resolve) {
+          resolve([]);
+        });
+      };
+      var handlerSuccess = function (blobInfo, url) {
+        return {
+          url: url,
+          blobInfo: blobInfo,
+          status: true
+        };
+      };
+      var handlerFailure = function (blobInfo, message, options) {
+        return {
+          url: '',
+          blobInfo: blobInfo,
+          status: false,
+          error: {
+            message: message,
+            options: options
+          }
+        };
+      };
+      var resolvePending = function (blobUri, result) {
+        Tools.each(pendingPromises[blobUri], function (resolve) {
+          resolve(result);
+        });
+        delete pendingPromises[blobUri];
+      };
+      var uploadBlobInfo = function (blobInfo, handler, openNotification) {
+        uploadStatus.markPending(blobInfo.blobUri());
+        return new promiseObj(function (resolve) {
+          var notification, progress;
+          try {
+            var closeNotification_1 = function () {
+              if (notification) {
+                notification.close();
+                progress = noop;
+              }
+            };
+            var success = function (url) {
+              closeNotification_1();
+              uploadStatus.markUploaded(blobInfo.blobUri(), url);
+              resolvePending(blobInfo.blobUri(), handlerSuccess(blobInfo, url));
+              resolve(handlerSuccess(blobInfo, url));
+            };
+            var failure = function (error, options) {
+              var failureOptions = options ? options : {};
+              closeNotification_1();
+              uploadStatus.removeFailed(blobInfo.blobUri());
+              resolvePending(blobInfo.blobUri(), handlerFailure(blobInfo, error, failureOptions));
+              resolve(handlerFailure(blobInfo, error, failureOptions));
+            };
+            progress = function (percent) {
+              if (percent < 0 || percent > 100) {
+                return;
+              }
+              Optional.from(notification).orThunk(function () {
+                return Optional.from(openNotification).map(apply);
+              }).each(function (n) {
+                notification = n;
+                n.progressBar.value(percent);
+              });
+            };
+            handler(blobInfo, success, failure, progress);
+          } catch (ex) {
+            resolve(handlerFailure(blobInfo, ex.message, {}));
+          }
+        });
+      };
+      var isDefaultHandler = function (handler) {
+        return handler === defaultHandler;
+      };
+      var pendingUploadBlobInfo = function (blobInfo) {
+        var blobUri = blobInfo.blobUri();
+        return new promiseObj(function (resolve) {
+          pendingPromises[blobUri] = pendingPromises[blobUri] || [];
+          pendingPromises[blobUri].push(resolve);
+        });
+      };
+      var uploadBlobs = function (blobInfos, openNotification) {
+        blobInfos = Tools.grep(blobInfos, function (blobInfo) {
+          return !uploadStatus.isUploaded(blobInfo.blobUri());
+        });
+        return promiseObj.all(Tools.map(blobInfos, function (blobInfo) {
+          return uploadStatus.isPending(blobInfo.blobUri()) ? pendingUploadBlobInfo(blobInfo) : uploadBlobInfo(blobInfo, settings.handler, openNotification);
+        }));
+      };
+      var upload = function (blobInfos, openNotification) {
+        return !settings.url && isDefaultHandler(settings.handler) ? noUpload() : uploadBlobs(blobInfos, openNotification);
+      };
+      if (isFunction(settings.handler) === false) {
+        settings.handler = defaultHandler;
+      }
+      return { upload: upload };
+    };
+
+    var openNotification = function (editor) {
+      return function () {
+        return editor.notificationManager.open({
+          text: editor.translate('Image uploading...'),
+          type: 'info',
+          timeout: -1,
+          progressBar: true
+        });
+      };
+    };
+    var createUploader = function (editor, uploadStatus) {
+      return Uploader(uploadStatus, {
+        url: getImageUploadUrl(editor),
+        basePath: getImageUploadBasePath(editor),
+        credentials: getImagesUploadCredentials(editor),
+        handler: getImagesUploadHandler(editor)
+      });
+    };
+    var ImageUploader = function (editor) {
+      var uploadStatus = UploadStatus();
+      var uploader = createUploader(editor, uploadStatus);
+      return {
+        upload: function (blobInfos, showNotification) {
+          if (showNotification === void 0) {
+            showNotification = true;
+          }
+          return uploader.upload(blobInfos, showNotification ? openNotification(editor) : undefined);
+        }
+      };
+    };
+
+    var UploadChangeHandler = function (editor) {
+      var lastChangedLevel = Cell(null);
+      editor.on('change AddUndo', function (e) {
+        lastChangedLevel.set(__assign({}, e.level));
+      });
+      var fireIfChanged = function () {
+        var data = editor.undoManager.data;
+        last$2(data).filter(function (level) {
+          return !isEq$1(lastChangedLevel.get(), level);
+        }).each(function (level) {
+          editor.setDirty(true);
+          editor.fire('change', {
+            level: level,
+            lastLevel: get$a(data, data.length - 2).getOrNull()
+          });
+        });
+      };
+      return { fireIfChanged: fireIfChanged };
+    };
+    var EditorUpload = function (editor) {
+      var blobCache = BlobCache();
+      var uploader, imageScanner;
+      var uploadStatus = UploadStatus();
+      var urlFilters = [];
+      var changeHandler = UploadChangeHandler(editor);
+      var aliveGuard = function (callback) {
+        return function (result) {
+          if (editor.selection) {
+            return callback(result);
+          }
+          return [];
+        };
+      };
+      var cacheInvalidator = function (url) {
+        return url + (url.indexOf('?') === -1 ? '?' : '&') + new Date().getTime();
+      };
+      var replaceString = function (content, search, replace) {
+        var index = 0;
+        do {
+          index = content.indexOf(search, index);
+          if (index !== -1) {
+            content = content.substring(0, index) + replace + content.substr(index + search.length);
+            index += replace.length - search.length + 1;
+          }
+        } while (index !== -1);
+        return content;
+      };
+      var replaceImageUrl = function (content, targetUrl, replacementUrl) {
+        var replacementString = 'src="' + replacementUrl + '"' + (replacementUrl === Env.transparentSrc ? ' data-mce-placeholder="1"' : '');
+        content = replaceString(content, 'src="' + targetUrl + '"', replacementString);
+        content = replaceString(content, 'data-mce-src="' + targetUrl + '"', 'data-mce-src="' + replacementUrl + '"');
+        return content;
+      };
+      var replaceUrlInUndoStack = function (targetUrl, replacementUrl) {
+        each$k(editor.undoManager.data, function (level) {
+          if (level.type === 'fragmented') {
+            level.fragments = map$3(level.fragments, function (fragment) {
+              return replaceImageUrl(fragment, targetUrl, replacementUrl);
+            });
+          } else {
+            level.content = replaceImageUrl(level.content, targetUrl, replacementUrl);
+          }
+        });
+      };
+      var replaceImageUriInView = function (image, resultUri) {
+        var src = editor.convertURL(resultUri, 'src');
+        replaceUrlInUndoStack(image.src, resultUri);
+        editor.$(image).attr({
+          'src': shouldReuseFileName(editor) ? cacheInvalidator(resultUri) : resultUri,
+          'data-mce-src': src
+        });
+      };
+      var uploadImages = function (callback) {
+        if (!uploader) {
+          uploader = createUploader(editor, uploadStatus);
+        }
+        return scanForImages().then(aliveGuard(function (imageInfos) {
+          var blobInfos = map$3(imageInfos, function (imageInfo) {
+            return imageInfo.blobInfo;
+          });
+          return uploader.upload(blobInfos, openNotification(editor)).then(aliveGuard(function (result) {
+            var imagesToRemove = [];
+            var filteredResult = map$3(result, function (uploadInfo, index) {
+              var blobInfo = imageInfos[index].blobInfo;
+              var image = imageInfos[index].image;
+              if (uploadInfo.status && shouldReplaceBlobUris(editor)) {
+                blobCache.removeByUri(image.src);
+                if (isRtc(editor)) ; else {
+                  replaceImageUriInView(image, uploadInfo.url);
+                }
+              } else if (uploadInfo.error) {
+                if (uploadInfo.error.options.remove) {
+                  replaceUrlInUndoStack(image.getAttribute('src'), Env.transparentSrc);
+                  imagesToRemove.push(image);
+                }
+                uploadError(editor, uploadInfo.error.message);
+              }
+              return {
+                element: image,
+                status: uploadInfo.status,
+                uploadUri: uploadInfo.url,
+                blobInfo: blobInfo
+              };
+            });
+            if (filteredResult.length > 0) {
+              changeHandler.fireIfChanged();
+            }
+            if (imagesToRemove.length > 0) {
+              if (isRtc(editor)) {
+                console.error('Removing images on failed uploads is currently unsupported for RTC');
+              } else {
+                editor.undoManager.transact(function () {
+                  each$k(imagesToRemove, function (element) {
+                    editor.dom.remove(element);
+                    blobCache.removeByUri(element.src);
+                  });
+                });
+              }
+            }
+            if (callback) {
+              callback(filteredResult);
+            }
+            return filteredResult;
+          }));
+        }));
+      };
+      var uploadImagesAuto = function (callback) {
+        if (isAutomaticUploadsEnabled(editor)) {
+          return uploadImages(callback);
+        }
+      };
+      var isValidDataUriImage = function (imgElm) {
+        if (forall(urlFilters, function (filter) {
+            return filter(imgElm);
+          }) === false) {
+          return false;
+        }
+        if (imgElm.getAttribute('src').indexOf('data:') === 0) {
+          var dataImgFilter = getImagesDataImgFilter(editor);
+          return dataImgFilter(imgElm);
+        }
+        return true;
+      };
+      var addFilter = function (filter) {
+        urlFilters.push(filter);
+      };
+      var scanForImages = function () {
+        if (!imageScanner) {
+          imageScanner = ImageScanner(uploadStatus, blobCache);
+        }
+        return imageScanner.findAll(editor.getBody(), isValidDataUriImage).then(aliveGuard(function (result) {
+          result = filter$4(result, function (resultItem) {
+            if (typeof resultItem === 'string') {
+              displayError(editor, resultItem);
+              return false;
+            }
+            return true;
+          });
+          if (isRtc(editor)) ; else {
+            each$k(result, function (resultItem) {
+              replaceUrlInUndoStack(resultItem.image.src, resultItem.blobInfo.blobUri());
+              resultItem.image.src = resultItem.blobInfo.blobUri();
+              resultItem.image.removeAttribute('data-mce-src');
+            });
+          }
+          return result;
+        }));
+      };
+      var destroy = function () {
+        blobCache.destroy();
+        uploadStatus.destroy();
+        imageScanner = uploader = null;
+      };
+      var replaceBlobUris = function (content) {
+        return content.replace(/src="(blob:[^"]+)"/g, function (match, blobUri) {
+          var resultUri = uploadStatus.getResultUri(blobUri);
+          if (resultUri) {
+            return 'src="' + resultUri + '"';
+          }
+          var blobInfo = blobCache.getByUri(blobUri);
+          if (!blobInfo) {
+            blobInfo = foldl(editor.editorManager.get(), function (result, editor) {
+              return result || editor.editorUpload && editor.editorUpload.blobCache.getByUri(blobUri);
+            }, null);
+          }
+          if (blobInfo) {
+            var blob = blobInfo.blob();
+            return 'src="data:' + blob.type + ';base64,' + blobInfo.base64() + '"';
+          }
+          return match;
+        });
+      };
+      editor.on('SetContent', function () {
+        if (isAutomaticUploadsEnabled(editor)) {
+          uploadImagesAuto();
+        } else {
+          scanForImages();
+        }
+      });
+      editor.on('RawSaveContent', function (e) {
+        e.content = replaceBlobUris(e.content);
+      });
+      editor.on('GetContent', function (e) {
+        if (e.source_view || e.format === 'raw' || e.format === 'tree') {
+          return;
+        }
+        e.content = replaceBlobUris(e.content);
+      });
+      editor.on('PostRender', function () {
+        editor.parser.addNodeFilter('img', function (images) {
+          each$k(images, function (img) {
+            var src = img.attr('src');
+            if (blobCache.getByUri(src)) {
+              return;
+            }
+            var resultUri = uploadStatus.getResultUri(src);
+            if (resultUri) {
+              img.attr('src', resultUri);
+            }
+          });
+        });
+      });
+      return {
+        blobCache: blobCache,
+        addFilter: addFilter,
+        uploadImages: uploadImages,
+        uploadImagesAuto: uploadImagesAuto,
+        scanForImages: scanForImages,
+        destroy: destroy
+      };
+    };
+
+    var get = function (dom) {
+      var formats = {
+        valigntop: [{
+            selector: 'td,th',
+            styles: { verticalAlign: 'top' }
+          }],
+        valignmiddle: [{
+            selector: 'td,th',
+            styles: { verticalAlign: 'middle' }
+          }],
+        valignbottom: [{
+            selector: 'td,th',
+            styles: { verticalAlign: 'bottom' }
+          }],
+        alignleft: [
+          {
+            selector: 'figure.image',
+            collapsed: false,
+            classes: 'align-left',
+            ceFalseOverride: true,
+            preview: 'font-family font-size'
+          },
+          {
+            selector: 'figure,p,h1,h2,h3,h4,h5,h6,td,th,tr,div,ul,ol,li',
+            styles: { textAlign: 'left' },
+            inherit: false,
+            preview: false,
+            defaultBlock: 'div'
+          },
+          {
+            selector: 'img,table,audio,video',
+            collapsed: false,
+            styles: { float: 'left' },
+            preview: 'font-family font-size'
+          }
+        ],
+        aligncenter: [
+          {
+            selector: 'figure,p,h1,h2,h3,h4,h5,h6,td,th,tr,div,ul,ol,li',
+            styles: { textAlign: 'center' },
+            inherit: false,
+            preview: 'font-family font-size',
+            defaultBlock: 'div'
+          },
+          {
+            selector: 'figure.image',
+            collapsed: false,
+            classes: 'align-center',
+            ceFalseOverride: true,
+            preview: 'font-family font-size'
+          },
+          {
+            selector: 'img,audio,video',
+            collapsed: false,
+            styles: {
+              display: 'block',
+              marginLeft: 'auto',
+              marginRight: 'auto'
+            },
+            preview: false
+          },
+          {
+            selector: 'table',
+            collapsed: false,
+            styles: {
+              marginLeft: 'auto',
+              marginRight: 'auto'
+            },
+            preview: 'font-family font-size'
+          }
+        ],
+        alignright: [
+          {
+            selector: 'figure.image',
+            collapsed: false,
+            classes: 'align-right',
+            ceFalseOverride: true,
+            preview: 'font-family font-size'
+          },
+          {
+            selector: 'figure,p,h1,h2,h3,h4,h5,h6,td,th,tr,div,ul,ol,li',
+            styles: { textAlign: 'right' },
+            inherit: false,
+            preview: 'font-family font-size',
+            defaultBlock: 'div'
+          },
+          {
+            selector: 'img,table,audio,video',
+            collapsed: false,
+            styles: { float: 'right' },
+            preview: 'font-family font-size'
+          }
+        ],
+        alignjustify: [{
+            selector: 'figure,p,h1,h2,h3,h4,h5,h6,td,th,tr,div,ul,ol,li',
+            styles: { textAlign: 'justify' },
+            inherit: false,
+            defaultBlock: 'div',
+            preview: 'font-family font-size'
+          }],
+        bold: [
+          {
+            inline: 'strong',
+            remove: 'all',
+            preserve_attributes: [
+              'class',
+              'style'
+            ]
+          },
+          {
+            inline: 'span',
+            styles: { fontWeight: 'bold' }
+          },
+          {
+            inline: 'b',
+            remove: 'all',
+            preserve_attributes: [
+              'class',
+              'style'
+            ]
+          }
+        ],
+        italic: [
+          {
+            inline: 'em',
+            remove: 'all',
+            preserve_attributes: [
+              'class',
+              'style'
+            ]
+          },
+          {
+            inline: 'span',
+            styles: { fontStyle: 'italic' }
+          },
+          {
+            inline: 'i',
+            remove: 'all',
+            preserve_attributes: [
+              'class',
+              'style'
+            ]
+          }
+        ],
+        underline: [
+          {
+            inline: 'span',
+            styles: { textDecoration: 'underline' },
+            exact: true
+          },
+          {
+            inline: 'u',
+            remove: 'all',
+            preserve_attributes: [
+              'class',
+              'style'
+            ]
+          }
+        ],
+        strikethrough: [
+          {
+            inline: 'span',
+            styles: { textDecoration: 'line-through' },
+            exact: true
+          },
+          {
+            inline: 'strike',
+            remove: 'all',
+            preserve_attributes: [
+              'class',
+              'style'
+            ]
+          },
+          {
+            inline: 's',
+            remove: 'all',
+            preserve_attributes: [
+              'class',
+              'style'
+            ]
+          }
+        ],
+        forecolor: {
+          inline: 'span',
+          styles: { color: '%value' },
+          links: true,
+          remove_similar: true,
+          clear_child_styles: true
+        },
+        hilitecolor: {
+          inline: 'span',
+          styles: { backgroundColor: '%value' },
+          links: true,
+          remove_similar: true,
+          clear_child_styles: true
+        },
+        fontname: {
+          inline: 'span',
+          toggle: false,
+          styles: { fontFamily: '%value' },
+          clear_child_styles: true
+        },
+        fontsize: {
+          inline: 'span',
+          toggle: false,
+          styles: { fontSize: '%value' },
+          clear_child_styles: true
+        },
+        lineheight: {
+          selector: 'h1,h2,h3,h4,h5,h6,p,li,td,th,div',
+          defaultBlock: 'p',
+          styles: { lineHeight: '%value' }
+        },
+        fontsize_class: {
+          inline: 'span',
+          attributes: { class: '%value' }
+        },
+        blockquote: {
+          block: 'blockquote',
+          wrapper: true,
+          remove: 'all'
+        },
+        subscript: { inline: 'sub' },
+        superscript: { inline: 'sup' },
+        code: { inline: 'code' },
+        link: {
+          inline: 'a',
+          selector: 'a',
+          remove: 'all',
+          split: true,
+          deep: true,
+          onmatch: function (node, _fmt, _itemName) {
+            return isElement$5(node) && node.hasAttribute('href');
+          },
+          onformat: function (elm, _fmt, vars) {
+            Tools.each(vars, function (value, key) {
+              dom.setAttrib(elm, key, value);
+            });
+          }
+        },
+        lang: {
+          inline: 'span',
+          clear_child_styles: true,
+          remove_similar: true,
+          attributes: {
+            'lang': '%value',
+            'data-mce-lang': function (vars) {
+              var _a;
+              return (_a = vars === null || vars === void 0 ? void 0 : vars.customValue) !== null && _a !== void 0 ? _a : null;
+            }
+          }
+        },
+        removeformat: [
+          {
+            selector: 'b,strong,em,i,font,u,strike,s,sub,sup,dfn,code,samp,kbd,var,cite,mark,q,del,ins,small',
+            remove: 'all',
+            split: true,
+            expand: false,
+            block_expand: true,
+            deep: true
+          },
+          {
+            selector: 'span',
+            attributes: [
+              'style',
+              'class'
+            ],
+            remove: 'empty',
+            split: true,
+            expand: false,
+            deep: true
+          },
+          {
+            selector: '*',
+            attributes: [
+              'style',
+              'class'
+            ],
+            split: false,
+            expand: false,
+            deep: true
+          }
+        ]
+      };
+      Tools.each('p h1 h2 h3 h4 h5 h6 div address pre dt dd samp'.split(/\s/), function (name) {
+        formats[name] = {
+          block: name,
+          remove: 'all'
+        };
+      });
+      return formats;
+    };
+
+    var FormatRegistry = function (editor) {
+      var formats = {};
+      var get$1 = function (name) {
+        return isNonNullable(name) ? formats[name] : formats;
+      };
+      var has = function (name) {
+        return has$2(formats, name);
+      };
+      var register = function (name, format) {
+        if (name) {
+          if (!isString$1(name)) {
+            each$j(name, function (format, name) {
+              register(name, format);
+            });
+          } else {
+            if (!isArray$1(format)) {
+              format = [format];
+            }
+            each$k(format, function (format) {
+              if (isUndefined(format.deep)) {
+                format.deep = !isSelectorFormat(format);
+              }
+              if (isUndefined(format.split)) {
+                format.split = !isSelectorFormat(format) || isInlineFormat(format);
+              }
+              if (isUndefined(format.remove) && isSelectorFormat(format) && !isInlineFormat(format)) {
+                format.remove = 'none';
+              }
+              if (isSelectorFormat(format) && isInlineFormat(format)) {
+                format.mixed = true;
+                format.block_expand = true;
+              }
+              if (isString$1(format.classes)) {
+                format.classes = format.classes.split(/\s+/);
+              }
+            });
+            formats[name] = format;
+          }
+        }
+      };
+      var unregister = function (name) {
+        if (name && formats[name]) {
+          delete formats[name];
+        }
+        return formats;
+      };
+      register(get(editor.dom));
+      register(getFormats(editor));
+      return {
+        get: get$1,
+        has: has,
+        register: register,
+        unregister: unregister
+      };
+    };
+
+    var each$6 = Tools.each;
+    var dom = DOMUtils.DOM;
+    var parsedSelectorToHtml = function (ancestry, editor) {
+      var elm, item, fragment;
+      var schema = editor && editor.schema || Schema({});
+      var decorate = function (elm, item) {
+        if (item.classes.length) {
+          dom.addClass(elm, item.classes.join(' '));
+        }
+        dom.setAttribs(elm, item.attrs);
+      };
+      var createElement = function (sItem) {
+        item = typeof sItem === 'string' ? {
+          name: sItem,
+          classes: [],
+          attrs: {}
+        } : sItem;
+        var elm = dom.create(item.name);
+        decorate(elm, item);
+        return elm;
+      };
+      var getRequiredParent = function (elm, candidate) {
+        var name = typeof elm !== 'string' ? elm.nodeName.toLowerCase() : elm;
+        var elmRule = schema.getElementRule(name);
+        var parentsRequired = elmRule && elmRule.parentsRequired;
+        if (parentsRequired && parentsRequired.length) {
+          return candidate && Tools.inArray(parentsRequired, candidate) !== -1 ? candidate : parentsRequired[0];
+        } else {
+          return false;
+        }
+      };
+      var wrapInHtml = function (elm, ancestry, siblings) {
+        var parent, parentCandidate;
+        var ancestor = ancestry.length > 0 && ancestry[0];
+        var ancestorName = ancestor && ancestor.name;
+        var parentRequired = getRequiredParent(elm, ancestorName);
+        if (parentRequired) {
+          if (ancestorName === parentRequired) {
+            parentCandidate = ancestry[0];
+            ancestry = ancestry.slice(1);
+          } else {
+            parentCandidate = parentRequired;
+          }
+        } else if (ancestor) {
+          parentCandidate = ancestry[0];
+          ancestry = ancestry.slice(1);
+        } else if (!siblings) {
+          return elm;
+        }
+        if (parentCandidate) {
+          parent = createElement(parentCandidate);
+          parent.appendChild(elm);
+        }
+        if (siblings) {
+          if (!parent) {
+            parent = dom.create('div');
+            parent.appendChild(elm);
+          }
+          Tools.each(siblings, function (sibling) {
+            var siblingElm = createElement(sibling);
+            parent.insertBefore(siblingElm, elm);
+          });
+        }
+        return wrapInHtml(parent, ancestry, parentCandidate && parentCandidate.siblings);
+      };
+      if (ancestry && ancestry.length) {
+        item = ancestry[0];
+        elm = createElement(item);
+        fragment = dom.create('div');
+        fragment.appendChild(wrapInHtml(elm, ancestry.slice(1), item.siblings));
+        return fragment;
+      } else {
+        return '';
+      }
+    };
+    var parseSelectorItem = function (item) {
+      var tagName;
+      var obj = {
+        classes: [],
+        attrs: {}
+      };
+      item = obj.selector = Tools.trim(item);
+      if (item !== '*') {
+        tagName = item.replace(/(?:([#\.]|::?)([\w\-]+)|(\[)([^\]]+)\]?)/g, function ($0, $1, $2, $3, $4) {
+          switch ($1) {
+          case '#':
+            obj.attrs.id = $2;
+            break;
+          case '.':
+            obj.classes.push($2);
+            break;
+          case ':':
+            if (Tools.inArray('checked disabled enabled read-only required'.split(' '), $2) !== -1) {
+              obj.attrs[$2] = $2;
+            }
+            break;
+          }
+          if ($3 === '[') {
+            var m = $4.match(/([\w\-]+)(?:\=\"([^\"]+))?/);
+            if (m) {
+              obj.attrs[m[1]] = m[2];
+            }
+          }
+          return '';
+        });
+      }
+      obj.name = tagName || 'div';
+      return obj;
+    };
+    var parseSelector = function (selector) {
+      if (!selector || typeof selector !== 'string') {
+        return [];
+      }
+      selector = selector.split(/\s*,\s*/)[0];
+      selector = selector.replace(/\s*(~\+|~|\+|>)\s*/g, '$1');
+      return Tools.map(selector.split(/(?:>|\s+(?![^\[\]]+\]))/), function (item) {
+        var siblings = Tools.map(item.split(/(?:~\+|~|\+)/), parseSelectorItem);
+        var obj = siblings.pop();
+        if (siblings.length) {
+          obj.siblings = siblings;
+        }
+        return obj;
+      }).reverse();
+    };
+    var getCssText = function (editor, format) {
+      var name, previewFrag;
+      var previewCss = '', parentFontSize;
+      var previewStyles = getPreviewStyles(editor);
+      if (previewStyles === '') {
+        return '';
+      }
+      var removeVars = function (val) {
+        return val.replace(/%(\w+)/g, '');
+      };
+      if (typeof format === 'string') {
+        format = editor.formatter.get(format);
+        if (!format) {
+          return;
+        }
+        format = format[0];
+      }
+      if ('preview' in format) {
+        var previewOpt = get$9(format, 'preview');
+        if (is$1(previewOpt, false)) {
+          return '';
+        } else {
+          previewStyles = previewOpt.getOr(previewStyles);
+        }
+      }
+      name = format.block || format.inline || 'span';
+      var items = parseSelector(format.selector);
+      if (items.length) {
+        if (!items[0].name) {
+          items[0].name = name;
+        }
+        name = format.selector;
+        previewFrag = parsedSelectorToHtml(items, editor);
+      } else {
+        previewFrag = parsedSelectorToHtml([name], editor);
+      }
+      var previewElm = dom.select(name, previewFrag)[0] || previewFrag.firstChild;
+      each$6(format.styles, function (value, name) {
+        var newValue = removeVars(value);
+        if (newValue) {
+          dom.setStyle(previewElm, name, newValue);
+        }
+      });
+      each$6(format.attributes, function (value, name) {
+        var newValue = removeVars(value);
+        if (newValue) {
+          dom.setAttrib(previewElm, name, newValue);
+        }
+      });
+      each$6(format.classes, function (value) {
+        var newValue = removeVars(value);
+        if (!dom.hasClass(previewElm, newValue)) {
+          dom.addClass(previewElm, newValue);
+        }
+      });
+      editor.fire('PreviewFormats');
+      dom.setStyles(previewFrag, {
+        position: 'absolute',
+        left: -65535
+      });
+      editor.getBody().appendChild(previewFrag);
+      parentFontSize = dom.getStyle(editor.getBody(), 'fontSize', true);
+      parentFontSize = /px$/.test(parentFontSize) ? parseInt(parentFontSize, 10) : 0;
+      each$6(previewStyles.split(' '), function (name) {
+        var value = dom.getStyle(previewElm, name, true);
+        if (name === 'background-color' && /transparent|rgba\s*\([^)]+,\s*0\)/.test(value)) {
+          value = dom.getStyle(editor.getBody(), name, true);
+          if (dom.toHex(value).toLowerCase() === '#ffffff') {
+            return;
+          }
+        }
+        if (name === 'color') {
+          if (dom.toHex(value).toLowerCase() === '#000000') {
+            return;
+          }
+        }
+        if (name === 'font-size') {
+          if (/em|%$/.test(value)) {
+            if (parentFontSize === 0) {
+              return;
+            }
+            var numValue = parseFloat(value) / (/%$/.test(value) ? 100 : 1);
+            value = numValue * parentFontSize + 'px';
+          }
+        }
+        if (name === 'border' && value) {
+          previewCss += 'padding:0 2px;';
+        }
+        previewCss += name + ':' + value + ';';
+      });
+      editor.fire('AfterPreviewFormats');
+      dom.remove(previewFrag);
+      return previewCss;
+    };
+
+    var setup$h = function (editor) {
+      editor.addShortcut('meta+b', '', 'Bold');
+      editor.addShortcut('meta+i', '', 'Italic');
+      editor.addShortcut('meta+u', '', 'Underline');
+      for (var i = 1; i <= 6; i++) {
+        editor.addShortcut('access+' + i, '', [
+          'FormatBlock',
+          false,
+          'h' + i
+        ]);
+      }
+      editor.addShortcut('access+7', '', [
+        'FormatBlock',
+        false,
+        'p'
+      ]);
+      editor.addShortcut('access+8', '', [
+        'FormatBlock',
+        false,
+        'div'
+      ]);
+      editor.addShortcut('access+9', '', [
+        'FormatBlock',
+        false,
+        'address'
+      ]);
+    };
+
+    var Formatter = function (editor) {
+      var formats = FormatRegistry(editor);
+      var formatChangeState = Cell(null);
+      setup$h(editor);
+      setup$k(editor);
+      return {
+        get: formats.get,
+        has: formats.has,
+        register: formats.register,
+        unregister: formats.unregister,
+        apply: function (name, vars, node) {
+          applyFormat(editor, name, vars, node);
+        },
+        remove: function (name, vars, node, similar) {
+          removeFormat(editor, name, vars, node, similar);
+        },
+        toggle: function (name, vars, node) {
+          toggleFormat(editor, name, vars, node);
+        },
+        match: function (name, vars, node, similar) {
+          return matchFormat(editor, name, vars, node, similar);
+        },
+        closest: function (names) {
+          return closestFormat(editor, names);
+        },
+        matchAll: function (names, vars) {
+          return matchAllFormats(editor, names, vars);
+        },
+        matchNode: function (node, name, vars, similar) {
+          return matchNodeFormat(editor, node, name, vars, similar);
+        },
+        canApply: function (name) {
+          return canApplyFormat(editor, name);
+        },
+        formatChanged: function (formats, callback, similar, vars) {
+          return formatChanged(editor, formatChangeState, formats, callback, similar, vars);
+        },
+        getCssText: curry(getCssText, editor)
+      };
+    };
+
+    var shouldIgnoreCommand = function (cmd) {
+      switch (cmd.toLowerCase()) {
+      case 'undo':
+      case 'redo':
+      case 'mcerepaint':
+      case 'mcefocus':
+        return true;
+      default:
+        return false;
+      }
+    };
+    var registerEvents = function (editor, undoManager, locks) {
+      var isFirstTypedCharacter = Cell(false);
+      var addNonTypingUndoLevel = function (e) {
+        setTyping(undoManager, false, locks);
+        undoManager.add({}, e);
+      };
+      editor.on('init', function () {
+        undoManager.add();
+      });
+      editor.on('BeforeExecCommand', function (e) {
+        var cmd = e.command;
+        if (!shouldIgnoreCommand(cmd)) {
+          endTyping(undoManager, locks);
+          undoManager.beforeChange();
+        }
+      });
+      editor.on('ExecCommand', function (e) {
+        var cmd = e.command;
+        if (!shouldIgnoreCommand(cmd)) {
+          addNonTypingUndoLevel(e);
+        }
+      });
+      editor.on('ObjectResizeStart cut', function () {
+        undoManager.beforeChange();
+      });
+      editor.on('SaveContent ObjectResized blur', addNonTypingUndoLevel);
+      editor.on('dragend', addNonTypingUndoLevel);
+      editor.on('keyup', function (e) {
+        var keyCode = e.keyCode;
+        if (e.isDefaultPrevented()) {
+          return;
+        }
+        if (keyCode >= 33 && keyCode <= 36 || keyCode >= 37 && keyCode <= 40 || keyCode === 45 || e.ctrlKey) {
+          addNonTypingUndoLevel();
+          editor.nodeChanged();
+        }
+        if (keyCode === 46 || keyCode === 8) {
+          editor.nodeChanged();
+        }
+        if (isFirstTypedCharacter.get() && undoManager.typing && isEq$1(createFromEditor(editor), undoManager.data[0]) === false) {
+          if (editor.isDirty() === false) {
+            editor.setDirty(true);
+            editor.fire('change', {
+              level: undoManager.data[0],
+              lastLevel: null
+            });
+          }
+          editor.fire('TypingUndo');
+          isFirstTypedCharacter.set(false);
+          editor.nodeChanged();
+        }
+      });
+      editor.on('keydown', function (e) {
+        var keyCode = e.keyCode;
+        if (e.isDefaultPrevented()) {
+          return;
+        }
+        if (keyCode >= 33 && keyCode <= 36 || keyCode >= 37 && keyCode <= 40 || keyCode === 45) {
+          if (undoManager.typing) {
+            addNonTypingUndoLevel(e);
+          }
+          return;
+        }
+        var modKey = e.ctrlKey && !e.altKey || e.metaKey;
+        if ((keyCode < 16 || keyCode > 20) && keyCode !== 224 && keyCode !== 91 && !undoManager.typing && !modKey) {
+          undoManager.beforeChange();
+          setTyping(undoManager, true, locks);
+          undoManager.add({}, e);
+          isFirstTypedCharacter.set(true);
+        }
+      });
+      editor.on('mousedown', function (e) {
+        if (undoManager.typing) {
+          addNonTypingUndoLevel(e);
+        }
+      });
+      var isInsertReplacementText = function (event) {
+        return event.inputType === 'insertReplacementText';
+      };
+      var isInsertTextDataNull = function (event) {
+        return event.inputType === 'insertText' && event.data === null;
+      };
+      var isInsertFromPasteOrDrop = function (event) {
+        return event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop';
+      };
+      editor.on('input', function (e) {
+        if (e.inputType && (isInsertReplacementText(e) || isInsertTextDataNull(e) || isInsertFromPasteOrDrop(e))) {
+          addNonTypingUndoLevel(e);
+        }
+      });
+      editor.on('AddUndo Undo Redo ClearUndos', function (e) {
+        if (!e.isDefaultPrevented()) {
+          editor.nodeChanged();
+        }
+      });
+    };
+    var addKeyboardShortcuts = function (editor) {
+      editor.addShortcut('meta+z', '', 'Undo');
+      editor.addShortcut('meta+y,meta+shift+z', '', 'Redo');
+    };
+
+    var UndoManager = function (editor) {
+      var beforeBookmark = value();
+      var locks = Cell(0);
+      var index = Cell(0);
+      var undoManager = {
+        data: [],
+        typing: false,
+        beforeChange: function () {
+          beforeChange(editor, locks, beforeBookmark);
+        },
+        add: function (level, event) {
+          return addUndoLevel(editor, undoManager, index, locks, beforeBookmark, level, event);
+        },
+        undo: function () {
+          return undo(editor, undoManager, locks, index);
+        },
+        redo: function () {
+          return redo(editor, index, undoManager.data);
+        },
+        clear: function () {
+          clear(editor, undoManager, index);
+        },
+        reset: function () {
+          reset(editor, undoManager);
+        },
+        hasUndo: function () {
+          return hasUndo(editor, undoManager, index);
+        },
+        hasRedo: function () {
+          return hasRedo(editor, undoManager, index);
+        },
+        transact: function (callback) {
+          return transact(editor, undoManager, locks, callback);
+        },
+        ignore: function (callback) {
+          ignore(editor, locks, callback);
+        },
+        extra: function (callback1, callback2) {
+          extra(editor, undoManager, index, callback1, callback2);
+        }
+      };
+      if (!isRtc(editor)) {
+        registerEvents(editor, undoManager, locks);
+      }
+      addKeyboardShortcuts(editor);
+      return undoManager;
+    };
+
+    var nonTypingKeycodes = [
+      9,
+      27,
+      VK.HOME,
+      VK.END,
+      19,
+      20,
+      44,
+      144,
+      145,
+      33,
+      34,
+      45,
+      16,
+      17,
+      18,
+      91,
+      92,
+      93,
+      VK.DOWN,
+      VK.UP,
+      VK.LEFT,
+      VK.RIGHT
+    ].concat(Env.browser.isFirefox() ? [224] : []);
+    var placeholderAttr = 'data-mce-placeholder';
+    var isKeyboardEvent = function (e) {
+      return e.type === 'keydown' || e.type === 'keyup';
+    };
+    var isDeleteEvent = function (e) {
+      var keyCode = e.keyCode;
+      return keyCode === VK.BACKSPACE || keyCode === VK.DELETE;
+    };
+    var isNonTypingKeyboardEvent = function (e) {
+      if (isKeyboardEvent(e)) {
+        var keyCode = e.keyCode;
+        return !isDeleteEvent(e) && (VK.metaKeyPressed(e) || e.altKey || keyCode >= 112 && keyCode <= 123 || contains$3(nonTypingKeycodes, keyCode));
+      } else {
+        return false;
+      }
+    };
+    var isTypingKeyboardEvent = function (e) {
+      return isKeyboardEvent(e) && !(isDeleteEvent(e) || e.type === 'keyup' && e.keyCode === 229);
+    };
+    var isVisuallyEmpty = function (dom, rootElm, forcedRootBlock) {
+      if (isEmpty$2(SugarElement.fromDom(rootElm), false)) {
+        var isForcedRootBlockFalse = forcedRootBlock === '';
+        var firstElement = rootElm.firstElementChild;
+        if (!firstElement) {
+          return true;
+        } else if (dom.getStyle(rootElm.firstElementChild, 'padding-left') || dom.getStyle(rootElm.firstElementChild, 'padding-right')) {
+          return false;
+        } else {
+          return isForcedRootBlockFalse ? !dom.isBlock(firstElement) : forcedRootBlock === firstElement.nodeName.toLowerCase();
+        }
+      } else {
+        return false;
+      }
+    };
+    var setup$g = function (editor) {
+      var dom = editor.dom;
+      var rootBlock = getForcedRootBlock(editor);
+      var placeholder = getPlaceholder(editor);
+      var updatePlaceholder = function (e, initial) {
+        if (isNonTypingKeyboardEvent(e)) {
+          return;
+        }
+        var body = editor.getBody();
+        var showPlaceholder = isTypingKeyboardEvent(e) ? false : isVisuallyEmpty(dom, body, rootBlock);
+        var isPlaceholderShown = dom.getAttrib(body, placeholderAttr) !== '';
+        if (isPlaceholderShown !== showPlaceholder || initial) {
+          dom.setAttrib(body, placeholderAttr, showPlaceholder ? placeholder : null);
+          dom.setAttrib(body, 'aria-placeholder', showPlaceholder ? placeholder : null);
+          firePlaceholderToggle(editor, showPlaceholder);
+          editor.on(showPlaceholder ? 'keydown' : 'keyup', updatePlaceholder);
+          editor.off(showPlaceholder ? 'keyup' : 'keydown', updatePlaceholder);
+        }
+      };
+      if (placeholder) {
+        editor.on('init', function (e) {
+          updatePlaceholder(e, true);
+          editor.on('change SetContent ExecCommand', updatePlaceholder);
+          editor.on('paste', function (e) {
+            return Delay.setEditorTimeout(editor, function () {
+              return updatePlaceholder(e);
+            });
+          });
+        });
+      }
+    };
+
+    var strongRtl = /[\u0591-\u07FF\uFB1D-\uFDFF\uFE70-\uFEFC]/;
+    var hasStrongRtl = function (text) {
+      return strongRtl.test(text);
+    };
+
+    var isInlineTarget = function (editor, elm) {
+      return is$2(SugarElement.fromDom(elm), getInlineBoundarySelector(editor));
+    };
+    var isRtl = function (element) {
+      return DOMUtils.DOM.getStyle(element, 'direction', true) === 'rtl' || hasStrongRtl(element.textContent);
+    };
+    var findInlineParents = function (isInlineTarget, rootNode, pos) {
+      return filter$4(DOMUtils.DOM.getParents(pos.container(), '*', rootNode), isInlineTarget);
+    };
+    var findRootInline = function (isInlineTarget, rootNode, pos) {
+      var parents = findInlineParents(isInlineTarget, rootNode, pos);
+      return Optional.from(parents[parents.length - 1]);
+    };
+    var hasSameParentBlock = function (rootNode, node1, node2) {
+      var block1 = getParentBlock$2(node1, rootNode);
+      var block2 = getParentBlock$2(node2, rootNode);
+      return block1 && block1 === block2;
+    };
+    var isAtZwsp = function (pos) {
+      return isBeforeInline(pos) || isAfterInline(pos);
+    };
+    var normalizePosition = function (forward, pos) {
+      if (!pos) {
+        return pos;
+      }
+      var container = pos.container(), offset = pos.offset();
+      if (forward) {
+        if (isCaretContainerInline(container)) {
+          if (isText$7(container.nextSibling)) {
+            return CaretPosition(container.nextSibling, 0);
+          } else {
+            return CaretPosition.after(container);
+          }
+        } else {
+          return isBeforeInline(pos) ? CaretPosition(container, offset + 1) : pos;
+        }
+      } else {
+        if (isCaretContainerInline(container)) {
+          if (isText$7(container.previousSibling)) {
+            return CaretPosition(container.previousSibling, container.previousSibling.data.length);
+          } else {
+            return CaretPosition.before(container);
+          }
+        } else {
+          return isAfterInline(pos) ? CaretPosition(container, offset - 1) : pos;
+        }
+      }
+    };
+    var normalizeForwards = curry(normalizePosition, true);
+    var normalizeBackwards = curry(normalizePosition, false);
+
+    var isBeforeRoot = function (rootNode) {
+      return function (elm) {
+        return eq(rootNode, SugarElement.fromDom(elm.dom.parentNode));
+      };
+    };
+    var isTextBlockOrListItem = function (element) {
+      return isTextBlock$2(element) || isListItem(element);
+    };
+    var getParentBlock$1 = function (rootNode, elm) {
+      if (contains$1(rootNode, elm)) {
+        return closest$3(elm, isTextBlockOrListItem, isBeforeRoot(rootNode));
+      } else {
+        return Optional.none();
+      }
+    };
+    var placeCaretInEmptyBody = function (editor) {
+      var body = editor.getBody();
+      var node = body.firstChild && editor.dom.isBlock(body.firstChild) ? body.firstChild : body;
+      editor.selection.setCursorLocation(node, 0);
+    };
+    var paddEmptyBody = function (editor) {
+      if (editor.dom.isEmpty(editor.getBody())) {
+        editor.setContent('');
+        placeCaretInEmptyBody(editor);
+      }
+    };
+    var willDeleteLastPositionInElement = function (forward, fromPos, elm) {
+      return lift2(firstPositionIn(elm), lastPositionIn(elm), function (firstPos, lastPos) {
+        var normalizedFirstPos = normalizePosition(true, firstPos);
+        var normalizedLastPos = normalizePosition(false, lastPos);
+        var normalizedFromPos = normalizePosition(false, fromPos);
+        if (forward) {
+          return nextPosition(elm, normalizedFromPos).exists(function (nextPos) {
+            return nextPos.isEqual(normalizedLastPos) && fromPos.isEqual(normalizedFirstPos);
+          });
+        } else {
+          return prevPosition(elm, normalizedFromPos).exists(function (prevPos) {
+            return prevPos.isEqual(normalizedFirstPos) && fromPos.isEqual(normalizedLastPos);
+          });
+        }
+      }).getOr(true);
+    };
+
+    var blockPosition = function (block, position) {
+      return {
+        block: block,
+        position: position
+      };
+    };
+    var blockBoundary = function (from, to) {
+      return {
+        from: from,
+        to: to
+      };
+    };
+    var getBlockPosition = function (rootNode, pos) {
+      var rootElm = SugarElement.fromDom(rootNode);
+      var containerElm = SugarElement.fromDom(pos.container());
+      return getParentBlock$1(rootElm, containerElm).map(function (block) {
+        return blockPosition(block, pos);
+      });
+    };
+    var isDifferentBlocks = function (blockBoundary) {
+      return eq(blockBoundary.from.block, blockBoundary.to.block) === false;
+    };
+    var hasSameParent = function (blockBoundary) {
+      return parent(blockBoundary.from.block).bind(function (parent1) {
+        return parent(blockBoundary.to.block).filter(function (parent2) {
+          return eq(parent1, parent2);
+        });
+      }).isSome();
+    };
+    var isEditable$1 = function (blockBoundary) {
+      return isContentEditableFalse$b(blockBoundary.from.block.dom) === false && isContentEditableFalse$b(blockBoundary.to.block.dom) === false;
+    };
+    var skipLastBr = function (rootNode, forward, blockPosition) {
+      if (isBr$5(blockPosition.position.getNode()) && isEmpty$2(blockPosition.block) === false) {
+        return positionIn(false, blockPosition.block.dom).bind(function (lastPositionInBlock) {
+          if (lastPositionInBlock.isEqual(blockPosition.position)) {
+            return fromPosition(forward, rootNode, lastPositionInBlock).bind(function (to) {
+              return getBlockPosition(rootNode, to);
+            });
+          } else {
+            return Optional.some(blockPosition);
+          }
+        }).getOr(blockPosition);
+      } else {
+        return blockPosition;
+      }
+    };
+    var readFromRange = function (rootNode, forward, rng) {
+      var fromBlockPos = getBlockPosition(rootNode, CaretPosition.fromRangeStart(rng));
+      var toBlockPos = fromBlockPos.bind(function (blockPos) {
+        return fromPosition(forward, rootNode, blockPos.position).bind(function (to) {
+          return getBlockPosition(rootNode, to).map(function (blockPos) {
+            return skipLastBr(rootNode, forward, blockPos);
+          });
+        });
+      });
+      return lift2(fromBlockPos, toBlockPos, blockBoundary).filter(function (blockBoundary) {
+        return isDifferentBlocks(blockBoundary) && hasSameParent(blockBoundary) && isEditable$1(blockBoundary);
+      });
+    };
+    var read$1 = function (rootNode, forward, rng) {
+      return rng.collapsed ? readFromRange(rootNode, forward, rng) : Optional.none();
+    };
+
+    var getChildrenUntilBlockBoundary = function (block) {
+      var children$1 = children(block);
+      return findIndex$2(children$1, isBlock$2).fold(constant(children$1), function (index) {
+        return children$1.slice(0, index);
+      });
+    };
+    var extractChildren = function (block) {
+      var children = getChildrenUntilBlockBoundary(block);
+      each$k(children, remove$7);
+      return children;
+    };
+    var removeEmptyRoot = function (rootNode, block) {
+      var parents = parentsAndSelf(block, rootNode);
+      return find$3(parents.reverse(), function (element) {
+        return isEmpty$2(element);
+      }).each(remove$7);
+    };
+    var isEmptyBefore = function (el) {
+      return filter$4(prevSiblings(el), function (el) {
+        return !isEmpty$2(el);
+      }).length === 0;
+    };
+    var nestedBlockMerge = function (rootNode, fromBlock, toBlock, insertionPoint) {
+      if (isEmpty$2(toBlock)) {
+        fillWithPaddingBr(toBlock);
+        return firstPositionIn(toBlock.dom);
+      }
+      if (isEmptyBefore(insertionPoint) && isEmpty$2(fromBlock)) {
+        before$4(insertionPoint, SugarElement.fromTag('br'));
+      }
+      var position = prevPosition(toBlock.dom, CaretPosition.before(insertionPoint.dom));
+      each$k(extractChildren(fromBlock), function (child) {
+        before$4(insertionPoint, child);
+      });
+      removeEmptyRoot(rootNode, fromBlock);
+      return position;
+    };
+    var sidelongBlockMerge = function (rootNode, fromBlock, toBlock) {
+      if (isEmpty$2(toBlock)) {
+        remove$7(toBlock);
+        if (isEmpty$2(fromBlock)) {
+          fillWithPaddingBr(fromBlock);
+        }
+        return firstPositionIn(fromBlock.dom);
+      }
+      var position = lastPositionIn(toBlock.dom);
+      each$k(extractChildren(fromBlock), function (child) {
+        append$1(toBlock, child);
+      });
+      removeEmptyRoot(rootNode, fromBlock);
+      return position;
+    };
+    var findInsertionPoint = function (toBlock, block) {
+      var parentsAndSelf$1 = parentsAndSelf(block, toBlock);
+      return Optional.from(parentsAndSelf$1[parentsAndSelf$1.length - 1]);
+    };
+    var getInsertionPoint = function (fromBlock, toBlock) {
+      return contains$1(toBlock, fromBlock) ? findInsertionPoint(toBlock, fromBlock) : Optional.none();
+    };
+    var trimBr = function (first, block) {
+      positionIn(first, block.dom).map(function (position) {
+        return position.getNode();
+      }).map(SugarElement.fromDom).filter(isBr$4).each(remove$7);
+    };
+    var mergeBlockInto = function (rootNode, fromBlock, toBlock) {
+      trimBr(true, fromBlock);
+      trimBr(false, toBlock);
+      return getInsertionPoint(fromBlock, toBlock).fold(curry(sidelongBlockMerge, rootNode, fromBlock, toBlock), curry(nestedBlockMerge, rootNode, fromBlock, toBlock));
+    };
+    var mergeBlocks = function (rootNode, forward, block1, block2) {
+      return forward ? mergeBlockInto(rootNode, block2, block1) : mergeBlockInto(rootNode, block1, block2);
+    };
+
+    var backspaceDelete$8 = function (editor, forward) {
+      var rootNode = SugarElement.fromDom(editor.getBody());
+      var position = read$1(rootNode.dom, forward, editor.selection.getRng()).bind(function (blockBoundary) {
+        return mergeBlocks(rootNode, forward, blockBoundary.from.block, blockBoundary.to.block);
+      });
+      position.each(function (pos) {
+        editor.selection.setRng(pos.toRange());
+      });
+      return position.isSome();
+    };
+
+    var deleteRangeMergeBlocks = function (rootNode, selection) {
+      var rng = selection.getRng();
+      return lift2(getParentBlock$1(rootNode, SugarElement.fromDom(rng.startContainer)), getParentBlock$1(rootNode, SugarElement.fromDom(rng.endContainer)), function (block1, block2) {
+        if (eq(block1, block2) === false) {
+          rng.deleteContents();
+          mergeBlocks(rootNode, true, block1, block2).each(function (pos) {
+            selection.setRng(pos.toRange());
+          });
+          return true;
+        } else {
+          return false;
+        }
+      }).getOr(false);
+    };
+    var isRawNodeInTable = function (root, rawNode) {
+      var node = SugarElement.fromDom(rawNode);
+      var isRoot = curry(eq, root);
+      return ancestor$3(node, isTableCell$4, isRoot).isSome();
+    };
+    var isSelectionInTable = function (root, rng) {
+      return isRawNodeInTable(root, rng.startContainer) || isRawNodeInTable(root, rng.endContainer);
+    };
+    var isEverythingSelected = function (root, rng) {
+      var noPrevious = prevPosition(root.dom, CaretPosition.fromRangeStart(rng)).isNone();
+      var noNext = nextPosition(root.dom, CaretPosition.fromRangeEnd(rng)).isNone();
+      return !isSelectionInTable(root, rng) && noPrevious && noNext;
+    };
+    var emptyEditor = function (editor) {
+      editor.setContent('');
+      editor.selection.setCursorLocation();
+      return true;
+    };
+    var deleteRange$1 = function (editor) {
+      var rootNode = SugarElement.fromDom(editor.getBody());
+      var rng = editor.selection.getRng();
+      return isEverythingSelected(rootNode, rng) ? emptyEditor(editor) : deleteRangeMergeBlocks(rootNode, editor.selection);
+    };
+    var backspaceDelete$7 = function (editor, _forward) {
+      return editor.selection.isCollapsed() ? false : deleteRange$1(editor);
+    };
+
+    var isContentEditableTrue$2 = isContentEditableTrue$4;
+    var isContentEditableFalse$4 = isContentEditableFalse$b;
+    var showCaret = function (direction, editor, node, before, scrollIntoView) {
+      return Optional.from(editor._selectionOverrides.showCaret(direction, node, before, scrollIntoView));
+    };
+    var getNodeRange = function (node) {
+      var rng = node.ownerDocument.createRange();
+      rng.selectNode(node);
+      return rng;
+    };
+    var selectNode = function (editor, node) {
+      var e = editor.fire('BeforeObjectSelected', { target: node });
+      if (e.isDefaultPrevented()) {
+        return Optional.none();
+      }
+      return Optional.some(getNodeRange(node));
+    };
+    var renderCaretAtRange = function (editor, range, scrollIntoView) {
+      var normalizedRange = normalizeRange(1, editor.getBody(), range);
+      var caretPosition = CaretPosition.fromRangeStart(normalizedRange);
+      var caretPositionNode = caretPosition.getNode();
+      if (isInlineFakeCaretTarget(caretPositionNode)) {
+        return showCaret(1, editor, caretPositionNode, !caretPosition.isAtEnd(), false);
+      }
+      var caretPositionBeforeNode = caretPosition.getNode(true);
+      if (isInlineFakeCaretTarget(caretPositionBeforeNode)) {
+        return showCaret(1, editor, caretPositionBeforeNode, false, false);
+      }
+      var ceRoot = editor.dom.getParent(caretPosition.getNode(), function (node) {
+        return isContentEditableFalse$4(node) || isContentEditableTrue$2(node);
+      });
+      if (isInlineFakeCaretTarget(ceRoot)) {
+        return showCaret(1, editor, ceRoot, false, scrollIntoView);
+      }
+      return Optional.none();
+    };
+    var renderRangeCaret = function (editor, range, scrollIntoView) {
+      return range.collapsed ? renderCaretAtRange(editor, range, scrollIntoView).getOr(range) : range;
+    };
+
+    var isBeforeBoundary = function (pos) {
+      return isBeforeContentEditableFalse(pos) || isBeforeMedia(pos);
+    };
+    var isAfterBoundary = function (pos) {
+      return isAfterContentEditableFalse(pos) || isAfterMedia(pos);
+    };
+    var trimEmptyTextNode = function (dom, node) {
+      if (isText$7(node) && node.data.length === 0) {
+        dom.remove(node);
+      }
+    };
+    var deleteContentAndShowCaret = function (editor, range, node, direction, forward, peekCaretPosition) {
+      showCaret(direction, editor, peekCaretPosition.getNode(!forward), forward, true).each(function (caretRange) {
+        if (range.collapsed) {
+          var deleteRange = range.cloneRange();
+          if (forward) {
+            deleteRange.setEnd(caretRange.startContainer, caretRange.startOffset);
+          } else {
+            deleteRange.setStart(caretRange.endContainer, caretRange.endOffset);
+          }
+          deleteRange.deleteContents();
+        } else {
+          range.deleteContents();
+        }
+        editor.selection.setRng(caretRange);
+      });
+      trimEmptyTextNode(editor.dom, node);
+      return true;
+    };
+    var deleteBoundaryText = function (editor, forward) {
+      var range = editor.selection.getRng();
+      if (!isText$7(range.commonAncestorContainer)) {
+        return false;
+      }
+      var direction = forward ? HDirection.Forwards : HDirection.Backwards;
+      var caretWalker = CaretWalker(editor.getBody());
+      var getNextPosFn = curry(getVisualCaretPosition, forward ? caretWalker.next : caretWalker.prev);
+      var isBeforeFn = forward ? isBeforeBoundary : isAfterBoundary;
+      var caretPosition = getNormalizedRangeEndPoint(direction, editor.getBody(), range);
+      var nextCaretPosition = normalizePosition(forward, getNextPosFn(caretPosition));
+      if (!nextCaretPosition || !isMoveInsideSameBlock(caretPosition, nextCaretPosition)) {
+        return false;
+      } else if (isBeforeFn(nextCaretPosition)) {
+        return deleteContentAndShowCaret(editor, range, caretPosition.getNode(), direction, forward, nextCaretPosition);
+      }
+      var peekCaretPosition = getNextPosFn(nextCaretPosition);
+      if (peekCaretPosition && isBeforeFn(peekCaretPosition)) {
+        if (isMoveInsideSameBlock(nextCaretPosition, peekCaretPosition)) {
+          return deleteContentAndShowCaret(editor, range, caretPosition.getNode(), direction, forward, peekCaretPosition);
+        }
+      }
+      return false;
+    };
+    var backspaceDelete$6 = function (editor, forward) {
+      return deleteBoundaryText(editor, forward);
+    };
+
+    var isCompoundElement = function (node) {
+      return isTableCell$4(SugarElement.fromDom(node)) || isListItem(SugarElement.fromDom(node));
+    };
+    var DeleteAction = Adt.generate([
+      { remove: ['element'] },
+      { moveToElement: ['element'] },
+      { moveToPosition: ['position'] }
+    ]);
+    var isAtContentEditableBlockCaret = function (forward, from) {
+      var elm = from.getNode(forward === false);
+      var caretLocation = forward ? 'after' : 'before';
+      return isElement$5(elm) && elm.getAttribute('data-mce-caret') === caretLocation;
+    };
+    var isDeleteFromCefDifferentBlocks = function (root, forward, from, to) {
+      var inSameBlock = function (elm) {
+        return isInline$1(SugarElement.fromDom(elm)) && !isInSameBlock(from, to, root);
+      };
+      return getRelativeCefElm(!forward, from).fold(function () {
+        return getRelativeCefElm(forward, to).fold(never, inSameBlock);
+      }, inSameBlock);
+    };
+    var deleteEmptyBlockOrMoveToCef = function (root, forward, from, to) {
+      var toCefElm = to.getNode(forward === false);
+      return getParentBlock$1(SugarElement.fromDom(root), SugarElement.fromDom(from.getNode())).map(function (blockElm) {
+        return isEmpty$2(blockElm) ? DeleteAction.remove(blockElm.dom) : DeleteAction.moveToElement(toCefElm);
+      }).orThunk(function () {
+        return Optional.some(DeleteAction.moveToElement(toCefElm));
+      });
+    };
+    var findCefPosition = function (root, forward, from) {
+      return fromPosition(forward, root, from).bind(function (to) {
+        if (isCompoundElement(to.getNode())) {
+          return Optional.none();
+        } else if (isDeleteFromCefDifferentBlocks(root, forward, from, to)) {
+          return Optional.none();
+        } else if (forward && isContentEditableFalse$b(to.getNode())) {
+          return deleteEmptyBlockOrMoveToCef(root, forward, from, to);
+        } else if (forward === false && isContentEditableFalse$b(to.getNode(true))) {
+          return deleteEmptyBlockOrMoveToCef(root, forward, from, to);
+        } else if (forward && isAfterContentEditableFalse(from)) {
+          return Optional.some(DeleteAction.moveToPosition(to));
+        } else if (forward === false && isBeforeContentEditableFalse(from)) {
+          return Optional.some(DeleteAction.moveToPosition(to));
+        } else {
+          return Optional.none();
+        }
+      });
+    };
+    var getContentEditableBlockAction = function (forward, elm) {
+      if (forward && isContentEditableFalse$b(elm.nextSibling)) {
+        return Optional.some(DeleteAction.moveToElement(elm.nextSibling));
+      } else if (forward === false && isContentEditableFalse$b(elm.previousSibling)) {
+        return Optional.some(DeleteAction.moveToElement(elm.previousSibling));
+      } else {
+        return Optional.none();
+      }
+    };
+    var skipMoveToActionFromInlineCefToContent = function (root, from, deleteAction) {
+      return deleteAction.fold(function (elm) {
+        return Optional.some(DeleteAction.remove(elm));
+      }, function (elm) {
+        return Optional.some(DeleteAction.moveToElement(elm));
+      }, function (to) {
+        if (isInSameBlock(from, to, root)) {
+          return Optional.none();
+        } else {
+          return Optional.some(DeleteAction.moveToPosition(to));
+        }
+      });
+    };
+    var getContentEditableAction = function (root, forward, from) {
+      if (isAtContentEditableBlockCaret(forward, from)) {
+        return getContentEditableBlockAction(forward, from.getNode(forward === false)).fold(function () {
+          return findCefPosition(root, forward, from);
+        }, Optional.some);
+      } else {
+        return findCefPosition(root, forward, from).bind(function (deleteAction) {
+          return skipMoveToActionFromInlineCefToContent(root, from, deleteAction);
+        });
+      }
+    };
+    var read = function (root, forward, rng) {
+      var normalizedRange = normalizeRange(forward ? 1 : -1, root, rng);
+      var from = CaretPosition.fromRangeStart(normalizedRange);
+      var rootElement = SugarElement.fromDom(root);
+      if (forward === false && isAfterContentEditableFalse(from)) {
+        return Optional.some(DeleteAction.remove(from.getNode(true)));
+      } else if (forward && isBeforeContentEditableFalse(from)) {
+        return Optional.some(DeleteAction.remove(from.getNode()));
+      } else if (forward === false && isBeforeContentEditableFalse(from) && isAfterBr(rootElement, from)) {
+        return findPreviousBr(rootElement, from).map(function (br) {
+          return DeleteAction.remove(br.getNode());
+        });
+      } else if (forward && isAfterContentEditableFalse(from) && isBeforeBr$1(rootElement, from)) {
+        return findNextBr(rootElement, from).map(function (br) {
+          return DeleteAction.remove(br.getNode());
+        });
+      } else {
+        return getContentEditableAction(root, forward, from);
+      }
+    };
+
+    var deleteElement$1 = function (editor, forward) {
+      return function (element) {
+        editor._selectionOverrides.hideFakeCaret();
+        deleteElement$2(editor, forward, SugarElement.fromDom(element));
+        return true;
+      };
+    };
+    var moveToElement = function (editor, forward) {
+      return function (element) {
+        var pos = forward ? CaretPosition.before(element) : CaretPosition.after(element);
+        editor.selection.setRng(pos.toRange());
+        return true;
+      };
+    };
+    var moveToPosition = function (editor) {
+      return function (pos) {
+        editor.selection.setRng(pos.toRange());
+        return true;
+      };
+    };
+    var getAncestorCe = function (editor, node) {
+      return Optional.from(getContentEditableRoot$1(editor.getBody(), node));
+    };
+    var backspaceDeleteCaret = function (editor, forward) {
+      var selectedNode = editor.selection.getNode();
+      return getAncestorCe(editor, selectedNode).filter(isContentEditableFalse$b).fold(function () {
+        return read(editor.getBody(), forward, editor.selection.getRng()).exists(function (deleteAction) {
+          return deleteAction.fold(deleteElement$1(editor, forward), moveToElement(editor, forward), moveToPosition(editor));
+        });
+      }, always);
+    };
+    var deleteOffscreenSelection = function (rootElement) {
+      each$k(descendants(rootElement, '.mce-offscreen-selection'), remove$7);
+    };
+    var backspaceDeleteRange = function (editor, forward) {
+      var selectedNode = editor.selection.getNode();
+      if (isContentEditableFalse$b(selectedNode) && !isTableCell$5(selectedNode)) {
+        var hasCefAncestor = getAncestorCe(editor, selectedNode.parentNode).filter(isContentEditableFalse$b);
+        return hasCefAncestor.fold(function () {
+          deleteOffscreenSelection(SugarElement.fromDom(editor.getBody()));
+          deleteElement$2(editor, forward, SugarElement.fromDom(editor.selection.getNode()));
+          paddEmptyBody(editor);
+          return true;
+        }, always);
+      }
+      return false;
+    };
+    var paddEmptyElement = function (editor) {
+      var dom = editor.dom, selection = editor.selection;
+      var ceRoot = getContentEditableRoot$1(editor.getBody(), selection.getNode());
+      if (isContentEditableTrue$4(ceRoot) && dom.isBlock(ceRoot) && dom.isEmpty(ceRoot)) {
+        var br = dom.create('br', { 'data-mce-bogus': '1' });
+        dom.setHTML(ceRoot, '');
+        ceRoot.appendChild(br);
+        selection.setRng(CaretPosition.before(br).toRange());
+      }
+      return true;
+    };
+    var backspaceDelete$5 = function (editor, forward) {
+      if (editor.selection.isCollapsed()) {
+        return backspaceDeleteCaret(editor, forward);
+      } else {
+        return backspaceDeleteRange(editor, forward);
+      }
+    };
+
+    var deleteCaret$2 = function (editor, forward) {
+      var fromPos = CaretPosition.fromRangeStart(editor.selection.getRng());
+      return fromPosition(forward, editor.getBody(), fromPos).filter(function (pos) {
+        return forward ? isBeforeImageBlock(pos) : isAfterImageBlock(pos);
+      }).bind(function (pos) {
+        return Optional.from(getChildNodeAtRelativeOffset(forward ? 0 : -1, pos));
+      }).exists(function (elm) {
+        editor.selection.select(elm);
+        return true;
+      });
+    };
+    var backspaceDelete$4 = function (editor, forward) {
+      return editor.selection.isCollapsed() ? deleteCaret$2(editor, forward) : false;
+    };
+
+    var isText = isText$7;
+    var startsWithCaretContainer = function (node) {
+      return isText(node) && node.data[0] === ZWSP$1;
+    };
+    var endsWithCaretContainer = function (node) {
+      return isText(node) && node.data[node.data.length - 1] === ZWSP$1;
+    };
+    var createZwsp = function (node) {
+      return node.ownerDocument.createTextNode(ZWSP$1);
+    };
+    var insertBefore = function (node) {
+      if (isText(node.previousSibling)) {
+        if (endsWithCaretContainer(node.previousSibling)) {
+          return node.previousSibling;
+        } else {
+          node.previousSibling.appendData(ZWSP$1);
+          return node.previousSibling;
+        }
+      } else if (isText(node)) {
+        if (startsWithCaretContainer(node)) {
+          return node;
+        } else {
+          node.insertData(0, ZWSP$1);
+          return node;
+        }
+      } else {
+        var newNode = createZwsp(node);
+        node.parentNode.insertBefore(newNode, node);
+        return newNode;
+      }
+    };
+    var insertAfter = function (node) {
+      if (isText(node.nextSibling)) {
+        if (startsWithCaretContainer(node.nextSibling)) {
+          return node.nextSibling;
+        } else {
+          node.nextSibling.insertData(0, ZWSP$1);
+          return node.nextSibling;
+        }
+      } else if (isText(node)) {
+        if (endsWithCaretContainer(node)) {
+          return node;
+        } else {
+          node.appendData(ZWSP$1);
+          return node;
+        }
+      } else {
+        var newNode = createZwsp(node);
+        if (node.nextSibling) {
+          node.parentNode.insertBefore(newNode, node.nextSibling);
+        } else {
+          node.parentNode.appendChild(newNode);
+        }
+        return newNode;
+      }
+    };
+    var insertInline = function (before, node) {
+      return before ? insertBefore(node) : insertAfter(node);
+    };
+    var insertInlineBefore = curry(insertInline, true);
+    var insertInlineAfter = curry(insertInline, false);
+
+    var insertInlinePos = function (pos, before) {
+      if (isText$7(pos.container())) {
+        return insertInline(before, pos.container());
+      } else {
+        return insertInline(before, pos.getNode());
+      }
+    };
+    var isPosCaretContainer = function (pos, caret) {
+      var caretNode = caret.get();
+      return caretNode && pos.container() === caretNode && isCaretContainerInline(caretNode);
+    };
+    var renderCaret = function (caret, location) {
+      return location.fold(function (element) {
+        remove$2(caret.get());
+        var text = insertInlineBefore(element);
+        caret.set(text);
+        return Optional.some(CaretPosition(text, text.length - 1));
+      }, function (element) {
+        return firstPositionIn(element).map(function (pos) {
+          if (!isPosCaretContainer(pos, caret)) {
+            remove$2(caret.get());
+            var text = insertInlinePos(pos, true);
+            caret.set(text);
+            return CaretPosition(text, 1);
+          } else {
+            return CaretPosition(caret.get(), 1);
+          }
+        });
+      }, function (element) {
+        return lastPositionIn(element).map(function (pos) {
+          if (!isPosCaretContainer(pos, caret)) {
+            remove$2(caret.get());
+            var text = insertInlinePos(pos, false);
+            caret.set(text);
+            return CaretPosition(text, text.length - 1);
+          } else {
+            return CaretPosition(caret.get(), caret.get().length - 1);
+          }
+        });
+      }, function (element) {
+        remove$2(caret.get());
+        var text = insertInlineAfter(element);
+        caret.set(text);
+        return Optional.some(CaretPosition(text, 1));
+      });
+    };
+
+    var evaluateUntil = function (fns, args) {
+      for (var i = 0; i < fns.length; i++) {
+        var result = fns[i].apply(null, args);
+        if (result.isSome()) {
+          return result;
+        }
+      }
+      return Optional.none();
+    };
+
+    var Location = Adt.generate([
+      { before: ['element'] },
+      { start: ['element'] },
+      { end: ['element'] },
+      { after: ['element'] }
+    ]);
+    var rescope$1 = function (rootNode, node) {
+      var parentBlock = getParentBlock$2(node, rootNode);
+      return parentBlock ? parentBlock : rootNode;
+    };
+    var before = function (isInlineTarget, rootNode, pos) {
+      var nPos = normalizeForwards(pos);
+      var scope = rescope$1(rootNode, nPos.container());
+      return findRootInline(isInlineTarget, scope, nPos).fold(function () {
+        return nextPosition(scope, nPos).bind(curry(findRootInline, isInlineTarget, scope)).map(function (inline) {
+          return Location.before(inline);
+        });
+      }, Optional.none);
+    };
+    var isNotInsideFormatCaretContainer = function (rootNode, elm) {
+      return getParentCaretContainer(rootNode, elm) === null;
+    };
+    var findInsideRootInline = function (isInlineTarget, rootNode, pos) {
+      return findRootInline(isInlineTarget, rootNode, pos).filter(curry(isNotInsideFormatCaretContainer, rootNode));
+    };
+    var start$1 = function (isInlineTarget, rootNode, pos) {
+      var nPos = normalizeBackwards(pos);
+      return findInsideRootInline(isInlineTarget, rootNode, nPos).bind(function (inline) {
+        var prevPos = prevPosition(inline, nPos);
+        return prevPos.isNone() ? Optional.some(Location.start(inline)) : Optional.none();
+      });
+    };
+    var end = function (isInlineTarget, rootNode, pos) {
+      var nPos = normalizeForwards(pos);
+      return findInsideRootInline(isInlineTarget, rootNode, nPos).bind(function (inline) {
+        var nextPos = nextPosition(inline, nPos);
+        return nextPos.isNone() ? Optional.some(Location.end(inline)) : Optional.none();
+      });
+    };
+    var after = function (isInlineTarget, rootNode, pos) {
+      var nPos = normalizeBackwards(pos);
+      var scope = rescope$1(rootNode, nPos.container());
+      return findRootInline(isInlineTarget, scope, nPos).fold(function () {
+        return prevPosition(scope, nPos).bind(curry(findRootInline, isInlineTarget, scope)).map(function (inline) {
+          return Location.after(inline);
+        });
+      }, Optional.none);
+    };
+    var isValidLocation = function (location) {
+      return isRtl(getElement(location)) === false;
+    };
+    var readLocation = function (isInlineTarget, rootNode, pos) {
+      var location = evaluateUntil([
+        before,
+        start$1,
+        end,
+        after
+      ], [
+        isInlineTarget,
+        rootNode,
+        pos
+      ]);
+      return location.filter(isValidLocation);
+    };
+    var getElement = function (location) {
+      return location.fold(identity, identity, identity, identity);
+    };
+    var getName = function (location) {
+      return location.fold(constant('before'), constant('start'), constant('end'), constant('after'));
+    };
+    var outside = function (location) {
+      return location.fold(Location.before, Location.before, Location.after, Location.after);
+    };
+    var inside = function (location) {
+      return location.fold(Location.start, Location.start, Location.end, Location.end);
+    };
+    var isEq = function (location1, location2) {
+      return getName(location1) === getName(location2) && getElement(location1) === getElement(location2);
+    };
+    var betweenInlines = function (forward, isInlineTarget, rootNode, from, to, location) {
+      return lift2(findRootInline(isInlineTarget, rootNode, from), findRootInline(isInlineTarget, rootNode, to), function (fromInline, toInline) {
+        if (fromInline !== toInline && hasSameParentBlock(rootNode, fromInline, toInline)) {
+          return Location.after(forward ? fromInline : toInline);
+        } else {
+          return location;
+        }
+      }).getOr(location);
+    };
+    var skipNoMovement = function (fromLocation, toLocation) {
+      return fromLocation.fold(always, function (fromLocation) {
+        return !isEq(fromLocation, toLocation);
+      });
+    };
+    var findLocationTraverse = function (forward, isInlineTarget, rootNode, fromLocation, pos) {
+      var from = normalizePosition(forward, pos);
+      var to = fromPosition(forward, rootNode, from).map(curry(normalizePosition, forward));
+      var location = to.fold(function () {
+        return fromLocation.map(outside);
+      }, function (to) {
+        return readLocation(isInlineTarget, rootNode, to).map(curry(betweenInlines, forward, isInlineTarget, rootNode, from, to)).filter(curry(skipNoMovement, fromLocation));
+      });
+      return location.filter(isValidLocation);
+    };
+    var findLocationSimple = function (forward, location) {
+      if (forward) {
+        return location.fold(compose(Optional.some, Location.start), Optional.none, compose(Optional.some, Location.after), Optional.none);
+      } else {
+        return location.fold(Optional.none, compose(Optional.some, Location.before), Optional.none, compose(Optional.some, Location.end));
+      }
+    };
+    var findLocation$1 = function (forward, isInlineTarget, rootNode, pos) {
+      var from = normalizePosition(forward, pos);
+      var fromLocation = readLocation(isInlineTarget, rootNode, from);
+      return readLocation(isInlineTarget, rootNode, from).bind(curry(findLocationSimple, forward)).orThunk(function () {
+        return findLocationTraverse(forward, isInlineTarget, rootNode, fromLocation, pos);
+      });
+    };
+    curry(findLocation$1, false);
+    curry(findLocation$1, true);
+
+    var hasSelectionModifyApi = function (editor) {
+      return isFunction(editor.selection.getSel().modify);
+    };
+    var moveRel = function (forward, selection, pos) {
+      var delta = forward ? 1 : -1;
+      selection.setRng(CaretPosition(pos.container(), pos.offset() + delta).toRange());
+      selection.getSel().modify('move', forward ? 'forward' : 'backward', 'word');
+      return true;
+    };
+    var moveByWord = function (forward, editor) {
+      var rng = editor.selection.getRng();
+      var pos = forward ? CaretPosition.fromRangeEnd(rng) : CaretPosition.fromRangeStart(rng);
+      if (!hasSelectionModifyApi(editor)) {
+        return false;
+      } else if (forward && isBeforeInline(pos)) {
+        return moveRel(true, editor.selection, pos);
+      } else if (!forward && isAfterInline(pos)) {
+        return moveRel(false, editor.selection, pos);
+      } else {
+        return false;
+      }
+    };
+
+    var BreakType;
+    (function (BreakType) {
+      BreakType[BreakType['Br'] = 0] = 'Br';
+      BreakType[BreakType['Block'] = 1] = 'Block';
+      BreakType[BreakType['Wrap'] = 2] = 'Wrap';
+      BreakType[BreakType['Eol'] = 3] = 'Eol';
+    }(BreakType || (BreakType = {})));
+    var flip = function (direction, positions) {
+      return direction === HDirection.Backwards ? reverse(positions) : positions;
+    };
+    var walk = function (direction, caretWalker, pos) {
+      return direction === HDirection.Forwards ? caretWalker.next(pos) : caretWalker.prev(pos);
+    };
+    var getBreakType = function (scope, direction, currentPos, nextPos) {
+      if (isBr$5(nextPos.getNode(direction === HDirection.Forwards))) {
+        return BreakType.Br;
+      } else if (isInSameBlock(currentPos, nextPos) === false) {
+        return BreakType.Block;
+      } else {
+        return BreakType.Wrap;
+      }
+    };
+    var getPositionsUntil = function (predicate, direction, scope, start) {
+      var caretWalker = CaretWalker(scope);
+      var currentPos = start;
+      var positions = [];
+      while (currentPos) {
+        var nextPos = walk(direction, caretWalker, currentPos);
+        if (!nextPos) {
+          break;
+        }
+        if (isBr$5(nextPos.getNode(false))) {
+          if (direction === HDirection.Forwards) {
+            return {
+              positions: flip(direction, positions).concat([nextPos]),
+              breakType: BreakType.Br,
+              breakAt: Optional.some(nextPos)
+            };
+          } else {
+            return {
+              positions: flip(direction, positions),
+              breakType: BreakType.Br,
+              breakAt: Optional.some(nextPos)
+            };
+          }
+        }
+        if (!nextPos.isVisible()) {
+          currentPos = nextPos;
+          continue;
+        }
+        if (predicate(currentPos, nextPos)) {
+          var breakType = getBreakType(scope, direction, currentPos, nextPos);
+          return {
+            positions: flip(direction, positions),
+            breakType: breakType,
+            breakAt: Optional.some(nextPos)
+          };
+        }
+        positions.push(nextPos);
+        currentPos = nextPos;
+      }
+      return {
+        positions: flip(direction, positions),
+        breakType: BreakType.Eol,
+        breakAt: Optional.none()
+      };
+    };
+    var getAdjacentLinePositions = function (direction, getPositionsUntilBreak, scope, start) {
+      return getPositionsUntilBreak(scope, start).breakAt.map(function (pos) {
+        var positions = getPositionsUntilBreak(scope, pos).positions;
+        return direction === HDirection.Backwards ? positions.concat(pos) : [pos].concat(positions);
+      }).getOr([]);
+    };
+    var findClosestHorizontalPositionFromPoint = function (positions, x) {
+      return foldl(positions, function (acc, newPos) {
+        return acc.fold(function () {
+          return Optional.some(newPos);
+        }, function (lastPos) {
+          return lift2(head(lastPos.getClientRects()), head(newPos.getClientRects()), function (lastRect, newRect) {
+            var lastDist = Math.abs(x - lastRect.left);
+            var newDist = Math.abs(x - newRect.left);
+            return newDist <= lastDist ? newPos : lastPos;
+          }).or(acc);
+        });
+      }, Optional.none());
+    };
+    var findClosestHorizontalPosition = function (positions, pos) {
+      return head(pos.getClientRects()).bind(function (targetRect) {
+        return findClosestHorizontalPositionFromPoint(positions, targetRect.left);
+      });
+    };
+    var getPositionsUntilPreviousLine = curry(getPositionsUntil, CaretPosition.isAbove, -1);
+    var getPositionsUntilNextLine = curry(getPositionsUntil, CaretPosition.isBelow, 1);
+    var getPositionsAbove = curry(getAdjacentLinePositions, -1, getPositionsUntilPreviousLine);
+    var getPositionsBelow = curry(getAdjacentLinePositions, 1, getPositionsUntilNextLine);
+    var isAtFirstLine = function (scope, pos) {
+      return getPositionsUntilPreviousLine(scope, pos).breakAt.isNone();
+    };
+    var isAtLastLine = function (scope, pos) {
+      return getPositionsUntilNextLine(scope, pos).breakAt.isNone();
+    };
+    var getFirstLinePositions = function (scope) {
+      return firstPositionIn(scope).map(function (pos) {
+        return [pos].concat(getPositionsUntilNextLine(scope, pos).positions);
+      }).getOr([]);
+    };
+    var getLastLinePositions = function (scope) {
+      return lastPositionIn(scope).map(function (pos) {
+        return getPositionsUntilPreviousLine(scope, pos).positions.concat(pos);
+      }).getOr([]);
+    };
+
+    var getNodeClientRects = function (node) {
+      var toArrayWithNode = function (clientRects) {
+        return map$3(clientRects, function (rect) {
+          var clientRect = clone(rect);
+          clientRect.node = node;
+          return clientRect;
+        });
+      };
+      if (isElement$5(node)) {
+        return toArrayWithNode(node.getClientRects());
+      }
+      if (isText$7(node)) {
+        var rng = node.ownerDocument.createRange();
+        rng.setStart(node, 0);
+        rng.setEnd(node, node.data.length);
+        return toArrayWithNode(rng.getClientRects());
+      }
+    };
+    var getClientRects = function (nodes) {
+      return bind(nodes, getNodeClientRects);
+    };
+
+    var VDirection;
+    (function (VDirection) {
+      VDirection[VDirection['Up'] = -1] = 'Up';
+      VDirection[VDirection['Down'] = 1] = 'Down';
+    }(VDirection || (VDirection = {})));
+    var findUntil = function (direction, root, predicateFn, node) {
+      while (node = findNode$1(node, direction, isEditableCaretCandidate$1, root)) {
+        if (predicateFn(node)) {
+          return;
+        }
+      }
+    };
+    var walkUntil$1 = function (direction, isAboveFn, isBeflowFn, root, predicateFn, caretPosition) {
+      var line = 0;
+      var result = [];
+      var add = function (node) {
+        var clientRects = getClientRects([node]);
+        if (direction === -1) {
+          clientRects = clientRects.reverse();
+        }
+        for (var i = 0; i < clientRects.length; i++) {
+          var clientRect = clientRects[i];
+          if (isBeflowFn(clientRect, targetClientRect)) {
+            continue;
+          }
+          if (result.length > 0 && isAboveFn(clientRect, last$1(result))) {
+            line++;
+          }
+          clientRect.line = line;
+          if (predicateFn(clientRect)) {
+            return true;
+          }
+          result.push(clientRect);
+        }
+      };
+      var targetClientRect = last$1(caretPosition.getClientRects());
+      if (!targetClientRect) {
+        return result;
+      }
+      var node = caretPosition.getNode();
+      add(node);
+      findUntil(direction, root, add, node);
+      return result;
+    };
+    var aboveLineNumber = function (lineNumber, clientRect) {
+      return clientRect.line > lineNumber;
+    };
+    var isLineNumber = function (lineNumber, clientRect) {
+      return clientRect.line === lineNumber;
+    };
+    var upUntil = curry(walkUntil$1, VDirection.Up, isAbove$1, isBelow$1);
+    var downUntil = curry(walkUntil$1, VDirection.Down, isBelow$1, isAbove$1);
+    var positionsUntil = function (direction, root, predicateFn, node) {
+      var caretWalker = CaretWalker(root);
+      var walkFn;
+      var isBelowFn;
+      var isAboveFn;
+      var caretPosition;
+      var result = [];
+      var line = 0;
+      var getClientRect = function (caretPosition) {
+        if (direction === 1) {
+          return last$1(caretPosition.getClientRects());
+        }
+        return last$1(caretPosition.getClientRects());
+      };
+      if (direction === 1) {
+        walkFn = caretWalker.next;
+        isBelowFn = isBelow$1;
+        isAboveFn = isAbove$1;
+        caretPosition = CaretPosition.after(node);
+      } else {
+        walkFn = caretWalker.prev;
+        isBelowFn = isAbove$1;
+        isAboveFn = isBelow$1;
+        caretPosition = CaretPosition.before(node);
+      }
+      var targetClientRect = getClientRect(caretPosition);
+      do {
+        if (!caretPosition.isVisible()) {
+          continue;
+        }
+        var rect = getClientRect(caretPosition);
+        if (isAboveFn(rect, targetClientRect)) {
+          continue;
+        }
+        if (result.length > 0 && isBelowFn(rect, last$1(result))) {
+          line++;
+        }
+        var clientRect = clone(rect);
+        clientRect.position = caretPosition;
+        clientRect.line = line;
+        if (predicateFn(clientRect)) {
+          return result;
+        }
+        result.push(clientRect);
+      } while (caretPosition = walkFn(caretPosition));
+      return result;
+    };
+    var isAboveLine = function (lineNumber) {
+      return function (clientRect) {
+        return aboveLineNumber(lineNumber, clientRect);
+      };
+    };
+    var isLine = function (lineNumber) {
+      return function (clientRect) {
+        return isLineNumber(lineNumber, clientRect);
+      };
+    };
+
+    var isContentEditableFalse$3 = isContentEditableFalse$b;
+    var findNode = findNode$1;
+    var distanceToRectLeft = function (clientRect, clientX) {
+      return Math.abs(clientRect.left - clientX);
+    };
+    var distanceToRectRight = function (clientRect, clientX) {
+      return Math.abs(clientRect.right - clientX);
+    };
+    var isInsideX = function (clientX, clientRect) {
+      return clientX >= clientRect.left && clientX <= clientRect.right;
+    };
+    var isInsideY = function (clientY, clientRect) {
+      return clientY >= clientRect.top && clientY <= clientRect.bottom;
+    };
+    var findClosestClientRect = function (clientRects, clientX) {
+      return reduce(clientRects, function (oldClientRect, clientRect) {
+        var oldDistance = Math.min(distanceToRectLeft(oldClientRect, clientX), distanceToRectRight(oldClientRect, clientX));
+        var newDistance = Math.min(distanceToRectLeft(clientRect, clientX), distanceToRectRight(clientRect, clientX));
+        if (isInsideX(clientX, clientRect)) {
+          return clientRect;
+        }
+        if (isInsideX(clientX, oldClientRect)) {
+          return oldClientRect;
+        }
+        if (newDistance === oldDistance && isContentEditableFalse$3(clientRect.node)) {
+          return clientRect;
+        }
+        if (newDistance < oldDistance) {
+          return clientRect;
+        }
+        return oldClientRect;
+      });
+    };
+    var walkUntil = function (direction, root, predicateFn, startNode, includeChildren) {
+      var node = findNode(startNode, direction, isEditableCaretCandidate$1, root, !includeChildren);
+      do {
+        if (!node || predicateFn(node)) {
+          return;
+        }
+      } while (node = findNode(node, direction, isEditableCaretCandidate$1, root));
+    };
+    var findLineNodeRects = function (root, targetNodeRect, includeChildren) {
+      if (includeChildren === void 0) {
+        includeChildren = true;
+      }
+      var clientRects = [];
+      var collect = function (checkPosFn, node) {
+        var lineRects = filter$4(getClientRects([node]), function (clientRect) {
+          return !checkPosFn(clientRect, targetNodeRect);
+        });
+        clientRects = clientRects.concat(lineRects);
+        return lineRects.length === 0;
+      };
+      clientRects.push(targetNodeRect);
+      walkUntil(VDirection.Up, root, curry(collect, isAbove$1), targetNodeRect.node, includeChildren);
+      walkUntil(VDirection.Down, root, curry(collect, isBelow$1), targetNodeRect.node, includeChildren);
+      return clientRects;
+    };
+    var getFakeCaretTargets = function (root) {
+      return filter$4(from(root.getElementsByTagName('*')), isFakeCaretTarget);
+    };
+    var caretInfo = function (clientRect, clientX) {
+      return {
+        node: clientRect.node,
+        before: distanceToRectLeft(clientRect, clientX) < distanceToRectRight(clientRect, clientX)
+      };
+    };
+    var closestFakeCaret = function (root, clientX, clientY) {
+      var fakeTargetNodeRects = getClientRects(getFakeCaretTargets(root));
+      var targetNodeRects = filter$4(fakeTargetNodeRects, curry(isInsideY, clientY));
+      var closestNodeRect = findClosestClientRect(targetNodeRects, clientX);
+      if (closestNodeRect) {
+        var includeChildren = !isTable$3(closestNodeRect.node) && !isMedia$2(closestNodeRect.node);
+        closestNodeRect = findClosestClientRect(findLineNodeRects(root, closestNodeRect, includeChildren), clientX);
+        if (closestNodeRect && isFakeCaretTarget(closestNodeRect.node)) {
+          return caretInfo(closestNodeRect, clientX);
+        }
+      }
+      return null;
+    };
+
+    var moveToRange = function (editor, rng) {
+      editor.selection.setRng(rng);
+      scrollRangeIntoView(editor, editor.selection.getRng());
+    };
+    var renderRangeCaretOpt = function (editor, range, scrollIntoView) {
+      return Optional.some(renderRangeCaret(editor, range, scrollIntoView));
+    };
+    var moveHorizontally = function (editor, direction, range, isBefore, isAfter, isElement) {
+      var forwards = direction === HDirection.Forwards;
+      var caretWalker = CaretWalker(editor.getBody());
+      var getNextPosFn = curry(getVisualCaretPosition, forwards ? caretWalker.next : caretWalker.prev);
+      var isBeforeFn = forwards ? isBefore : isAfter;
+      if (!range.collapsed) {
+        var node = getSelectedNode(range);
+        if (isElement(node)) {
+          return showCaret(direction, editor, node, direction === HDirection.Backwards, false);
+        }
+      }
+      var caretPosition = getNormalizedRangeEndPoint(direction, editor.getBody(), range);
+      if (isBeforeFn(caretPosition)) {
+        return selectNode(editor, caretPosition.getNode(!forwards));
+      }
+      var nextCaretPosition = normalizePosition(forwards, getNextPosFn(caretPosition));
+      var rangeIsInContainerBlock = isRangeInCaretContainerBlock(range);
+      if (!nextCaretPosition) {
+        return rangeIsInContainerBlock ? Optional.some(range) : Optional.none();
+      }
+      if (isBeforeFn(nextCaretPosition)) {
+        return showCaret(direction, editor, nextCaretPosition.getNode(!forwards), forwards, false);
+      }
+      var peekCaretPosition = getNextPosFn(nextCaretPosition);
+      if (peekCaretPosition && isBeforeFn(peekCaretPosition)) {
+        if (isMoveInsideSameBlock(nextCaretPosition, peekCaretPosition)) {
+          return showCaret(direction, editor, peekCaretPosition.getNode(!forwards), forwards, false);
+        }
+      }
+      if (rangeIsInContainerBlock) {
+        return renderRangeCaretOpt(editor, nextCaretPosition.toRange(), false);
+      }
+      return Optional.none();
+    };
+    var moveVertically = function (editor, direction, range, isBefore, isAfter, isElement) {
+      var caretPosition = getNormalizedRangeEndPoint(direction, editor.getBody(), range);
+      var caretClientRect = last$1(caretPosition.getClientRects());
+      var forwards = direction === VDirection.Down;
+      if (!caretClientRect) {
+        return Optional.none();
+      }
+      var walkerFn = forwards ? downUntil : upUntil;
+      var linePositions = walkerFn(editor.getBody(), isAboveLine(1), caretPosition);
+      var nextLinePositions = filter$4(linePositions, isLine(1));
+      var clientX = caretClientRect.left;
+      var nextLineRect = findClosestClientRect(nextLinePositions, clientX);
+      if (nextLineRect && isElement(nextLineRect.node)) {
+        var dist1 = Math.abs(clientX - nextLineRect.left);
+        var dist2 = Math.abs(clientX - nextLineRect.right);
+        return showCaret(direction, editor, nextLineRect.node, dist1 < dist2, false);
+      }
+      var currentNode;
+      if (isBefore(caretPosition)) {
+        currentNode = caretPosition.getNode();
+      } else if (isAfter(caretPosition)) {
+        currentNode = caretPosition.getNode(true);
+      } else {
+        currentNode = getSelectedNode(range);
+      }
+      if (currentNode) {
+        var caretPositions = positionsUntil(direction, editor.getBody(), isAboveLine(1), currentNode);
+        var closestNextLineRect = findClosestClientRect(filter$4(caretPositions, isLine(1)), clientX);
+        if (closestNextLineRect) {
+          return renderRangeCaretOpt(editor, closestNextLineRect.position.toRange(), false);
+        }
+        closestNextLineRect = last$1(filter$4(caretPositions, isLine(0)));
+        if (closestNextLineRect) {
+          return renderRangeCaretOpt(editor, closestNextLineRect.position.toRange(), false);
+        }
+      }
+      if (nextLinePositions.length === 0) {
+        return getLineEndPoint(editor, forwards).filter(forwards ? isAfter : isBefore).map(function (pos) {
+          return renderRangeCaret(editor, pos.toRange(), false);
+        });
+      }
+      return Optional.none();
+    };
+    var getLineEndPoint = function (editor, forward) {
+      var rng = editor.selection.getRng();
+      var body = editor.getBody();
+      if (forward) {
+        var from = CaretPosition.fromRangeEnd(rng);
+        var result = getPositionsUntilNextLine(body, from);
+        return last$2(result.positions);
+      } else {
+        var from = CaretPosition.fromRangeStart(rng);
+        var result = getPositionsUntilPreviousLine(body, from);
+        return head(result.positions);
+      }
+    };
+    var moveToLineEndPoint$3 = function (editor, forward, isElementPosition) {
+      return getLineEndPoint(editor, forward).filter(isElementPosition).exists(function (pos) {
+        editor.selection.setRng(pos.toRange());
+        return true;
+      });
+    };
+
+    var setCaretPosition = function (editor, pos) {
+      var rng = editor.dom.createRng();
+      rng.setStart(pos.container(), pos.offset());
+      rng.setEnd(pos.container(), pos.offset());
+      editor.selection.setRng(rng);
+    };
+    var setSelected = function (state, elm) {
+      if (state) {
+        elm.setAttribute('data-mce-selected', 'inline-boundary');
+      } else {
+        elm.removeAttribute('data-mce-selected');
+      }
+    };
+    var renderCaretLocation = function (editor, caret, location) {
+      return renderCaret(caret, location).map(function (pos) {
+        setCaretPosition(editor, pos);
+        return location;
+      });
+    };
+    var findLocation = function (editor, caret, forward) {
+      var rootNode = editor.getBody();
+      var from = CaretPosition.fromRangeStart(editor.selection.getRng());
+      var isInlineTarget$1 = curry(isInlineTarget, editor);
+      var location = findLocation$1(forward, isInlineTarget$1, rootNode, from);
+      return location.bind(function (location) {
+        return renderCaretLocation(editor, caret, location);
+      });
+    };
+    var toggleInlines = function (isInlineTarget, dom, elms) {
+      var inlineBoundaries = map$3(descendants(SugarElement.fromDom(dom.getRoot()), '*[data-mce-selected="inline-boundary"]'), function (e) {
+        return e.dom;
+      });
+      var selectedInlines = filter$4(inlineBoundaries, isInlineTarget);
+      var targetInlines = filter$4(elms, isInlineTarget);
+      each$k(difference(selectedInlines, targetInlines), curry(setSelected, false));
+      each$k(difference(targetInlines, selectedInlines), curry(setSelected, true));
+    };
+    var safeRemoveCaretContainer = function (editor, caret) {
+      if (editor.selection.isCollapsed() && editor.composing !== true && caret.get()) {
+        var pos = CaretPosition.fromRangeStart(editor.selection.getRng());
+        if (CaretPosition.isTextPosition(pos) && isAtZwsp(pos) === false) {
+          setCaretPosition(editor, removeAndReposition(caret.get(), pos));
+          caret.set(null);
+        }
+      }
+    };
+    var renderInsideInlineCaret = function (isInlineTarget, editor, caret, elms) {
+      if (editor.selection.isCollapsed()) {
+        var inlines = filter$4(elms, isInlineTarget);
+        each$k(inlines, function (_inline) {
+          var pos = CaretPosition.fromRangeStart(editor.selection.getRng());
+          readLocation(isInlineTarget, editor.getBody(), pos).bind(function (location) {
+            return renderCaretLocation(editor, caret, location);
+          });
+        });
+      }
+    };
+    var move$2 = function (editor, caret, forward) {
+      return isInlineBoundariesEnabled(editor) ? findLocation(editor, caret, forward).isSome() : false;
+    };
+    var moveWord = function (forward, editor, _caret) {
+      return isInlineBoundariesEnabled(editor) ? moveByWord(forward, editor) : false;
+    };
+    var setupSelectedState = function (editor) {
+      var caret = Cell(null);
+      var isInlineTarget$1 = curry(isInlineTarget, editor);
+      editor.on('NodeChange', function (e) {
+        if (isInlineBoundariesEnabled(editor) && !(Env.browser.isIE() && e.initial)) {
+          toggleInlines(isInlineTarget$1, editor.dom, e.parents);
+          safeRemoveCaretContainer(editor, caret);
+          renderInsideInlineCaret(isInlineTarget$1, editor, caret, e.parents);
+        }
+      });
+      return caret;
+    };
+    var moveNextWord = curry(moveWord, true);
+    var movePrevWord = curry(moveWord, false);
+    var moveToLineEndPoint$2 = function (editor, forward, caret) {
+      if (isInlineBoundariesEnabled(editor)) {
+        var linePoint = getLineEndPoint(editor, forward).getOrThunk(function () {
+          var rng = editor.selection.getRng();
+          return forward ? CaretPosition.fromRangeEnd(rng) : CaretPosition.fromRangeStart(rng);
+        });
+        return readLocation(curry(isInlineTarget, editor), editor.getBody(), linePoint).exists(function (loc) {
+          var outsideLoc = outside(loc);
+          return renderCaret(caret, outsideLoc).exists(function (pos) {
+            setCaretPosition(editor, pos);
+            return true;
+          });
+        });
+      } else {
+        return false;
+      }
+    };
+
+    var rangeFromPositions = function (from, to) {
+      var range = document.createRange();
+      range.setStart(from.container(), from.offset());
+      range.setEnd(to.container(), to.offset());
+      return range;
+    };
+    var hasOnlyTwoOrLessPositionsLeft = function (elm) {
+      return lift2(firstPositionIn(elm), lastPositionIn(elm), function (firstPos, lastPos) {
+        var normalizedFirstPos = normalizePosition(true, firstPos);
+        var normalizedLastPos = normalizePosition(false, lastPos);
+        return nextPosition(elm, normalizedFirstPos).forall(function (pos) {
+          return pos.isEqual(normalizedLastPos);
+        });
+      }).getOr(true);
+    };
+    var setCaretLocation = function (editor, caret) {
+      return function (location) {
+        return renderCaret(caret, location).exists(function (pos) {
+          setCaretPosition(editor, pos);
+          return true;
+        });
+      };
+    };
+    var deleteFromTo = function (editor, caret, from, to) {
+      var rootNode = editor.getBody();
+      var isInlineTarget$1 = curry(isInlineTarget, editor);
+      editor.undoManager.ignore(function () {
+        editor.selection.setRng(rangeFromPositions(from, to));
+        editor.execCommand('Delete');
+        readLocation(isInlineTarget$1, rootNode, CaretPosition.fromRangeStart(editor.selection.getRng())).map(inside).map(setCaretLocation(editor, caret));
+      });
+      editor.nodeChanged();
+    };
+    var rescope = function (rootNode, node) {
+      var parentBlock = getParentBlock$2(node, rootNode);
+      return parentBlock ? parentBlock : rootNode;
+    };
+    var backspaceDeleteCollapsed = function (editor, caret, forward, from) {
+      var rootNode = rescope(editor.getBody(), from.container());
+      var isInlineTarget$1 = curry(isInlineTarget, editor);
+      var fromLocation = readLocation(isInlineTarget$1, rootNode, from);
+      return fromLocation.bind(function (location) {
+        if (forward) {
+          return location.fold(constant(Optional.some(inside(location))), Optional.none, constant(Optional.some(outside(location))), Optional.none);
+        } else {
+          return location.fold(Optional.none, constant(Optional.some(outside(location))), Optional.none, constant(Optional.some(inside(location))));
+        }
+      }).map(setCaretLocation(editor, caret)).getOrThunk(function () {
+        var toPosition = navigate(forward, rootNode, from);
+        var toLocation = toPosition.bind(function (pos) {
+          return readLocation(isInlineTarget$1, rootNode, pos);
+        });
+        return lift2(fromLocation, toLocation, function () {
+          return findRootInline(isInlineTarget$1, rootNode, from).exists(function (elm) {
+            if (hasOnlyTwoOrLessPositionsLeft(elm)) {
+              deleteElement$2(editor, forward, SugarElement.fromDom(elm));
+              return true;
+            } else {
+              return false;
+            }
+          });
+        }).orThunk(function () {
+          return toLocation.bind(function (_) {
+            return toPosition.map(function (to) {
+              if (forward) {
+                deleteFromTo(editor, caret, from, to);
+              } else {
+                deleteFromTo(editor, caret, to, from);
+              }
+              return true;
+            });
+          });
+        }).getOr(false);
+      });
+    };
+    var backspaceDelete$3 = function (editor, caret, forward) {
+      if (editor.selection.isCollapsed() && isInlineBoundariesEnabled(editor)) {
+        var from = CaretPosition.fromRangeStart(editor.selection.getRng());
+        return backspaceDeleteCollapsed(editor, caret, forward, from);
+      }
+      return false;
+    };
+
+    var getParentInlines = function (rootElm, startElm) {
+      var parents = parentsAndSelf(startElm, rootElm);
+      return findIndex$2(parents, isBlock$2).fold(constant(parents), function (index) {
+        return parents.slice(0, index);
+      });
+    };
+    var hasOnlyOneChild = function (elm) {
+      return childNodesCount(elm) === 1;
+    };
+    var deleteLastPosition = function (forward, editor, target, parentInlines) {
+      var isFormatElement$1 = curry(isFormatElement, editor);
+      var formatNodes = map$3(filter$4(parentInlines, isFormatElement$1), function (elm) {
+        return elm.dom;
+      });
+      if (formatNodes.length === 0) {
+        deleteElement$2(editor, forward, target);
+      } else {
+        var pos = replaceWithCaretFormat(target.dom, formatNodes);
+        editor.selection.setRng(pos.toRange());
+      }
+    };
+    var deleteCaret$1 = function (editor, forward) {
+      var rootElm = SugarElement.fromDom(editor.getBody());
+      var startElm = SugarElement.fromDom(editor.selection.getStart());
+      var parentInlines = filter$4(getParentInlines(rootElm, startElm), hasOnlyOneChild);
+      return last$2(parentInlines).exists(function (target) {
+        var fromPos = CaretPosition.fromRangeStart(editor.selection.getRng());
+        if (willDeleteLastPositionInElement(forward, fromPos, target.dom) && !isEmptyCaretFormatElement(target)) {
+          deleteLastPosition(forward, editor, target, parentInlines);
+          return true;
+        } else {
+          return false;
+        }
+      });
+    };
+    var backspaceDelete$2 = function (editor, forward) {
+      return editor.selection.isCollapsed() ? deleteCaret$1(editor, forward) : false;
+    };
+
+    var deleteElement = function (editor, forward, element) {
+      editor._selectionOverrides.hideFakeCaret();
+      deleteElement$2(editor, forward, SugarElement.fromDom(element));
+      return true;
+    };
+    var deleteCaret = function (editor, forward) {
+      var isNearMedia = forward ? isBeforeMedia : isAfterMedia;
+      var direction = forward ? HDirection.Forwards : HDirection.Backwards;
+      var fromPos = getNormalizedRangeEndPoint(direction, editor.getBody(), editor.selection.getRng());
+      if (isNearMedia(fromPos)) {
+        return deleteElement(editor, forward, fromPos.getNode(!forward));
+      } else {
+        return Optional.from(normalizePosition(forward, fromPos)).filter(function (pos) {
+          return isNearMedia(pos) && isMoveInsideSameBlock(fromPos, pos);
+        }).exists(function (pos) {
+          return deleteElement(editor, forward, pos.getNode(!forward));
+        });
+      }
+    };
+    var deleteRange = function (editor, forward) {
+      var selectedNode = editor.selection.getNode();
+      return isMedia$2(selectedNode) ? deleteElement(editor, forward, selectedNode) : false;
+    };
+    var backspaceDelete$1 = function (editor, forward) {
+      return editor.selection.isCollapsed() ? deleteCaret(editor, forward) : deleteRange(editor, forward);
+    };
+
+    var isEditable = function (target) {
+      return closest$3(target, function (elm) {
+        return isContentEditableTrue$4(elm.dom) || isContentEditableFalse$b(elm.dom);
+      }).exists(function (elm) {
+        return isContentEditableTrue$4(elm.dom);
+      });
+    };
+    var parseIndentValue = function (value) {
+      var number = parseInt(value, 10);
+      return isNaN(number) ? 0 : number;
+    };
+    var getIndentStyleName = function (useMargin, element) {
+      var indentStyleName = useMargin || isTable$2(element) ? 'margin' : 'padding';
+      var suffix = get$5(element, 'direction') === 'rtl' ? '-right' : '-left';
+      return indentStyleName + suffix;
+    };
+    var indentElement = function (dom, command, useMargin, value, unit, element) {
+      var indentStyleName = getIndentStyleName(useMargin, SugarElement.fromDom(element));
+      if (command === 'outdent') {
+        var styleValue = Math.max(0, parseIndentValue(element.style[indentStyleName]) - value);
+        dom.setStyle(element, indentStyleName, styleValue ? styleValue + unit : '');
+      } else {
+        var styleValue = parseIndentValue(element.style[indentStyleName]) + value + unit;
+        dom.setStyle(element, indentStyleName, styleValue);
+      }
+    };
+    var validateBlocks = function (editor, blocks) {
+      return forall(blocks, function (block) {
+        var indentStyleName = getIndentStyleName(shouldIndentUseMargin(editor), block);
+        var intentValue = getRaw(block, indentStyleName).map(parseIndentValue).getOr(0);
+        var contentEditable = editor.dom.getContentEditable(block.dom);
+        return contentEditable !== 'false' && intentValue > 0;
+      });
+    };
+    var canOutdent = function (editor) {
+      var blocks = getBlocksToIndent(editor);
+      return !editor.mode.isReadOnly() && (blocks.length > 1 || validateBlocks(editor, blocks));
+    };
+    var isListComponent = function (el) {
+      return isList(el) || isListItem(el);
+    };
+    var parentIsListComponent = function (el) {
+      return parent(el).exists(isListComponent);
+    };
+    var getBlocksToIndent = function (editor) {
+      return filter$4(fromDom$1(editor.selection.getSelectedBlocks()), function (el) {
+        return !isListComponent(el) && !parentIsListComponent(el) && isEditable(el);
+      });
+    };
+    var handle = function (editor, command) {
+      var dom = editor.dom, selection = editor.selection, formatter = editor.formatter;
+      var indentation = getIndentation(editor);
+      var indentUnit = /[a-z%]+$/i.exec(indentation)[0];
+      var indentValue = parseInt(indentation, 10);
+      var useMargin = shouldIndentUseMargin(editor);
+      var forcedRootBlock = getForcedRootBlock(editor);
+      if (!editor.queryCommandState('InsertUnorderedList') && !editor.queryCommandState('InsertOrderedList')) {
+        if (forcedRootBlock === '' && !dom.getParent(selection.getNode(), dom.isBlock)) {
+          formatter.apply('div');
+        }
+      }
+      each$k(getBlocksToIndent(editor), function (block) {
+        indentElement(dom, command, useMargin, indentValue, indentUnit, block.dom);
+      });
+    };
+
+    var backspaceDelete = function (editor, _forward) {
+      if (editor.selection.isCollapsed() && canOutdent(editor)) {
+        var dom = editor.dom;
+        var rng = editor.selection.getRng();
+        var pos = CaretPosition.fromRangeStart(rng);
+        var block = dom.getParent(rng.startContainer, dom.isBlock);
+        if (block !== null && isAtStartOfBlock(SugarElement.fromDom(block), pos)) {
+          handle(editor, 'outdent');
+          return true;
+        }
+      }
+      return false;
+    };
+
+    var nativeCommand = function (editor, command) {
+      editor.getDoc().execCommand(command, false, null);
+    };
+    var deleteCommand = function (editor, caret) {
+      if (backspaceDelete(editor)) {
+        return;
+      } else if (backspaceDelete$5(editor, false)) {
+        return;
+      } else if (backspaceDelete$6(editor, false)) {
+        return;
+      } else if (backspaceDelete$3(editor, caret, false)) {
+        return;
+      } else if (backspaceDelete$8(editor, false)) {
+        return;
+      } else if (backspaceDelete$9(editor)) {
+        return;
+      } else if (backspaceDelete$4(editor, false)) {
+        return;
+      } else if (backspaceDelete$1(editor, false)) {
+        return;
+      } else if (backspaceDelete$7(editor)) {
+        return;
+      } else if (backspaceDelete$2(editor, false)) {
+        return;
+      } else {
+        nativeCommand(editor, 'Delete');
+        paddEmptyBody(editor);
+      }
+    };
+    var forwardDeleteCommand = function (editor, caret) {
+      if (backspaceDelete$5(editor, true)) {
+        return;
+      } else if (backspaceDelete$6(editor, true)) {
+        return;
+      } else if (backspaceDelete$3(editor, caret, true)) {
+        return;
+      } else if (backspaceDelete$8(editor, true)) {
+        return;
+      } else if (backspaceDelete$9(editor)) {
+        return;
+      } else if (backspaceDelete$4(editor, true)) {
+        return;
+      } else if (backspaceDelete$1(editor, true)) {
+        return;
+      } else if (backspaceDelete$7(editor)) {
+        return;
+      } else if (backspaceDelete$2(editor, true)) {
+        return;
+      } else {
+        nativeCommand(editor, 'ForwardDelete');
+      }
+    };
+    var setup$f = function (editor, caret) {
+      editor.addCommand('delete', function () {
+        deleteCommand(editor, caret);
+      });
+      editor.addCommand('forwardDelete', function () {
+        forwardDeleteCommand(editor, caret);
+      });
+    };
+
+    var SIGNIFICANT_MOVE = 5;
+    var LONGPRESS_DELAY = 400;
+    var getTouch = function (event) {
+      if (event.touches === undefined || event.touches.length !== 1) {
+        return Optional.none();
+      }
+      return Optional.some(event.touches[0]);
+    };
+    var isFarEnough = function (touch, data) {
+      var distX = Math.abs(touch.clientX - data.x);
+      var distY = Math.abs(touch.clientY - data.y);
+      return distX > SIGNIFICANT_MOVE || distY > SIGNIFICANT_MOVE;
+    };
+    var setup$e = function (editor) {
+      var startData = value();
+      var longpressFired = Cell(false);
+      var debounceLongpress = last(function (e) {
+        editor.fire('longpress', __assign(__assign({}, e), { type: 'longpress' }));
+        longpressFired.set(true);
+      }, LONGPRESS_DELAY);
+      editor.on('touchstart', function (e) {
+        getTouch(e).each(function (touch) {
+          debounceLongpress.cancel();
+          var data = {
+            x: touch.clientX,
+            y: touch.clientY,
+            target: e.target
+          };
+          debounceLongpress.throttle(e);
+          longpressFired.set(false);
+          startData.set(data);
+        });
+      }, true);
+      editor.on('touchmove', function (e) {
+        debounceLongpress.cancel();
+        getTouch(e).each(function (touch) {
+          startData.on(function (data) {
+            if (isFarEnough(touch, data)) {
+              startData.clear();
+              longpressFired.set(false);
+              editor.fire('longpresscancel');
+            }
+          });
+        });
+      }, true);
+      editor.on('touchend touchcancel', function (e) {
+        debounceLongpress.cancel();
+        if (e.type === 'touchcancel') {
+          return;
+        }
+        startData.get().filter(function (data) {
+          return data.target.isEqualNode(e.target);
+        }).each(function () {
+          if (longpressFired.get()) {
+            e.preventDefault();
+          } else {
+            editor.fire('tap', __assign(__assign({}, e), { type: 'tap' }));
+          }
+        });
+      }, true);
+    };
+
+    var isBlockElement = function (blockElements, node) {
+      return has$2(blockElements, node.nodeName);
+    };
+    var isValidTarget = function (blockElements, node) {
+      if (isText$7(node)) {
+        return true;
+      } else if (isElement$5(node)) {
+        return !isBlockElement(blockElements, node) && !isBookmarkNode$1(node);
+      } else {
+        return false;
+      }
+    };
+    var hasBlockParent = function (blockElements, root, node) {
+      return exists(parents(SugarElement.fromDom(node), SugarElement.fromDom(root)), function (elm) {
+        return isBlockElement(blockElements, elm.dom);
+      });
+    };
+    var shouldRemoveTextNode = function (blockElements, node) {
+      if (isText$7(node)) {
+        if (node.nodeValue.length === 0) {
+          return true;
+        } else if (/^\s+$/.test(node.nodeValue) && (!node.nextSibling || isBlockElement(blockElements, node.nextSibling))) {
+          return true;
+        }
+      }
+      return false;
+    };
+    var addRootBlocks = function (editor) {
+      var dom = editor.dom, selection = editor.selection;
+      var schema = editor.schema, blockElements = schema.getBlockElements();
+      var node = selection.getStart();
+      var rootNode = editor.getBody();
+      var rootBlockNode, tempNode, wrapped;
+      var forcedRootBlock = getForcedRootBlock(editor);
+      if (!node || !isElement$5(node) || !forcedRootBlock) {
+        return;
+      }
+      var rootNodeName = rootNode.nodeName.toLowerCase();
+      if (!schema.isValidChild(rootNodeName, forcedRootBlock.toLowerCase()) || hasBlockParent(blockElements, rootNode, node)) {
+        return;
+      }
+      var rng = selection.getRng();
+      var startContainer = rng.startContainer;
+      var startOffset = rng.startOffset;
+      var endContainer = rng.endContainer;
+      var endOffset = rng.endOffset;
+      var restoreSelection = hasFocus(editor);
+      node = rootNode.firstChild;
+      while (node) {
+        if (isValidTarget(blockElements, node)) {
+          if (shouldRemoveTextNode(blockElements, node)) {
+            tempNode = node;
+            node = node.nextSibling;
+            dom.remove(tempNode);
+            continue;
+          }
+          if (!rootBlockNode) {
+            rootBlockNode = dom.create(forcedRootBlock, getForcedRootBlockAttrs(editor));
+            node.parentNode.insertBefore(rootBlockNode, node);
+            wrapped = true;
+          }
+          tempNode = node;
+          node = node.nextSibling;
+          rootBlockNode.appendChild(tempNode);
+        } else {
+          rootBlockNode = null;
+          node = node.nextSibling;
+        }
+      }
+      if (wrapped && restoreSelection) {
+        rng.setStart(startContainer, startOffset);
+        rng.setEnd(endContainer, endOffset);
+        selection.setRng(rng);
+        editor.nodeChanged();
+      }
+    };
+    var setup$d = function (editor) {
+      if (getForcedRootBlock(editor)) {
+        editor.on('NodeChange', curry(addRootBlocks, editor));
+      }
+    };
+
+    var findBlockCaretContainer = function (editor) {
+      return descendant(SugarElement.fromDom(editor.getBody()), '*[data-mce-caret]').map(function (elm) {
+        return elm.dom;
+      }).getOrNull();
+    };
+    var removeIeControlRect = function (editor) {
+      editor.selection.setRng(editor.selection.getRng());
+    };
+    var showBlockCaretContainer = function (editor, blockCaretContainer) {
+      if (blockCaretContainer.hasAttribute('data-mce-caret')) {
+        showCaretContainerBlock(blockCaretContainer);
+        removeIeControlRect(editor);
+        editor.selection.scrollIntoView(blockCaretContainer);
+      }
+    };
+    var handleBlockContainer = function (editor, e) {
+      var blockCaretContainer = findBlockCaretContainer(editor);
+      if (!blockCaretContainer) {
+        return;
+      }
+      if (e.type === 'compositionstart') {
+        e.preventDefault();
+        e.stopPropagation();
+        showBlockCaretContainer(editor, blockCaretContainer);
+        return;
+      }
+      if (hasContent(blockCaretContainer)) {
+        showBlockCaretContainer(editor, blockCaretContainer);
+        editor.undoManager.add();
+      }
+    };
+    var setup$c = function (editor) {
+      editor.on('keyup compositionstart', curry(handleBlockContainer, editor));
+    };
+
+    var isContentEditableFalse$2 = isContentEditableFalse$b;
+    var moveToCeFalseHorizontally = function (direction, editor, range) {
+      return moveHorizontally(editor, direction, range, isBeforeContentEditableFalse, isAfterContentEditableFalse, isContentEditableFalse$2);
+    };
+    var moveToCeFalseVertically = function (direction, editor, range) {
+      var isBefore = function (caretPosition) {
+        return isBeforeContentEditableFalse(caretPosition) || isBeforeTable(caretPosition);
+      };
+      var isAfter = function (caretPosition) {
+        return isAfterContentEditableFalse(caretPosition) || isAfterTable(caretPosition);
+      };
+      return moveVertically(editor, direction, range, isBefore, isAfter, isContentEditableFalse$2);
+    };
+    var createTextBlock = function (editor) {
+      var textBlock = editor.dom.create(getForcedRootBlock(editor));
+      if (!Env.ie || Env.ie >= 11) {
+        textBlock.innerHTML = '<br data-mce-bogus="1">';
+      }
+      return textBlock;
+    };
+    var exitPreBlock = function (editor, direction, range) {
+      var caretWalker = CaretWalker(editor.getBody());
+      var getVisualCaretPosition$1 = curry(getVisualCaretPosition, direction === 1 ? caretWalker.next : caretWalker.prev);
+      if (range.collapsed && hasForcedRootBlock(editor)) {
+        var pre = editor.dom.getParent(range.startContainer, 'PRE');
+        if (!pre) {
+          return;
+        }
+        var caretPos = getVisualCaretPosition$1(CaretPosition.fromRangeStart(range));
+        if (!caretPos) {
+          var newBlock = createTextBlock(editor);
+          if (direction === 1) {
+            editor.$(pre).after(newBlock);
+          } else {
+            editor.$(pre).before(newBlock);
+          }
+          editor.selection.select(newBlock, true);
+          editor.selection.collapse();
+        }
+      }
+    };
+    var getHorizontalRange = function (editor, forward) {
+      var direction = forward ? HDirection.Forwards : HDirection.Backwards;
+      var range = editor.selection.getRng();
+      return moveToCeFalseHorizontally(direction, editor, range).orThunk(function () {
+        exitPreBlock(editor, direction, range);
+        return Optional.none();
+      });
+    };
+    var getVerticalRange = function (editor, down) {
+      var direction = down ? 1 : -1;
+      var range = editor.selection.getRng();
+      return moveToCeFalseVertically(direction, editor, range).orThunk(function () {
+        exitPreBlock(editor, direction, range);
+        return Optional.none();
+      });
+    };
+    var moveH$2 = function (editor, forward) {
+      return getHorizontalRange(editor, forward).exists(function (newRange) {
+        moveToRange(editor, newRange);
+        return true;
+      });
+    };
+    var moveV$3 = function (editor, down) {
+      return getVerticalRange(editor, down).exists(function (newRange) {
+        moveToRange(editor, newRange);
+        return true;
+      });
+    };
+    var moveToLineEndPoint$1 = function (editor, forward) {
+      var isCefPosition = forward ? isAfterContentEditableFalse : isBeforeContentEditableFalse;
+      return moveToLineEndPoint$3(editor, forward, isCefPosition);
+    };
+
+    var isTarget = function (node) {
+      return contains$3(['figcaption'], name(node));
+    };
+    var rangeBefore = function (target) {
+      var rng = document.createRange();
+      rng.setStartBefore(target.dom);
+      rng.setEndBefore(target.dom);
+      return rng;
+    };
+    var insertElement = function (root, elm, forward) {
+      if (forward) {
+        append$1(root, elm);
+      } else {
+        prepend(root, elm);
+      }
+    };
+    var insertBr = function (root, forward) {
+      var br = SugarElement.fromTag('br');
+      insertElement(root, br, forward);
+      return rangeBefore(br);
+    };
+    var insertBlock = function (root, forward, blockName, attrs) {
+      var block = SugarElement.fromTag(blockName);
+      var br = SugarElement.fromTag('br');
+      setAll$1(block, attrs);
+      append$1(block, br);
+      insertElement(root, block, forward);
+      return rangeBefore(br);
+    };
+    var insertEmptyLine = function (root, rootBlockName, attrs, forward) {
+      if (rootBlockName === '') {
+        return insertBr(root, forward);
+      } else {
+        return insertBlock(root, forward, rootBlockName, attrs);
+      }
+    };
+    var getClosestTargetBlock = function (pos, root) {
+      var isRoot = curry(eq, root);
+      return closest$3(SugarElement.fromDom(pos.container()), isBlock$2, isRoot).filter(isTarget);
+    };
+    var isAtFirstOrLastLine = function (root, forward, pos) {
+      return forward ? isAtLastLine(root.dom, pos) : isAtFirstLine(root.dom, pos);
+    };
+    var moveCaretToNewEmptyLine = function (editor, forward) {
+      var root = SugarElement.fromDom(editor.getBody());
+      var pos = CaretPosition.fromRangeStart(editor.selection.getRng());
+      var rootBlock = getForcedRootBlock(editor);
+      var rootBlockAttrs = getForcedRootBlockAttrs(editor);
+      return getClosestTargetBlock(pos, root).exists(function () {
+        if (isAtFirstOrLastLine(root, forward, pos)) {
+          var rng = insertEmptyLine(root, rootBlock, rootBlockAttrs, forward);
+          editor.selection.setRng(rng);
+          return true;
+        } else {
+          return false;
+        }
+      });
+    };
+    var moveV$2 = function (editor, forward) {
+      if (editor.selection.isCollapsed()) {
+        return moveCaretToNewEmptyLine(editor, forward);
+      } else {
+        return false;
+      }
+    };
+
+    var defaultPatterns = function (patterns) {
+      return map$3(patterns, function (pattern) {
+        return __assign({
+          shiftKey: false,
+          altKey: false,
+          ctrlKey: false,
+          metaKey: false,
+          keyCode: 0,
+          action: noop
+        }, pattern);
+      });
+    };
+    var matchesEvent = function (pattern, evt) {
+      return evt.keyCode === pattern.keyCode && evt.shiftKey === pattern.shiftKey && evt.altKey === pattern.altKey && evt.ctrlKey === pattern.ctrlKey && evt.metaKey === pattern.metaKey;
+    };
+    var match$1 = function (patterns, evt) {
+      return bind(defaultPatterns(patterns), function (pattern) {
+        return matchesEvent(pattern, evt) ? [pattern] : [];
+      });
+    };
+    var action = function (f) {
+      var x = [];
+      for (var _i = 1; _i < arguments.length; _i++) {
+        x[_i - 1] = arguments[_i];
+      }
+      return function () {
+        return f.apply(null, x);
+      };
+    };
+    var execute = function (patterns, evt) {
+      return find$3(match$1(patterns, evt), function (pattern) {
+        return pattern.action();
+      });
+    };
+
+    var moveH$1 = function (editor, forward) {
+      var direction = forward ? HDirection.Forwards : HDirection.Backwards;
+      var range = editor.selection.getRng();
+      return moveHorizontally(editor, direction, range, isBeforeMedia, isAfterMedia, isMedia$2).exists(function (newRange) {
+        moveToRange(editor, newRange);
+        return true;
+      });
+    };
+    var moveV$1 = function (editor, down) {
+      var direction = down ? 1 : -1;
+      var range = editor.selection.getRng();
+      return moveVertically(editor, direction, range, isBeforeMedia, isAfterMedia, isMedia$2).exists(function (newRange) {
+        moveToRange(editor, newRange);
+        return true;
+      });
+    };
+    var moveToLineEndPoint = function (editor, forward) {
+      var isNearMedia = forward ? isAfterMedia : isBeforeMedia;
+      return moveToLineEndPoint$3(editor, forward, isNearMedia);
+    };
+
+    var deflate = function (rect, delta) {
+      return {
+        left: rect.left - delta,
+        top: rect.top - delta,
+        right: rect.right + delta * 2,
+        bottom: rect.bottom + delta * 2,
+        width: rect.width + delta,
+        height: rect.height + delta
+      };
+    };
+    var getCorners = function (getYAxisValue, tds) {
+      return bind(tds, function (td) {
+        var rect = deflate(clone(td.getBoundingClientRect()), -1);
+        return [
+          {
+            x: rect.left,
+            y: getYAxisValue(rect),
+            cell: td
+          },
+          {
+            x: rect.right,
+            y: getYAxisValue(rect),
+            cell: td
+          }
+        ];
+      });
+    };
+    var findClosestCorner = function (corners, x, y) {
+      return foldl(corners, function (acc, newCorner) {
+        return acc.fold(function () {
+          return Optional.some(newCorner);
+        }, function (oldCorner) {
+          var oldDist = Math.sqrt(Math.abs(oldCorner.x - x) + Math.abs(oldCorner.y - y));
+          var newDist = Math.sqrt(Math.abs(newCorner.x - x) + Math.abs(newCorner.y - y));
+          return Optional.some(newDist < oldDist ? newCorner : oldCorner);
+        });
+      }, Optional.none());
+    };
+    var getClosestCell = function (getYAxisValue, isTargetCorner, table, x, y) {
+      var cells = descendants(SugarElement.fromDom(table), 'td,th,caption').map(function (e) {
+        return e.dom;
+      });
+      var corners = filter$4(getCorners(getYAxisValue, cells), function (corner) {
+        return isTargetCorner(corner, y);
+      });
+      return findClosestCorner(corners, x, y).map(function (corner) {
+        return corner.cell;
+      });
+    };
+    var getBottomValue = function (rect) {
+      return rect.bottom;
+    };
+    var getTopValue = function (rect) {
+      return rect.top;
+    };
+    var isAbove = function (corner, y) {
+      return corner.y < y;
+    };
+    var isBelow = function (corner, y) {
+      return corner.y > y;
+    };
+    var getClosestCellAbove = curry(getClosestCell, getBottomValue, isAbove);
+    var getClosestCellBelow = curry(getClosestCell, getTopValue, isBelow);
+    var findClosestPositionInAboveCell = function (table, pos) {
+      return head(pos.getClientRects()).bind(function (rect) {
+        return getClosestCellAbove(table, rect.left, rect.top);
+      }).bind(function (cell) {
+        return findClosestHorizontalPosition(getLastLinePositions(cell), pos);
+      });
+    };
+    var findClosestPositionInBelowCell = function (table, pos) {
+      return last$2(pos.getClientRects()).bind(function (rect) {
+        return getClosestCellBelow(table, rect.left, rect.top);
+      }).bind(function (cell) {
+        return findClosestHorizontalPosition(getFirstLinePositions(cell), pos);
+      });
+    };
+
+    var hasNextBreak = function (getPositionsUntil, scope, lineInfo) {
+      return lineInfo.breakAt.exists(function (breakPos) {
+        return getPositionsUntil(scope, breakPos).breakAt.isSome();
+      });
+    };
+    var startsWithWrapBreak = function (lineInfo) {
+      return lineInfo.breakType === BreakType.Wrap && lineInfo.positions.length === 0;
+    };
+    var startsWithBrBreak = function (lineInfo) {
+      return lineInfo.breakType === BreakType.Br && lineInfo.positions.length === 1;
+    };
+    var isAtTableCellLine = function (getPositionsUntil, scope, pos) {
+      var lineInfo = getPositionsUntil(scope, pos);
+      if (startsWithWrapBreak(lineInfo) || !isBr$5(pos.getNode()) && startsWithBrBreak(lineInfo)) {
+        return !hasNextBreak(getPositionsUntil, scope, lineInfo);
+      } else {
+        return lineInfo.breakAt.isNone();
+      }
+    };
+    var isAtFirstTableCellLine = curry(isAtTableCellLine, getPositionsUntilPreviousLine);
+    var isAtLastTableCellLine = curry(isAtTableCellLine, getPositionsUntilNextLine);
+    var isCaretAtStartOrEndOfTable = function (forward, rng, table) {
+      var caretPos = CaretPosition.fromRangeStart(rng);
+      return positionIn(!forward, table).exists(function (pos) {
+        return pos.isEqual(caretPos);
+      });
+    };
+    var navigateHorizontally = function (editor, forward, table, _td) {
+      var rng = editor.selection.getRng();
+      var direction = forward ? 1 : -1;
+      if (isFakeCaretTableBrowser() && isCaretAtStartOrEndOfTable(forward, rng, table)) {
+        showCaret(direction, editor, table, !forward, false).each(function (newRng) {
+          moveToRange(editor, newRng);
+        });
+        return true;
+      }
+      return false;
+    };
+    var getClosestAbovePosition = function (root, table, start) {
+      return findClosestPositionInAboveCell(table, start).orThunk(function () {
+        return head(start.getClientRects()).bind(function (rect) {
+          return findClosestHorizontalPositionFromPoint(getPositionsAbove(root, CaretPosition.before(table)), rect.left);
+        });
+      }).getOr(CaretPosition.before(table));
+    };
+    var getClosestBelowPosition = function (root, table, start) {
+      return findClosestPositionInBelowCell(table, start).orThunk(function () {
+        return head(start.getClientRects()).bind(function (rect) {
+          return findClosestHorizontalPositionFromPoint(getPositionsBelow(root, CaretPosition.after(table)), rect.left);
+        });
+      }).getOr(CaretPosition.after(table));
+    };
+    var getTable = function (previous, pos) {
+      var node = pos.getNode(previous);
+      return isElement$5(node) && node.nodeName === 'TABLE' ? Optional.some(node) : Optional.none();
+    };
+    var renderBlock = function (down, editor, table, pos) {
+      var forcedRootBlock = getForcedRootBlock(editor);
+      if (forcedRootBlock) {
+        editor.undoManager.transact(function () {
+          var element = SugarElement.fromTag(forcedRootBlock);
+          setAll$1(element, getForcedRootBlockAttrs(editor));
+          append$1(element, SugarElement.fromTag('br'));
+          if (down) {
+            after$3(SugarElement.fromDom(table), element);
+          } else {
+            before$4(SugarElement.fromDom(table), element);
+          }
+          var rng = editor.dom.createRng();
+          rng.setStart(element.dom, 0);
+          rng.setEnd(element.dom, 0);
+          moveToRange(editor, rng);
+        });
+      } else {
+        moveToRange(editor, pos.toRange());
+      }
+    };
+    var moveCaret = function (editor, down, pos) {
+      var table = down ? getTable(true, pos) : getTable(false, pos);
+      var last = down === false;
+      table.fold(function () {
+        return moveToRange(editor, pos.toRange());
+      }, function (table) {
+        return positionIn(last, editor.getBody()).filter(function (lastPos) {
+          return lastPos.isEqual(pos);
+        }).fold(function () {
+          return moveToRange(editor, pos.toRange());
+        }, function (_) {
+          return renderBlock(down, editor, table, pos);
+        });
+      });
+    };
+    var navigateVertically = function (editor, down, table, td) {
+      var rng = editor.selection.getRng();
+      var pos = CaretPosition.fromRangeStart(rng);
+      var root = editor.getBody();
+      if (!down && isAtFirstTableCellLine(td, pos)) {
+        var newPos = getClosestAbovePosition(root, table, pos);
+        moveCaret(editor, down, newPos);
+        return true;
+      } else if (down && isAtLastTableCellLine(td, pos)) {
+        var newPos = getClosestBelowPosition(root, table, pos);
+        moveCaret(editor, down, newPos);
+        return true;
+      } else {
+        return false;
+      }
+    };
+    var move$1 = function (editor, forward, mover) {
+      return Optional.from(editor.dom.getParent(editor.selection.getNode(), 'td,th')).bind(function (td) {
+        return Optional.from(editor.dom.getParent(td, 'table')).map(function (table) {
+          return mover(editor, forward, table, td);
+        });
+      }).getOr(false);
+    };
+    var moveH = function (editor, forward) {
+      return move$1(editor, forward, navigateHorizontally);
+    };
+    var moveV = function (editor, forward) {
+      return move$1(editor, forward, navigateVertically);
+    };
+
+    var executeKeydownOverride$3 = function (editor, caret, evt) {
+      var os = detect().os;
+      execute([
+        {
+          keyCode: VK.RIGHT,
+          action: action(moveH$2, editor, true)
+        },
+        {
+          keyCode: VK.LEFT,
+          action: action(moveH$2, editor, false)
+        },
+        {
+          keyCode: VK.UP,
+          action: action(moveV$3, editor, false)
+        },
+        {
+          keyCode: VK.DOWN,
+          action: action(moveV$3, editor, true)
+        },
+        {
+          keyCode: VK.RIGHT,
+          action: action(moveH, editor, true)
+        },
+        {
+          keyCode: VK.LEFT,
+          action: action(moveH, editor, false)
+        },
+        {
+          keyCode: VK.UP,
+          action: action(moveV, editor, false)
+        },
+        {
+          keyCode: VK.DOWN,
+          action: action(moveV, editor, true)
+        },
+        {
+          keyCode: VK.RIGHT,
+          action: action(moveH$1, editor, true)
+        },
+        {
+          keyCode: VK.LEFT,
+          action: action(moveH$1, editor, false)
+        },
+        {
+          keyCode: VK.UP,
+          action: action(moveV$1, editor, false)
+        },
+        {
+          keyCode: VK.DOWN,
+          action: action(moveV$1, editor, true)
+        },
+        {
+          keyCode: VK.RIGHT,
+          action: action(move$2, editor, caret, true)
+        },
+        {
+          keyCode: VK.LEFT,
+          action: action(move$2, editor, caret, false)
+        },
+        {
+          keyCode: VK.RIGHT,
+          ctrlKey: !os.isOSX(),
+          altKey: os.isOSX(),
+          action: action(moveNextWord, editor, caret)
+        },
+        {
+          keyCode: VK.LEFT,
+          ctrlKey: !os.isOSX(),
+          altKey: os.isOSX(),
+          action: action(movePrevWord, editor, caret)
+        },
+        {
+          keyCode: VK.UP,
+          action: action(moveV$2, editor, false)
+        },
+        {
+          keyCode: VK.DOWN,
+          action: action(moveV$2, editor, true)
+        }
+      ], evt).each(function (_) {
+        evt.preventDefault();
+      });
+    };
+    var setup$b = function (editor, caret) {
+      editor.on('keydown', function (evt) {
+        if (evt.isDefaultPrevented() === false) {
+          executeKeydownOverride$3(editor, caret, evt);
+        }
+      });
+    };
+
+    var executeKeydownOverride$2 = function (editor, caret, evt) {
+      execute([
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete, editor, false)
+        },
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete$5, editor, false)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(backspaceDelete$5, editor, true)
+        },
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete$6, editor, false)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(backspaceDelete$6, editor, true)
+        },
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete$3, editor, caret, false)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(backspaceDelete$3, editor, caret, true)
+        },
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete$9, editor, false)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(backspaceDelete$9, editor, true)
+        },
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete$4, editor, false)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(backspaceDelete$4, editor, true)
+        },
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete$1, editor, false)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(backspaceDelete$1, editor, true)
+        },
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete$7, editor, false)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(backspaceDelete$7, editor, true)
+        },
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete$8, editor, false)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(backspaceDelete$8, editor, true)
+        },
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(backspaceDelete$2, editor, false)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(backspaceDelete$2, editor, true)
+        }
+      ], evt).each(function (_) {
+        evt.preventDefault();
+      });
+    };
+    var executeKeyupOverride = function (editor, evt) {
+      execute([
+        {
+          keyCode: VK.BACKSPACE,
+          action: action(paddEmptyElement, editor)
+        },
+        {
+          keyCode: VK.DELETE,
+          action: action(paddEmptyElement, editor)
+        }
+      ], evt);
+    };
+    var setup$a = function (editor, caret) {
+      editor.on('keydown', function (evt) {
+        if (evt.isDefaultPrevented() === false) {
+          executeKeydownOverride$2(editor, caret, evt);
+        }
+      });
+      editor.on('keyup', function (evt) {
+        if (evt.isDefaultPrevented() === false) {
+          executeKeyupOverride(editor, evt);
+        }
+      });
+    };
+
+    var firstNonWhiteSpaceNodeSibling = function (node) {
+      while (node) {
+        if (node.nodeType === 1 || node.nodeType === 3 && node.data && /[\r\n\s]/.test(node.data)) {
+          return node;
+        }
+        node = node.nextSibling;
+      }
+    };
+    var moveToCaretPosition = function (editor, root) {
+      var node, lastNode = root;
+      var dom = editor.dom;
+      var moveCaretBeforeOnEnterElementsMap = editor.schema.getMoveCaretBeforeOnEnterElements();
+      if (!root) {
+        return;
+      }
+      if (/^(LI|DT|DD)$/.test(root.nodeName)) {
+        var firstChild = firstNonWhiteSpaceNodeSibling(root.firstChild);
+        if (firstChild && /^(UL|OL|DL)$/.test(firstChild.nodeName)) {
+          root.insertBefore(dom.doc.createTextNode(nbsp), root.firstChild);
+        }
+      }
+      var rng = dom.createRng();
+      root.normalize();
+      if (root.hasChildNodes()) {
+        var walker = new DomTreeWalker(root, root);
+        while (node = walker.current()) {
+          if (isText$7(node)) {
+            rng.setStart(node, 0);
+            rng.setEnd(node, 0);
+            break;
+          }
+          if (moveCaretBeforeOnEnterElementsMap[node.nodeName.toLowerCase()]) {
+            rng.setStartBefore(node);
+            rng.setEndBefore(node);
+            break;
+          }
+          lastNode = node;
+          node = walker.next();
+        }
+        if (!node) {
+          rng.setStart(lastNode, 0);
+          rng.setEnd(lastNode, 0);
+        }
+      } else {
+        if (isBr$5(root)) {
+          if (root.nextSibling && dom.isBlock(root.nextSibling)) {
+            rng.setStartBefore(root);
+            rng.setEndBefore(root);
+          } else {
+            rng.setStartAfter(root);
+            rng.setEndAfter(root);
+          }
+        } else {
+          rng.setStart(root, 0);
+          rng.setEnd(root, 0);
+        }
+      }
+      editor.selection.setRng(rng);
+      scrollRangeIntoView(editor, rng);
+    };
+    var getEditableRoot$1 = function (dom, node) {
+      var root = dom.getRoot();
+      var parent, editableRoot;
+      parent = node;
+      while (parent !== root && dom.getContentEditable(parent) !== 'false') {
+        if (dom.getContentEditable(parent) === 'true') {
+          editableRoot = parent;
+        }
+        parent = parent.parentNode;
+      }
+      return parent !== root ? editableRoot : root;
+    };
+    var getParentBlock = function (editor) {
+      return Optional.from(editor.dom.getParent(editor.selection.getStart(true), editor.dom.isBlock));
+    };
+    var getParentBlockName = function (editor) {
+      return getParentBlock(editor).fold(constant(''), function (parentBlock) {
+        return parentBlock.nodeName.toUpperCase();
+      });
+    };
+    var isListItemParentBlock = function (editor) {
+      return getParentBlock(editor).filter(function (elm) {
+        return isListItem(SugarElement.fromDom(elm));
+      }).isSome();
+    };
+
+    var hasFirstChild = function (elm, name) {
+      return elm.firstChild && elm.firstChild.nodeName === name;
+    };
+    var isFirstChild = function (elm) {
+      var _a;
+      return ((_a = elm.parentNode) === null || _a === void 0 ? void 0 : _a.firstChild) === elm;
+    };
+    var hasParent = function (elm, parentName) {
+      return elm && elm.parentNode && elm.parentNode.nodeName === parentName;
+    };
+    var isListBlock = function (elm) {
+      return elm && /^(OL|UL|LI)$/.test(elm.nodeName);
+    };
+    var isNestedList = function (elm) {
+      return isListBlock(elm) && isListBlock(elm.parentNode);
+    };
+    var getContainerBlock = function (containerBlock) {
+      var containerBlockParent = containerBlock.parentNode;
+      if (/^(LI|DT|DD)$/.test(containerBlockParent.nodeName)) {
+        return containerBlockParent;
+      }
+      return containerBlock;
+    };
+    var isFirstOrLastLi = function (containerBlock, parentBlock, first) {
+      var node = containerBlock[first ? 'firstChild' : 'lastChild'];
+      while (node) {
+        if (isElement$5(node)) {
+          break;
+        }
+        node = node[first ? 'nextSibling' : 'previousSibling'];
+      }
+      return node === parentBlock;
+    };
+    var insert$3 = function (editor, createNewBlock, containerBlock, parentBlock, newBlockName) {
+      var dom = editor.dom;
+      var rng = editor.selection.getRng();
+      if (containerBlock === editor.getBody()) {
+        return;
+      }
+      if (isNestedList(containerBlock)) {
+        newBlockName = 'LI';
+      }
+      var newBlock = newBlockName ? createNewBlock(newBlockName) : dom.create('BR');
+      if (isFirstOrLastLi(containerBlock, parentBlock, true) && isFirstOrLastLi(containerBlock, parentBlock, false)) {
+        if (hasParent(containerBlock, 'LI')) {
+          var containerBlockParent = getContainerBlock(containerBlock);
+          dom.insertAfter(newBlock, containerBlockParent);
+          if (isFirstChild(containerBlock)) {
+            dom.remove(containerBlockParent);
+          } else {
+            dom.remove(containerBlock);
+          }
+        } else {
+          dom.replace(newBlock, containerBlock);
+        }
+      } else if (isFirstOrLastLi(containerBlock, parentBlock, true)) {
+        if (hasParent(containerBlock, 'LI')) {
+          dom.insertAfter(newBlock, getContainerBlock(containerBlock));
+          newBlock.appendChild(dom.doc.createTextNode(' '));
+          newBlock.appendChild(containerBlock);
+        } else {
+          containerBlock.parentNode.insertBefore(newBlock, containerBlock);
+        }
+        dom.remove(parentBlock);
+      } else if (isFirstOrLastLi(containerBlock, parentBlock, false)) {
+        dom.insertAfter(newBlock, getContainerBlock(containerBlock));
+        dom.remove(parentBlock);
+      } else {
+        containerBlock = getContainerBlock(containerBlock);
+        var tmpRng = rng.cloneRange();
+        tmpRng.setStartAfter(parentBlock);
+        tmpRng.setEndAfter(containerBlock);
+        var fragment = tmpRng.extractContents();
+        if (newBlockName === 'LI' && hasFirstChild(fragment, 'LI')) {
+          newBlock = fragment.firstChild;
+          dom.insertAfter(fragment, containerBlock);
+        } else {
+          dom.insertAfter(fragment, containerBlock);
+          dom.insertAfter(newBlock, containerBlock);
+        }
+        dom.remove(parentBlock);
+      }
+      moveToCaretPosition(editor, newBlock);
+    };
+
+    var trimZwsp = function (fragment) {
+      each$k(descendants$1(SugarElement.fromDom(fragment), isText$8), function (text) {
+        var rawNode = text.dom;
+        rawNode.nodeValue = trim$2(rawNode.nodeValue);
+      });
+    };
+    var isEmptyAnchor = function (dom, elm) {
+      return elm && elm.nodeName === 'A' && dom.isEmpty(elm);
+    };
+    var isTableCell = function (node) {
+      return node && /^(TD|TH|CAPTION)$/.test(node.nodeName);
+    };
+    var emptyBlock = function (elm) {
+      elm.innerHTML = '<br data-mce-bogus="1">';
+    };
+    var containerAndSiblingName = function (container, nodeName) {
+      return container.nodeName === nodeName || container.previousSibling && container.previousSibling.nodeName === nodeName;
+    };
+    var canSplitBlock = function (dom, node) {
+      return node && dom.isBlock(node) && !/^(TD|TH|CAPTION|FORM)$/.test(node.nodeName) && !/^(fixed|absolute)/i.test(node.style.position) && dom.getContentEditable(node) !== 'true';
+    };
+    var trimInlineElementsOnLeftSideOfBlock = function (dom, nonEmptyElementsMap, block) {
+      var node = block;
+      var firstChilds = [];
+      var i;
+      if (!node) {
+        return;
+      }
+      while (node = node.firstChild) {
+        if (dom.isBlock(node)) {
+          return;
+        }
+        if (isElement$5(node) && !nonEmptyElementsMap[node.nodeName.toLowerCase()]) {
+          firstChilds.push(node);
+        }
+      }
+      i = firstChilds.length;
+      while (i--) {
+        node = firstChilds[i];
+        if (!node.hasChildNodes() || node.firstChild === node.lastChild && node.firstChild.nodeValue === '') {
+          dom.remove(node);
+        } else {
+          if (isEmptyAnchor(dom, node)) {
+            dom.remove(node);
+          }
+        }
+      }
+    };
+    var normalizeZwspOffset = function (start, container, offset) {
+      if (isText$7(container) === false) {
+        return offset;
+      } else if (start) {
+        return offset === 1 && container.data.charAt(offset - 1) === ZWSP$1 ? 0 : offset;
+      } else {
+        return offset === container.data.length - 1 && container.data.charAt(offset) === ZWSP$1 ? container.data.length : offset;
+      }
+    };
+    var includeZwspInRange = function (rng) {
+      var newRng = rng.cloneRange();
+      newRng.setStart(rng.startContainer, normalizeZwspOffset(true, rng.startContainer, rng.startOffset));
+      newRng.setEnd(rng.endContainer, normalizeZwspOffset(false, rng.endContainer, rng.endOffset));
+      return newRng;
+    };
+    var trimLeadingLineBreaks = function (node) {
+      do {
+        if (isText$7(node)) {
+          node.nodeValue = node.nodeValue.replace(/^[\r\n]+/, '');
+        }
+        node = node.firstChild;
+      } while (node);
+    };
+    var getEditableRoot = function (dom, node) {
+      var root = dom.getRoot();
+      var parent, editableRoot;
+      parent = node;
+      while (parent !== root && dom.getContentEditable(parent) !== 'false') {
+        if (dom.getContentEditable(parent) === 'true') {
+          editableRoot = parent;
+        }
+        parent = parent.parentNode;
+      }
+      return parent !== root ? editableRoot : root;
+    };
+    var applyAttributes = function (editor, node, forcedRootBlockAttrs) {
+      var dom = editor.dom;
+      Optional.from(forcedRootBlockAttrs.style).map(dom.parseStyle).each(function (attrStyles) {
+        var currentStyles = getAllRaw(SugarElement.fromDom(node));
+        var newStyles = __assign(__assign({}, currentStyles), attrStyles);
+        dom.setStyles(node, newStyles);
+      });
+      var attrClassesOpt = Optional.from(forcedRootBlockAttrs.class).map(function (attrClasses) {
+        return attrClasses.split(/\s+/);
+      });
+      var currentClassesOpt = Optional.from(node.className).map(function (currentClasses) {
+        return filter$4(currentClasses.split(/\s+/), function (clazz) {
+          return clazz !== '';
+        });
+      });
+      lift2(attrClassesOpt, currentClassesOpt, function (attrClasses, currentClasses) {
+        var filteredClasses = filter$4(currentClasses, function (clazz) {
+          return !contains$3(attrClasses, clazz);
+        });
+        var newClasses = __spreadArray(__spreadArray([], attrClasses), filteredClasses);
+        dom.setAttrib(node, 'class', newClasses.join(' '));
+      });
+      var appliedAttrs = [
+        'style',
+        'class'
+      ];
+      var remainingAttrs = filter$3(forcedRootBlockAttrs, function (_, attrs) {
+        return !contains$3(appliedAttrs, attrs);
+      });
+      dom.setAttribs(node, remainingAttrs);
+    };
+    var setForcedBlockAttrs = function (editor, node) {
+      var forcedRootBlockName = getForcedRootBlock(editor);
+      if (forcedRootBlockName && forcedRootBlockName.toLowerCase() === node.tagName.toLowerCase()) {
+        var forcedRootBlockAttrs = getForcedRootBlockAttrs(editor);
+        applyAttributes(editor, node, forcedRootBlockAttrs);
+      }
+    };
+    var wrapSelfAndSiblingsInDefaultBlock = function (editor, newBlockName, rng, container, offset) {
+      var newBlock, parentBlock, startNode, node, next, rootBlockName;
+      var blockName = newBlockName || 'P';
+      var dom = editor.dom, editableRoot = getEditableRoot(dom, container);
+      parentBlock = dom.getParent(container, dom.isBlock);
+      if (!parentBlock || !canSplitBlock(dom, parentBlock)) {
+        parentBlock = parentBlock || editableRoot;
+        if (parentBlock === editor.getBody() || isTableCell(parentBlock)) {
+          rootBlockName = parentBlock.nodeName.toLowerCase();
+        } else {
+          rootBlockName = parentBlock.parentNode.nodeName.toLowerCase();
+        }
+        if (!parentBlock.hasChildNodes()) {
+          newBlock = dom.create(blockName);
+          setForcedBlockAttrs(editor, newBlock);
+          parentBlock.appendChild(newBlock);
+          rng.setStart(newBlock, 0);
+          rng.setEnd(newBlock, 0);
+          return newBlock;
+        }
+        node = container;
+        while (node.parentNode !== parentBlock) {
+          node = node.parentNode;
+        }
+        while (node && !dom.isBlock(node)) {
+          startNode = node;
+          node = node.previousSibling;
+        }
+        if (startNode && editor.schema.isValidChild(rootBlockName, blockName.toLowerCase())) {
+          newBlock = dom.create(blockName);
+          setForcedBlockAttrs(editor, newBlock);
+          startNode.parentNode.insertBefore(newBlock, startNode);
+          node = startNode;
+          while (node && !dom.isBlock(node)) {
+            next = node.nextSibling;
+            newBlock.appendChild(node);
+            node = next;
+          }
+          rng.setStart(container, offset);
+          rng.setEnd(container, offset);
+        }
+      }
+      return container;
+    };
+    var addBrToBlockIfNeeded = function (dom, block) {
+      block.normalize();
+      var lastChild = block.lastChild;
+      if (!lastChild || /^(left|right)$/gi.test(dom.getStyle(lastChild, 'float', true))) {
+        dom.add(block, 'br');
+      }
+    };
+    var insert$2 = function (editor, evt) {
+      var tmpRng, container, offset, parentBlock;
+      var newBlock, fragment, containerBlock, parentBlockName, newBlockName, isAfterLastNodeInContainer;
+      var dom = editor.dom;
+      var schema = editor.schema, nonEmptyElementsMap = schema.getNonEmptyElements();
+      var rng = editor.selection.getRng();
+      var createNewBlock = function (name) {
+        var node = container, block, clonedNode, caretNode;
+        var textInlineElements = schema.getTextInlineElements();
+        if (name || parentBlockName === 'TABLE' || parentBlockName === 'HR') {
+          block = dom.create(name || newBlockName);
+        } else {
+          block = parentBlock.cloneNode(false);
+        }
+        caretNode = block;
+        if (shouldKeepStyles(editor) === false) {
+          dom.setAttrib(block, 'style', null);
+          dom.setAttrib(block, 'class', null);
+        } else {
+          do {
+            if (textInlineElements[node.nodeName]) {
+              if (isCaretNode(node) || isBookmarkNode$1(node)) {
+                continue;
+              }
+              clonedNode = node.cloneNode(false);
+              dom.setAttrib(clonedNode, 'id', '');
+              if (block.hasChildNodes()) {
+                clonedNode.appendChild(block.firstChild);
+                block.appendChild(clonedNode);
+              } else {
+                caretNode = clonedNode;
+                block.appendChild(clonedNode);
+              }
+            }
+          } while ((node = node.parentNode) && node !== editableRoot);
+        }
+        setForcedBlockAttrs(editor, block);
+        emptyBlock(caretNode);
+        return block;
+      };
+      var isCaretAtStartOrEndOfBlock = function (start) {
+        var node, name;
+        var normalizedOffset = normalizeZwspOffset(start, container, offset);
+        if (isText$7(container) && (start ? normalizedOffset > 0 : normalizedOffset < container.nodeValue.length)) {
+          return false;
+        }
+        if (container.parentNode === parentBlock && isAfterLastNodeInContainer && !start) {
+          return true;
+        }
+        if (start && isElement$5(container) && container === parentBlock.firstChild) {
+          return true;
+        }
+        if (containerAndSiblingName(container, 'TABLE') || containerAndSiblingName(container, 'HR')) {
+          return isAfterLastNodeInContainer && !start || !isAfterLastNodeInContainer && start;
+        }
+        var walker = new DomTreeWalker(container, parentBlock);
+        if (isText$7(container)) {
+          if (start && normalizedOffset === 0) {
+            walker.prev();
+          } else if (!start && normalizedOffset === container.nodeValue.length) {
+            walker.next();
+          }
+        }
+        while (node = walker.current()) {
+          if (isElement$5(node)) {
+            if (!node.getAttribute('data-mce-bogus')) {
+              name = node.nodeName.toLowerCase();
+              if (nonEmptyElementsMap[name] && name !== 'br') {
+                return false;
+              }
+            }
+          } else if (isText$7(node) && !isWhitespaceText(node.nodeValue)) {
+            return false;
+          }
+          if (start) {
+            walker.prev();
+          } else {
+            walker.next();
+          }
+        }
+        return true;
+      };
+      var insertNewBlockAfter = function () {
+        if (/^(H[1-6]|PRE|FIGURE)$/.test(parentBlockName) && containerBlockName !== 'HGROUP') {
+          newBlock = createNewBlock(newBlockName);
+        } else {
+          newBlock = createNewBlock();
+        }
+        if (shouldEndContainerOnEmptyBlock(editor) && canSplitBlock(dom, containerBlock) && dom.isEmpty(parentBlock)) {
+          newBlock = dom.split(containerBlock, parentBlock);
+        } else {
+          dom.insertAfter(newBlock, parentBlock);
+        }
+        moveToCaretPosition(editor, newBlock);
+      };
+      normalize$2(dom, rng).each(function (normRng) {
+        rng.setStart(normRng.startContainer, normRng.startOffset);
+        rng.setEnd(normRng.endContainer, normRng.endOffset);
+      });
+      container = rng.startContainer;
+      offset = rng.startOffset;
+      newBlockName = getForcedRootBlock(editor);
+      var shiftKey = !!(evt && evt.shiftKey);
+      var ctrlKey = !!(evt && evt.ctrlKey);
+      if (isElement$5(container) && container.hasChildNodes()) {
+        isAfterLastNodeInContainer = offset > container.childNodes.length - 1;
+        container = container.childNodes[Math.min(offset, container.childNodes.length - 1)] || container;
+        if (isAfterLastNodeInContainer && isText$7(container)) {
+          offset = container.nodeValue.length;
+        } else {
+          offset = 0;
+        }
+      }
+      var editableRoot = getEditableRoot(dom, container);
+      if (!editableRoot) {
+        return;
+      }
+      if (newBlockName && !shiftKey || !newBlockName && shiftKey) {
+        container = wrapSelfAndSiblingsInDefaultBlock(editor, newBlockName, rng, container, offset);
+      }
+      parentBlock = dom.getParent(container, dom.isBlock);
+      containerBlock = parentBlock ? dom.getParent(parentBlock.parentNode, dom.isBlock) : null;
+      parentBlockName = parentBlock ? parentBlock.nodeName.toUpperCase() : '';
+      var containerBlockName = containerBlock ? containerBlock.nodeName.toUpperCase() : '';
+      if (containerBlockName === 'LI' && !ctrlKey) {
+        parentBlock = containerBlock;
+        containerBlock = containerBlock.parentNode;
+        parentBlockName = containerBlockName;
+      }
+      if (/^(LI|DT|DD)$/.test(parentBlockName)) {
+        if (dom.isEmpty(parentBlock)) {
+          insert$3(editor, createNewBlock, containerBlock, parentBlock, newBlockName);
+          return;
+        }
+      }
+      if (newBlockName && parentBlock === editor.getBody()) {
+        return;
+      }
+      newBlockName = newBlockName || 'P';
+      if (isCaretContainerBlock$1(parentBlock)) {
+        newBlock = showCaretContainerBlock(parentBlock);
+        if (dom.isEmpty(parentBlock)) {
+          emptyBlock(parentBlock);
+        }
+        setForcedBlockAttrs(editor, newBlock);
+        moveToCaretPosition(editor, newBlock);
+      } else if (isCaretAtStartOrEndOfBlock()) {
+        insertNewBlockAfter();
+      } else if (isCaretAtStartOrEndOfBlock(true)) {
+        newBlock = parentBlock.parentNode.insertBefore(createNewBlock(), parentBlock);
+        moveToCaretPosition(editor, containerAndSiblingName(parentBlock, 'HR') ? newBlock : parentBlock);
+      } else {
+        tmpRng = includeZwspInRange(rng).cloneRange();
+        tmpRng.setEndAfter(parentBlock);
+        fragment = tmpRng.extractContents();
+        trimZwsp(fragment);
+        trimLeadingLineBreaks(fragment);
+        newBlock = fragment.firstChild;
+        dom.insertAfter(fragment, parentBlock);
+        trimInlineElementsOnLeftSideOfBlock(dom, nonEmptyElementsMap, newBlock);
+        addBrToBlockIfNeeded(dom, parentBlock);
+        if (dom.isEmpty(parentBlock)) {
+          emptyBlock(parentBlock);
+        }
+        newBlock.normalize();
+        if (dom.isEmpty(newBlock)) {
+          dom.remove(newBlock);
+          insertNewBlockAfter();
+        } else {
+          setForcedBlockAttrs(editor, newBlock);
+          moveToCaretPosition(editor, newBlock);
+        }
+      }
+      dom.setAttrib(newBlock, 'id', '');
+      editor.fire('NewBlock', { newBlock: newBlock });
+    };
+
+    var hasRightSideContent = function (schema, container, parentBlock) {
+      var walker = new DomTreeWalker(container, parentBlock);
+      var node;
+      var nonEmptyElementsMap = schema.getNonEmptyElements();
+      while (node = walker.next()) {
+        if (nonEmptyElementsMap[node.nodeName.toLowerCase()] || node.length > 0) {
+          return true;
+        }
+      }
+    };
+    var moveSelectionToBr = function (editor, brElm, extraBr) {
+      var rng = editor.dom.createRng();
+      if (!extraBr) {
+        rng.setStartAfter(brElm);
+        rng.setEndAfter(brElm);
+      } else {
+        rng.setStartBefore(brElm);
+        rng.setEndBefore(brElm);
+      }
+      editor.selection.setRng(rng);
+      scrollRangeIntoView(editor, rng);
+    };
+    var insertBrAtCaret = function (editor, evt) {
+      var selection = editor.selection;
+      var dom = editor.dom;
+      var rng = selection.getRng();
+      var brElm;
+      var extraBr;
+      normalize$2(dom, rng).each(function (normRng) {
+        rng.setStart(normRng.startContainer, normRng.startOffset);
+        rng.setEnd(normRng.endContainer, normRng.endOffset);
+      });
+      var offset = rng.startOffset;
+      var container = rng.startContainer;
+      if (container.nodeType === 1 && container.hasChildNodes()) {
+        var isAfterLastNodeInContainer = offset > container.childNodes.length - 1;
+        container = container.childNodes[Math.min(offset, container.childNodes.length - 1)] || container;
+        if (isAfterLastNodeInContainer && container.nodeType === 3) {
+          offset = container.nodeValue.length;
+        } else {
+          offset = 0;
+        }
+      }
+      var parentBlock = dom.getParent(container, dom.isBlock);
+      var containerBlock = parentBlock ? dom.getParent(parentBlock.parentNode, dom.isBlock) : null;
+      var containerBlockName = containerBlock ? containerBlock.nodeName.toUpperCase() : '';
+      var isControlKey = !!(evt && evt.ctrlKey);
+      if (containerBlockName === 'LI' && !isControlKey) {
+        parentBlock = containerBlock;
+      }
+      if (container && container.nodeType === 3 && offset >= container.nodeValue.length) {
+        if (!hasRightSideContent(editor.schema, container, parentBlock)) {
+          brElm = dom.create('br');
+          rng.insertNode(brElm);
+          rng.setStartAfter(brElm);
+          rng.setEndAfter(brElm);
+          extraBr = true;
+        }
+      }
+      brElm = dom.create('br');
+      rangeInsertNode(dom, rng, brElm);
+      moveSelectionToBr(editor, brElm, extraBr);
+      editor.undoManager.add();
+    };
+    var insertBrBefore = function (editor, inline) {
+      var br = SugarElement.fromTag('br');
+      before$4(SugarElement.fromDom(inline), br);
+      editor.undoManager.add();
+    };
+    var insertBrAfter = function (editor, inline) {
+      if (!hasBrAfter(editor.getBody(), inline)) {
+        after$3(SugarElement.fromDom(inline), SugarElement.fromTag('br'));
+      }
+      var br = SugarElement.fromTag('br');
+      after$3(SugarElement.fromDom(inline), br);
+      moveSelectionToBr(editor, br.dom, false);
+      editor.undoManager.add();
+    };
+    var isBeforeBr = function (pos) {
+      return isBr$5(pos.getNode());
+    };
+    var hasBrAfter = function (rootNode, startNode) {
+      if (isBeforeBr(CaretPosition.after(startNode))) {
+        return true;
+      } else {
+        return nextPosition(rootNode, CaretPosition.after(startNode)).map(function (pos) {
+          return isBr$5(pos.getNode());
+        }).getOr(false);
+      }
+    };
+    var isAnchorLink = function (elm) {
+      return elm && elm.nodeName === 'A' && 'href' in elm;
+    };
+    var isInsideAnchor = function (location) {
+      return location.fold(never, isAnchorLink, isAnchorLink, never);
+    };
+    var readInlineAnchorLocation = function (editor) {
+      var isInlineTarget$1 = curry(isInlineTarget, editor);
+      var position = CaretPosition.fromRangeStart(editor.selection.getRng());
+      return readLocation(isInlineTarget$1, editor.getBody(), position).filter(isInsideAnchor);
+    };
+    var insertBrOutsideAnchor = function (editor, location) {
+      location.fold(noop, curry(insertBrBefore, editor), curry(insertBrAfter, editor), noop);
+    };
+    var insert$1 = function (editor, evt) {
+      var anchorLocation = readInlineAnchorLocation(editor);
+      if (anchorLocation.isSome()) {
+        anchorLocation.each(curry(insertBrOutsideAnchor, editor));
+      } else {
+        insertBrAtCaret(editor, evt);
+      }
+    };
+
+    var matchesSelector = function (editor, selector) {
+      return getParentBlock(editor).filter(function (parentBlock) {
+        return selector.length > 0 && is$2(SugarElement.fromDom(parentBlock), selector);
+      }).isSome();
+    };
+    var shouldInsertBr = function (editor) {
+      return matchesSelector(editor, getBrNewLineSelector(editor));
+    };
+    var shouldBlockNewLine$1 = function (editor) {
+      return matchesSelector(editor, getNoNewLineSelector(editor));
+    };
+
+    var newLineAction = Adt.generate([
+      { br: [] },
+      { block: [] },
+      { none: [] }
+    ]);
+    var shouldBlockNewLine = function (editor, _shiftKey) {
+      return shouldBlockNewLine$1(editor);
+    };
+    var isBrMode = function (requiredState) {
+      return function (editor, _shiftKey) {
+        var brMode = getForcedRootBlock(editor) === '';
+        return brMode === requiredState;
+      };
+    };
+    var inListBlock = function (requiredState) {
+      return function (editor, _shiftKey) {
+        return isListItemParentBlock(editor) === requiredState;
+      };
+    };
+    var inBlock = function (blockName, requiredState) {
+      return function (editor, _shiftKey) {
+        var state = getParentBlockName(editor) === blockName.toUpperCase();
+        return state === requiredState;
+      };
+    };
+    var inPreBlock = function (requiredState) {
+      return inBlock('pre', requiredState);
+    };
+    var inSummaryBlock = function () {
+      return inBlock('summary', true);
+    };
+    var shouldPutBrInPre = function (requiredState) {
+      return function (editor, _shiftKey) {
+        return shouldPutBrInPre$1(editor) === requiredState;
+      };
+    };
+    var inBrContext = function (editor, _shiftKey) {
+      return shouldInsertBr(editor);
+    };
+    var hasShiftKey = function (_editor, shiftKey) {
+      return shiftKey;
+    };
+    var canInsertIntoEditableRoot = function (editor) {
+      var forcedRootBlock = getForcedRootBlock(editor);
+      var rootEditable = getEditableRoot$1(editor.dom, editor.selection.getStart());
+      return rootEditable && editor.schema.isValidChild(rootEditable.nodeName, forcedRootBlock ? forcedRootBlock : 'P');
+    };
+    var match = function (predicates, action) {
+      return function (editor, shiftKey) {
+        var isMatch = foldl(predicates, function (res, p) {
+          return res && p(editor, shiftKey);
+        }, true);
+        return isMatch ? Optional.some(action) : Optional.none();
+      };
+    };
+    var getAction = function (editor, evt) {
+      return evaluateUntil([
+        match([shouldBlockNewLine], newLineAction.none()),
+        match([inSummaryBlock()], newLineAction.br()),
+        match([
+          inPreBlock(true),
+          shouldPutBrInPre(false),
+          hasShiftKey
+        ], newLineAction.br()),
+        match([
+          inPreBlock(true),
+          shouldPutBrInPre(false)
+        ], newLineAction.block()),
+        match([
+          inPreBlock(true),
+          shouldPutBrInPre(true),
+          hasShiftKey
+        ], newLineAction.block()),
+        match([
+          inPreBlock(true),
+          shouldPutBrInPre(true)
+        ], newLineAction.br()),
+        match([
+          inListBlock(true),
+          hasShiftKey
+        ], newLineAction.br()),
+        match([inListBlock(true)], newLineAction.block()),
+        match([
+          isBrMode(true),
+          hasShiftKey,
+          canInsertIntoEditableRoot
+        ], newLineAction.block()),
+        match([isBrMode(true)], newLineAction.br()),
+        match([inBrContext], newLineAction.br()),
+        match([
+          isBrMode(false),
+          hasShiftKey
+        ], newLineAction.br()),
+        match([canInsertIntoEditableRoot], newLineAction.block())
+      ], [
+        editor,
+        !!(evt && evt.shiftKey)
+      ]).getOr(newLineAction.none());
+    };
+
+    var insert = function (editor, evt) {
+      getAction(editor, evt).fold(function () {
+        insert$1(editor, evt);
+      }, function () {
+        insert$2(editor, evt);
+      }, noop);
+    };
+
+    var handleEnterKeyEvent = function (editor, event) {
+      if (event.isDefaultPrevented()) {
+        return;
+      }
+      event.preventDefault();
+      endTypingLevelIgnoreLocks(editor.undoManager);
+      editor.undoManager.transact(function () {
+        if (editor.selection.isCollapsed() === false) {
+          editor.execCommand('Delete');
+        }
+        insert(editor, event);
+      });
+    };
+    var setup$9 = function (editor) {
+      editor.on('keydown', function (event) {
+        if (event.keyCode === VK.ENTER) {
+          handleEnterKeyEvent(editor, event);
+        }
+      });
+    };
+
+    var executeKeydownOverride$1 = function (editor, caret, evt) {
+      execute([
+        {
+          keyCode: VK.END,
+          action: action(moveToLineEndPoint$1, editor, true)
+        },
+        {
+          keyCode: VK.HOME,
+          action: action(moveToLineEndPoint$1, editor, false)
+        },
+        {
+          keyCode: VK.END,
+          action: action(moveToLineEndPoint, editor, true)
+        },
+        {
+          keyCode: VK.HOME,
+          action: action(moveToLineEndPoint, editor, false)
+        },
+        {
+          keyCode: VK.END,
+          action: action(moveToLineEndPoint$2, editor, true, caret)
+        },
+        {
+          keyCode: VK.HOME,
+          action: action(moveToLineEndPoint$2, editor, false, caret)
+        }
+      ], evt).each(function (_) {
+        evt.preventDefault();
+      });
+    };
+    var setup$8 = function (editor, caret) {
+      editor.on('keydown', function (evt) {
+        if (evt.isDefaultPrevented() === false) {
+          executeKeydownOverride$1(editor, caret, evt);
+        }
+      });
+    };
+
+    var browser = detect().browser;
+    var setupIeInput = function (editor) {
+      var keypressThrotter = first(function () {
+        if (!editor.composing) {
+          normalizeNbspsInEditor(editor);
+        }
+      }, 0);
+      if (browser.isIE()) {
+        editor.on('keypress', function (_e) {
+          keypressThrotter.throttle();
+        });
+        editor.on('remove', function (_e) {
+          keypressThrotter.cancel();
+        });
+      }
+    };
+    var setup$7 = function (editor) {
+      setupIeInput(editor);
+      editor.on('input', function (e) {
+        if (e.isComposing === false) {
+          normalizeNbspsInEditor(editor);
+        }
+      });
+    };
+
+    var platform = detect();
+    var executeKeyupAction = function (editor, caret, evt) {
+      execute([
+        {
+          keyCode: VK.PAGE_UP,
+          action: action(moveToLineEndPoint$2, editor, false, caret)
+        },
+        {
+          keyCode: VK.PAGE_DOWN,
+          action: action(moveToLineEndPoint$2, editor, true, caret)
+        }
+      ], evt);
+    };
+    var stopImmediatePropagation = function (e) {
+      return e.stopImmediatePropagation();
+    };
+    var isPageUpDown = function (evt) {
+      return evt.keyCode === VK.PAGE_UP || evt.keyCode === VK.PAGE_DOWN;
+    };
+    var setNodeChangeBlocker = function (blocked, editor, block) {
+      if (block && !blocked.get()) {
+        editor.on('NodeChange', stopImmediatePropagation, true);
+      } else if (!block && blocked.get()) {
+        editor.off('NodeChange', stopImmediatePropagation);
+      }
+      blocked.set(block);
+    };
+    var setup$6 = function (editor, caret) {
+      if (platform.os.isOSX()) {
+        return;
+      }
+      var blocked = Cell(false);
+      editor.on('keydown', function (evt) {
+        if (isPageUpDown(evt)) {
+          setNodeChangeBlocker(blocked, editor, true);
+        }
+      });
+      editor.on('keyup', function (evt) {
+        if (evt.isDefaultPrevented() === false) {
+          executeKeyupAction(editor, caret, evt);
+        }
+        if (isPageUpDown(evt) && blocked.get()) {
+          setNodeChangeBlocker(blocked, editor, false);
+          editor.nodeChanged();
+        }
+      });
+    };
+
+    var insertTextAtPosition = function (text, pos) {
+      var container = pos.container();
+      var offset = pos.offset();
+      if (isText$7(container)) {
+        container.insertData(offset, text);
+        return Optional.some(CaretPosition(container, offset + text.length));
+      } else {
+        return getElementFromPosition(pos).map(function (elm) {
+          var textNode = SugarElement.fromText(text);
+          if (pos.isAtEnd()) {
+            after$3(elm, textNode);
+          } else {
+            before$4(elm, textNode);
+          }
+          return CaretPosition(textNode.dom, text.length);
+        });
+      }
+    };
+    var insertNbspAtPosition = curry(insertTextAtPosition, nbsp);
+    var insertSpaceAtPosition = curry(insertTextAtPosition, ' ');
+
+    var locationToCaretPosition = function (root) {
+      return function (location) {
+        return location.fold(function (element) {
+          return prevPosition(root.dom, CaretPosition.before(element));
+        }, function (element) {
+          return firstPositionIn(element);
+        }, function (element) {
+          return lastPositionIn(element);
+        }, function (element) {
+          return nextPosition(root.dom, CaretPosition.after(element));
+        });
+      };
+    };
+    var insertInlineBoundarySpaceOrNbsp = function (root, pos) {
+      return function (checkPos) {
+        return needsToHaveNbsp(root, checkPos) ? insertNbspAtPosition(pos) : insertSpaceAtPosition(pos);
+      };
+    };
+    var setSelection = function (editor) {
+      return function (pos) {
+        editor.selection.setRng(pos.toRange());
+        editor.nodeChanged();
+        return true;
+      };
+    };
+    var insertSpaceOrNbspAtSelection = function (editor) {
+      var pos = CaretPosition.fromRangeStart(editor.selection.getRng());
+      var root = SugarElement.fromDom(editor.getBody());
+      if (editor.selection.isCollapsed()) {
+        var isInlineTarget$1 = curry(isInlineTarget, editor);
+        var caretPosition = CaretPosition.fromRangeStart(editor.selection.getRng());
+        return readLocation(isInlineTarget$1, editor.getBody(), caretPosition).bind(locationToCaretPosition(root)).bind(insertInlineBoundarySpaceOrNbsp(root, pos)).exists(setSelection(editor));
+      } else {
+        return false;
+      }
+    };
+
+    var executeKeydownOverride = function (editor, evt) {
+      execute([{
+          keyCode: VK.SPACEBAR,
+          action: action(insertSpaceOrNbspAtSelection, editor)
+        }], evt).each(function (_) {
+        evt.preventDefault();
+      });
+    };
+    var setup$5 = function (editor) {
+      editor.on('keydown', function (evt) {
+        if (evt.isDefaultPrevented() === false) {
+          executeKeydownOverride(editor, evt);
+        }
+      });
+    };
+
+    var registerKeyboardOverrides = function (editor) {
+      var caret = setupSelectedState(editor);
+      setup$c(editor);
+      setup$b(editor, caret);
+      setup$a(editor, caret);
+      setup$9(editor);
+      setup$5(editor);
+      setup$7(editor);
+      setup$8(editor, caret);
+      setup$6(editor, caret);
+      return caret;
+    };
+    var setup$4 = function (editor) {
+      if (!isRtc(editor)) {
+        return registerKeyboardOverrides(editor);
+      } else {
+        return Cell(null);
+      }
+    };
+
+    var NodeChange = function () {
+      function NodeChange(editor) {
+        this.lastPath = [];
+        this.editor = editor;
+        var lastRng;
+        var self = this;
+        if (!('onselectionchange' in editor.getDoc())) {
+          editor.on('NodeChange click mouseup keyup focus', function (e) {
+            var nativeRng = editor.selection.getRng();
+            var fakeRng = {
+              startContainer: nativeRng.startContainer,
+              startOffset: nativeRng.startOffset,
+              endContainer: nativeRng.endContainer,
+              endOffset: nativeRng.endOffset
+            };
+            if (e.type === 'nodechange' || !isEq$4(fakeRng, lastRng)) {
+              editor.fire('SelectionChange');
+            }
+            lastRng = fakeRng;
+          });
+        }
+        editor.on('contextmenu', function () {
+          editor.fire('SelectionChange');
+        });
+        editor.on('SelectionChange', function () {
+          var startElm = editor.selection.getStart(true);
+          if (!startElm || !Env.range && editor.selection.isCollapsed()) {
+            return;
+          }
+          if (hasAnyRanges(editor) && !self.isSameElementPath(startElm) && editor.dom.isChildOf(startElm, editor.getBody())) {
+            editor.nodeChanged({ selectionChange: true });
+          }
+        });
+        editor.on('mouseup', function (e) {
+          if (!e.isDefaultPrevented() && hasAnyRanges(editor)) {
+            if (editor.selection.getNode().nodeName === 'IMG') {
+              Delay.setEditorTimeout(editor, function () {
+                editor.nodeChanged();
+              });
+            } else {
+              editor.nodeChanged();
+            }
+          }
+        });
+      }
+      NodeChange.prototype.nodeChanged = function (args) {
+        var selection = this.editor.selection;
+        var node, parents, root;
+        if (this.editor.initialized && selection && !shouldDisableNodeChange(this.editor) && !this.editor.mode.isReadOnly()) {
+          root = this.editor.getBody();
+          node = selection.getStart(true) || root;
+          if (node.ownerDocument !== this.editor.getDoc() || !this.editor.dom.isChildOf(node, root)) {
+            node = root;
+          }
+          parents = [];
+          this.editor.dom.getParent(node, function (node) {
+            if (node === root) {
+              return true;
+            }
+            parents.push(node);
+          });
+          args = args || {};
+          args.element = node;
+          args.parents = parents;
+          this.editor.fire('NodeChange', args);
+        }
+      };
+      NodeChange.prototype.isSameElementPath = function (startElm) {
+        var i;
+        var currentPath = this.editor.$(startElm).parentsUntil(this.editor.getBody()).add(startElm);
+        if (currentPath.length === this.lastPath.length) {
+          for (i = currentPath.length; i >= 0; i--) {
+            if (currentPath[i] !== this.lastPath[i]) {
+              break;
+            }
+          }
+          if (i === -1) {
+            this.lastPath = currentPath;
+            return true;
+          }
+        }
+        this.lastPath = currentPath;
+        return false;
+      };
+      return NodeChange;
+    }();
+
+    var preventSummaryToggle = function (editor) {
+      editor.on('click', function (e) {
+        if (editor.dom.getParent(e.target, 'details')) {
+          e.preventDefault();
+        }
+      });
+    };
+    var filterDetails = function (editor) {
+      editor.parser.addNodeFilter('details', function (elms) {
+        each$k(elms, function (details) {
+          details.attr('data-mce-open', details.attr('open'));
+          details.attr('open', 'open');
+        });
+      });
+      editor.serializer.addNodeFilter('details', function (elms) {
+        each$k(elms, function (details) {
+          var open = details.attr('data-mce-open');
+          details.attr('open', isString$1(open) ? open : null);
+          details.attr('data-mce-open', null);
+        });
+      });
+    };
+    var setup$3 = function (editor) {
+      preventSummaryToggle(editor);
+      filterDetails(editor);
+    };
+
+    var isTextBlockNode = function (node) {
+      return isElement$5(node) && isTextBlock$2(SugarElement.fromDom(node));
+    };
+    var normalizeSelection = function (editor) {
+      var rng = editor.selection.getRng();
+      var startPos = CaretPosition.fromRangeStart(rng);
+      var endPos = CaretPosition.fromRangeEnd(rng);
+      if (CaretPosition.isElementPosition(startPos)) {
+        var container = startPos.container();
+        if (isTextBlockNode(container)) {
+          firstPositionIn(container).each(function (pos) {
+            return rng.setStart(pos.container(), pos.offset());
+          });
+        }
+      }
+      if (CaretPosition.isElementPosition(endPos)) {
+        var container = startPos.container();
+        if (isTextBlockNode(container)) {
+          lastPositionIn(container).each(function (pos) {
+            return rng.setEnd(pos.container(), pos.offset());
+          });
+        }
+      }
+      editor.selection.setRng(normalize(rng));
+    };
+    var setup$2 = function (editor) {
+      editor.on('click', function (e) {
+        if (e.detail >= 3) {
+          normalizeSelection(editor);
+        }
+      });
+    };
+
+    var getAbsolutePosition = function (elm) {
+      var clientRect = elm.getBoundingClientRect();
+      var doc = elm.ownerDocument;
+      var docElem = doc.documentElement;
+      var win = doc.defaultView;
+      return {
+        top: clientRect.top + win.pageYOffset - docElem.clientTop,
+        left: clientRect.left + win.pageXOffset - docElem.clientLeft
+      };
+    };
+    var getBodyPosition = function (editor) {
+      return editor.inline ? getAbsolutePosition(editor.getBody()) : {
+        left: 0,
+        top: 0
+      };
+    };
+    var getScrollPosition = function (editor) {
+      var body = editor.getBody();
+      return editor.inline ? {
+        left: body.scrollLeft,
+        top: body.scrollTop
+      } : {
+        left: 0,
+        top: 0
+      };
+    };
+    var getBodyScroll = function (editor) {
+      var body = editor.getBody(), docElm = editor.getDoc().documentElement;
+      var inlineScroll = {
+        left: body.scrollLeft,
+        top: body.scrollTop
+      };
+      var iframeScroll = {
+        left: body.scrollLeft || docElm.scrollLeft,
+        top: body.scrollTop || docElm.scrollTop
+      };
+      return editor.inline ? inlineScroll : iframeScroll;
+    };
+    var getMousePosition = function (editor, event) {
+      if (event.target.ownerDocument !== editor.getDoc()) {
+        var iframePosition = getAbsolutePosition(editor.getContentAreaContainer());
+        var scrollPosition = getBodyScroll(editor);
+        return {
+          left: event.pageX - iframePosition.left + scrollPosition.left,
+          top: event.pageY - iframePosition.top + scrollPosition.top
+        };
+      }
+      return {
+        left: event.pageX,
+        top: event.pageY
+      };
+    };
+    var calculatePosition = function (bodyPosition, scrollPosition, mousePosition) {
+      return {
+        pageX: mousePosition.left - bodyPosition.left + scrollPosition.left,
+        pageY: mousePosition.top - bodyPosition.top + scrollPosition.top
+      };
+    };
+    var calc = function (editor, event) {
+      return calculatePosition(getBodyPosition(editor), getScrollPosition(editor), getMousePosition(editor, event));
+    };
+
+    var isContentEditableFalse$1 = isContentEditableFalse$b, isContentEditableTrue$1 = isContentEditableTrue$4;
+    var isDraggable = function (rootElm, elm) {
+      return isContentEditableFalse$1(elm) && elm !== rootElm;
+    };
+    var isValidDropTarget = function (editor, targetElement, dragElement) {
+      if (targetElement === dragElement || editor.dom.isChildOf(targetElement, dragElement)) {
+        return false;
+      }
+      return !isContentEditableFalse$1(targetElement);
+    };
+    var cloneElement = function (elm) {
+      var cloneElm = elm.cloneNode(true);
+      cloneElm.removeAttribute('data-mce-selected');
+      return cloneElm;
+    };
+    var createGhost = function (editor, elm, width, height) {
+      var dom = editor.dom;
+      var clonedElm = elm.cloneNode(true);
+      dom.setStyles(clonedElm, {
+        width: width,
+        height: height
+      });
+      dom.setAttrib(clonedElm, 'data-mce-selected', null);
+      var ghostElm = dom.create('div', {
+        'class': 'mce-drag-container',
+        'data-mce-bogus': 'all',
+        'unselectable': 'on',
+        'contenteditable': 'false'
+      });
+      dom.setStyles(ghostElm, {
+        position: 'absolute',
+        opacity: 0.5,
+        overflow: 'hidden',
+        border: 0,
+        padding: 0,
+        margin: 0,
+        width: width,
+        height: height
+      });
+      dom.setStyles(clonedElm, {
+        margin: 0,
+        boxSizing: 'border-box'
+      });
+      ghostElm.appendChild(clonedElm);
+      return ghostElm;
+    };
+    var appendGhostToBody = function (ghostElm, bodyElm) {
+      if (ghostElm.parentNode !== bodyElm) {
+        bodyElm.appendChild(ghostElm);
+      }
+    };
+    var moveGhost = function (ghostElm, position, width, height, maxX, maxY) {
+      var overflowX = 0, overflowY = 0;
+      ghostElm.style.left = position.pageX + 'px';
+      ghostElm.style.top = position.pageY + 'px';
+      if (position.pageX + width > maxX) {
+        overflowX = position.pageX + width - maxX;
+      }
+      if (position.pageY + height > maxY) {
+        overflowY = position.pageY + height - maxY;
+      }
+      ghostElm.style.width = width - overflowX + 'px';
+      ghostElm.style.height = height - overflowY + 'px';
+    };
+    var removeElement = function (elm) {
+      if (elm && elm.parentNode) {
+        elm.parentNode.removeChild(elm);
+      }
+    };
+    var isLeftMouseButtonPressed = function (e) {
+      return e.button === 0;
+    };
+    var applyRelPos = function (state, position) {
+      return {
+        pageX: position.pageX - state.relX,
+        pageY: position.pageY + 5
+      };
+    };
+    var start = function (state, editor) {
+      return function (e) {
+        if (isLeftMouseButtonPressed(e)) {
+          var ceElm = find$3(editor.dom.getParents(e.target), or(isContentEditableFalse$1, isContentEditableTrue$1)).getOr(null);
+          if (isDraggable(editor.getBody(), ceElm)) {
+            var elmPos = editor.dom.getPos(ceElm);
+            var bodyElm = editor.getBody();
+            var docElm = editor.getDoc().documentElement;
+            state.set({
+              element: ceElm,
+              dragging: false,
+              screenX: e.screenX,
+              screenY: e.screenY,
+              maxX: (editor.inline ? bodyElm.scrollWidth : docElm.offsetWidth) - 2,
+              maxY: (editor.inline ? bodyElm.scrollHeight : docElm.offsetHeight) - 2,
+              relX: e.pageX - elmPos.x,
+              relY: e.pageY - elmPos.y,
+              width: ceElm.offsetWidth,
+              height: ceElm.offsetHeight,
+              ghost: createGhost(editor, ceElm, ceElm.offsetWidth, ceElm.offsetHeight)
+            });
+          }
+        }
+      };
+    };
+    var move = function (state, editor) {
+      var throttledPlaceCaretAt = Delay.throttle(function (clientX, clientY) {
+        editor._selectionOverrides.hideFakeCaret();
+        editor.selection.placeCaretAt(clientX, clientY);
+      }, 0);
+      editor.on('remove', throttledPlaceCaretAt.stop);
+      return function (e) {
+        return state.on(function (state) {
+          var movement = Math.max(Math.abs(e.screenX - state.screenX), Math.abs(e.screenY - state.screenY));
+          if (!state.dragging && movement > 10) {
+            var args = editor.fire('dragstart', { target: state.element });
+            if (args.isDefaultPrevented()) {
+              return;
+            }
+            state.dragging = true;
+            editor.focus();
+          }
+          if (state.dragging) {
+            var targetPos = applyRelPos(state, calc(editor, e));
+            appendGhostToBody(state.ghost, editor.getBody());
+            moveGhost(state.ghost, targetPos, state.width, state.height, state.maxX, state.maxY);
+            throttledPlaceCaretAt(e.clientX, e.clientY);
+          }
+        });
+      };
+    };
+    var getRawTarget = function (selection) {
+      var rng = selection.getSel().getRangeAt(0);
+      var startContainer = rng.startContainer;
+      return startContainer.nodeType === 3 ? startContainer.parentNode : startContainer;
+    };
+    var drop = function (state, editor) {
+      return function (e) {
+        state.on(function (state) {
+          if (state.dragging) {
+            if (isValidDropTarget(editor, getRawTarget(editor.selection), state.element)) {
+              var targetClone_1 = cloneElement(state.element);
+              var args = editor.fire('drop', {
+                clientX: e.clientX,
+                clientY: e.clientY
+              });
+              if (!args.isDefaultPrevented()) {
+                editor.undoManager.transact(function () {
+                  removeElement(state.element);
+                  editor.insertContent(editor.dom.getOuterHTML(targetClone_1));
+                  editor._selectionOverrides.hideFakeCaret();
+                });
+              }
+            }
+          }
+        });
+        removeDragState(state);
+      };
+    };
+    var stop = function (state, editor) {
+      return function () {
+        state.on(function (state) {
+          if (state.dragging) {
+            editor.fire('dragend');
+          }
+        });
+        removeDragState(state);
+      };
+    };
+    var removeDragState = function (state) {
+      state.on(function (state) {
+        removeElement(state.ghost);
+      });
+      state.clear();
+    };
+    var bindFakeDragEvents = function (editor) {
+      var state = value();
+      var pageDom = DOMUtils.DOM;
+      var rootDocument = document;
+      var dragStartHandler = start(state, editor);
+      var dragHandler = move(state, editor);
+      var dropHandler = drop(state, editor);
+      var dragEndHandler = stop(state, editor);
+      editor.on('mousedown', dragStartHandler);
+      editor.on('mousemove', dragHandler);
+      editor.on('mouseup', dropHandler);
+      pageDom.bind(rootDocument, 'mousemove', dragHandler);
+      pageDom.bind(rootDocument, 'mouseup', dragEndHandler);
+      editor.on('remove', function () {
+        pageDom.unbind(rootDocument, 'mousemove', dragHandler);
+        pageDom.unbind(rootDocument, 'mouseup', dragEndHandler);
+      });
+    };
+    var blockIeDrop = function (editor) {
+      editor.on('drop', function (e) {
+        var realTarget = typeof e.clientX !== 'undefined' ? editor.getDoc().elementFromPoint(e.clientX, e.clientY) : null;
+        if (isContentEditableFalse$1(realTarget) || editor.dom.getContentEditableParent(realTarget) === 'false') {
+          e.preventDefault();
+        }
+      });
+    };
+    var blockUnsupportedFileDrop = function (editor) {
+      var preventFileDrop = function (e) {
+        if (!e.isDefaultPrevented()) {
+          var dataTransfer = e.dataTransfer;
+          if (dataTransfer && (contains$3(dataTransfer.types, 'Files') || dataTransfer.files.length > 0)) {
+            e.preventDefault();
+            if (e.type === 'drop') {
+              displayError(editor, 'Dropped file type is not supported');
+            }
+          }
+        }
+      };
+      var preventFileDropIfUIElement = function (e) {
+        if (isUIElement(editor, e.target)) {
+          preventFileDrop(e);
+        }
+      };
+      var setup = function () {
+        var pageDom = DOMUtils.DOM;
+        var dom = editor.dom;
+        var doc = document;
+        var editorRoot = editor.inline ? editor.getBody() : editor.getDoc();
+        var eventNames = [
+          'drop',
+          'dragover'
+        ];
+        each$k(eventNames, function (name) {
+          pageDom.bind(doc, name, preventFileDropIfUIElement);
+          dom.bind(editorRoot, name, preventFileDrop);
+        });
+        editor.on('remove', function () {
+          each$k(eventNames, function (name) {
+            pageDom.unbind(doc, name, preventFileDropIfUIElement);
+            dom.unbind(editorRoot, name, preventFileDrop);
+          });
+        });
+      };
+      editor.on('init', function () {
+        Delay.setEditorTimeout(editor, setup, 0);
+      });
+    };
+    var init$2 = function (editor) {
+      bindFakeDragEvents(editor);
+      blockIeDrop(editor);
+      if (shouldBlockUnsupportedDrop(editor)) {
+        blockUnsupportedFileDrop(editor);
+      }
+    };
+
+    var setup$1 = function (editor) {
+      var renderFocusCaret = first(function () {
+        if (!editor.removed && editor.getBody().contains(document.activeElement)) {
+          var rng = editor.selection.getRng();
+          if (rng.collapsed) {
+            var caretRange = renderRangeCaret(editor, rng, false);
+            editor.selection.setRng(caretRange);
+          }
+        }
+      }, 0);
+      editor.on('focus', function () {
+        renderFocusCaret.throttle();
+      });
+      editor.on('blur', function () {
+        renderFocusCaret.cancel();
+      });
+    };
+
+    var setup = function (editor) {
+      editor.on('init', function () {
+        editor.on('focusin', function (e) {
+          var target = e.target;
+          if (isMedia$2(target)) {
+            var ceRoot = getContentEditableRoot$1(editor.getBody(), target);
+            var node = isContentEditableFalse$b(ceRoot) ? ceRoot : target;
+            if (editor.selection.getNode() !== node) {
+              selectNode(editor, node).each(function (rng) {
+                return editor.selection.setRng(rng);
+              });
+            }
+          }
+        });
+      });
+    };
+
+    var isContentEditableTrue = isContentEditableTrue$4;
+    var isContentEditableFalse = isContentEditableFalse$b;
+    var getContentEditableRoot = function (editor, node) {
+      return getContentEditableRoot$1(editor.getBody(), node);
+    };
+    var SelectionOverrides = function (editor) {
+      var selection = editor.selection, dom = editor.dom;
+      var isBlock = dom.isBlock;
+      var rootNode = editor.getBody();
+      var fakeCaret = FakeCaret(editor, rootNode, isBlock, function () {
+        return hasFocus(editor);
+      });
+      var realSelectionId = 'sel-' + dom.uniqueId();
+      var elementSelectionAttr = 'data-mce-selected';
+      var selectedElement;
+      var isFakeSelectionElement = function (node) {
+        return dom.hasClass(node, 'mce-offscreen-selection');
+      };
+      var isFakeSelectionTargetElement = function (node) {
+        return node !== rootNode && (isContentEditableFalse(node) || isMedia$2(node)) && dom.isChildOf(node, rootNode);
+      };
+      var isNearFakeSelectionElement = function (pos) {
+        return isBeforeContentEditableFalse(pos) || isAfterContentEditableFalse(pos) || isBeforeMedia(pos) || isAfterMedia(pos);
+      };
+      var getRealSelectionElement = function () {
+        var container = dom.get(realSelectionId);
+        return container ? container.getElementsByTagName('*')[0] : container;
+      };
+      var setRange = function (range) {
+        if (range) {
+          selection.setRng(range);
+        }
+      };
+      var getRange = selection.getRng;
+      var showCaret = function (direction, node, before, scrollIntoView) {
+        if (scrollIntoView === void 0) {
+          scrollIntoView = true;
+        }
+        var e = editor.fire('ShowCaret', {
+          target: node,
+          direction: direction,
+          before: before
+        });
+        if (e.isDefaultPrevented()) {
+          return null;
+        }
+        if (scrollIntoView) {
+          selection.scrollIntoView(node, direction === -1);
+        }
+        return fakeCaret.show(before, node);
+      };
+      var showBlockCaretContainer = function (blockCaretContainer) {
+        if (blockCaretContainer.hasAttribute('data-mce-caret')) {
+          showCaretContainerBlock(blockCaretContainer);
+          setRange(getRange());
+          selection.scrollIntoView(blockCaretContainer);
+        }
+      };
+      var registerEvents = function () {
+        editor.on('mouseup', function (e) {
+          var range = getRange();
+          if (range.collapsed && isXYInContentArea(editor, e.clientX, e.clientY)) {
+            renderCaretAtRange(editor, range, false).each(setRange);
+          }
+        });
+        editor.on('click', function (e) {
+          var contentEditableRoot = getContentEditableRoot(editor, e.target);
+          if (contentEditableRoot) {
+            if (isContentEditableFalse(contentEditableRoot)) {
+              e.preventDefault();
+              editor.focus();
+            }
+            if (isContentEditableTrue(contentEditableRoot)) {
+              if (dom.isChildOf(contentEditableRoot, selection.getNode())) {
+                removeElementSelection();
+              }
+            }
+          }
+        });
+        editor.on('blur NewBlock', removeElementSelection);
+        editor.on('ResizeWindow FullscreenStateChanged', fakeCaret.reposition);
+        var hasNormalCaretPosition = function (elm) {
+          var caretWalker = CaretWalker(elm);
+          if (!elm.firstChild) {
+            return false;
+          }
+          var startPos = CaretPosition.before(elm.firstChild);
+          var newPos = caretWalker.next(startPos);
+          return newPos && !isNearFakeSelectionElement(newPos);
+        };
+        var isInSameBlock = function (node1, node2) {
+          var block1 = dom.getParent(node1, isBlock);
+          var block2 = dom.getParent(node2, isBlock);
+          return block1 === block2;
+        };
+        var hasBetterMouseTarget = function (targetNode, caretNode) {
+          var targetBlock = dom.getParent(targetNode, isBlock);
+          var caretBlock = dom.getParent(caretNode, isBlock);
+          if (targetBlock && targetNode !== caretBlock && dom.isChildOf(targetBlock, caretBlock) && isContentEditableFalse(getContentEditableRoot(editor, targetBlock)) === false) {
+            return true;
+          }
+          return targetBlock && !isInSameBlock(targetBlock, caretBlock) && hasNormalCaretPosition(targetBlock);
+        };
+        editor.on('tap', function (e) {
+          var targetElm = e.target;
+          var contentEditableRoot = getContentEditableRoot(editor, targetElm);
+          if (isContentEditableFalse(contentEditableRoot)) {
+            e.preventDefault();
+            selectNode(editor, contentEditableRoot).each(setElementSelection);
+          } else if (isFakeSelectionTargetElement(targetElm)) {
+            selectNode(editor, targetElm).each(setElementSelection);
+          }
+        }, true);
+        editor.on('mousedown', function (e) {
+          var targetElm = e.target;
+          if (targetElm !== rootNode && targetElm.nodeName !== 'HTML' && !dom.isChildOf(targetElm, rootNode)) {
+            return;
+          }
+          if (isXYInContentArea(editor, e.clientX, e.clientY) === false) {
+            return;
+          }
+          var contentEditableRoot = getContentEditableRoot(editor, targetElm);
+          if (contentEditableRoot) {
+            if (isContentEditableFalse(contentEditableRoot)) {
+              e.preventDefault();
+              selectNode(editor, contentEditableRoot).each(setElementSelection);
+            } else {
+              removeElementSelection();
+              if (!(isContentEditableTrue(contentEditableRoot) && e.shiftKey) && !isXYWithinRange(e.clientX, e.clientY, selection.getRng())) {
+                hideFakeCaret();
+                selection.placeCaretAt(e.clientX, e.clientY);
+              }
+            }
+          } else if (isFakeSelectionTargetElement(targetElm)) {
+            selectNode(editor, targetElm).each(setElementSelection);
+          } else if (isFakeCaretTarget(targetElm) === false) {
+            removeElementSelection();
+            hideFakeCaret();
+            var fakeCaretInfo = closestFakeCaret(rootNode, e.clientX, e.clientY);
+            if (fakeCaretInfo) {
+              if (!hasBetterMouseTarget(targetElm, fakeCaretInfo.node)) {
+                e.preventDefault();
+                var range = showCaret(1, fakeCaretInfo.node, fakeCaretInfo.before, false);
+                editor.getBody().focus();
+                setRange(range);
+              }
+            }
+          }
+        });
+        editor.on('keypress', function (e) {
+          if (VK.modifierPressed(e)) {
+            return;
+          }
+          if (isContentEditableFalse(selection.getNode())) {
+            e.preventDefault();
+          }
+        });
+        editor.on('GetSelectionRange', function (e) {
+          var rng = e.range;
+          if (selectedElement) {
+            if (!selectedElement.parentNode) {
+              selectedElement = null;
+              return;
+            }
+            rng = rng.cloneRange();
+            rng.selectNode(selectedElement);
+            e.range = rng;
+          }
+        });
+        editor.on('SetSelectionRange', function (e) {
+          e.range = normalizeShortEndedElementSelection(e.range);
+          var rng = setElementSelection(e.range, e.forward);
+          if (rng) {
+            e.range = rng;
+          }
+        });
+        var isPasteBin = function (node) {
+          return node.id === 'mcepastebin';
+        };
+        editor.on('AfterSetSelectionRange', function (e) {
+          var rng = e.range;
+          var parentNode = rng.startContainer.parentNode;
+          if (!isRangeInCaretContainer(rng) && !isPasteBin(parentNode)) {
+            hideFakeCaret();
+          }
+          if (!isFakeSelectionElement(parentNode)) {
+            removeElementSelection();
+          }
+        });
+        editor.on('copy', function (e) {
+          var clipboardData = e.clipboardData;
+          if (!e.isDefaultPrevented() && e.clipboardData && !Env.ie) {
+            var realSelectionElement = getRealSelectionElement();
+            if (realSelectionElement) {
+              e.preventDefault();
+              clipboardData.clearData();
+              clipboardData.setData('text/html', realSelectionElement.outerHTML);
+              clipboardData.setData('text/plain', realSelectionElement.outerText || realSelectionElement.innerText);
+            }
+          }
+        });
+        init$2(editor);
+        setup$1(editor);
+        setup(editor);
+      };
+      var isWithinCaretContainer = function (node) {
+        return isCaretContainer$2(node) || startsWithCaretContainer$1(node) || endsWithCaretContainer$1(node);
+      };
+      var isRangeInCaretContainer = function (rng) {
+        return isWithinCaretContainer(rng.startContainer) || isWithinCaretContainer(rng.endContainer);
+      };
+      var normalizeShortEndedElementSelection = function (rng) {
+        var shortEndedElements = editor.schema.getShortEndedElements();
+        var newRng = dom.createRng();
+        var startContainer = rng.startContainer;
+        var startOffset = rng.startOffset;
+        var endContainer = rng.endContainer;
+        var endOffset = rng.endOffset;
+        if (has$2(shortEndedElements, startContainer.nodeName.toLowerCase())) {
+          if (startOffset === 0) {
+            newRng.setStartBefore(startContainer);
+          } else {
+            newRng.setStartAfter(startContainer);
+          }
+        } else {
+          newRng.setStart(startContainer, startOffset);
+        }
+        if (has$2(shortEndedElements, endContainer.nodeName.toLowerCase())) {
+          if (endOffset === 0) {
+            newRng.setEndBefore(endContainer);
+          } else {
+            newRng.setEndAfter(endContainer);
+          }
+        } else {
+          newRng.setEnd(endContainer, endOffset);
+        }
+        return newRng;
+      };
+      var setupOffscreenSelection = function (node, targetClone, origTargetClone) {
+        var $ = editor.$;
+        var $realSelectionContainer = descendant(SugarElement.fromDom(editor.getBody()), '#' + realSelectionId).fold(function () {
+          return $([]);
+        }, function (elm) {
+          return $([elm.dom]);
+        });
+        if ($realSelectionContainer.length === 0) {
+          $realSelectionContainer = $('<div data-mce-bogus="all" class="mce-offscreen-selection"></div>').attr('id', realSelectionId);
+          $realSelectionContainer.appendTo(editor.getBody());
+        }
+        var newRange = dom.createRng();
+        if (targetClone === origTargetClone && Env.ie) {
+          $realSelectionContainer.empty().append('<p style="font-size: 0" data-mce-bogus="all">\xA0</p>').append(targetClone);
+          newRange.setStartAfter($realSelectionContainer[0].firstChild.firstChild);
+          newRange.setEndAfter(targetClone);
+        } else {
+          $realSelectionContainer.empty().append(nbsp).append(targetClone).append(nbsp);
+          newRange.setStart($realSelectionContainer[0].firstChild, 1);
+          newRange.setEnd($realSelectionContainer[0].lastChild, 0);
+        }
+        $realSelectionContainer.css({ top: dom.getPos(node, editor.getBody()).y });
+        $realSelectionContainer[0].focus();
+        var sel = selection.getSel();
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        return newRange;
+      };
+      var selectElement = function (elm) {
+        var targetClone = elm.cloneNode(true);
+        var e = editor.fire('ObjectSelected', {
+          target: elm,
+          targetClone: targetClone
+        });
+        if (e.isDefaultPrevented()) {
+          return null;
+        }
+        var range = setupOffscreenSelection(elm, e.targetClone, targetClone);
+        var nodeElm = SugarElement.fromDom(elm);
+        each$k(descendants(SugarElement.fromDom(editor.getBody()), '*[data-mce-selected]'), function (elm) {
+          if (!eq(nodeElm, elm)) {
+            remove$6(elm, elementSelectionAttr);
+          }
+        });
+        if (!dom.getAttrib(elm, elementSelectionAttr)) {
+          elm.setAttribute(elementSelectionAttr, '1');
+        }
+        selectedElement = elm;
+        hideFakeCaret();
+        return range;
+      };
+      var setElementSelection = function (range, forward) {
+        if (!range) {
+          return null;
+        }
+        if (range.collapsed) {
+          if (!isRangeInCaretContainer(range)) {
+            var dir = forward ? 1 : -1;
+            var caretPosition = getNormalizedRangeEndPoint(dir, rootNode, range);
+            var beforeNode = caretPosition.getNode(!forward);
+            if (isFakeCaretTarget(beforeNode)) {
+              return showCaret(dir, beforeNode, forward ? !caretPosition.isAtEnd() : false, false);
+            }
+            var afterNode = caretPosition.getNode(forward);
+            if (isFakeCaretTarget(afterNode)) {
+              return showCaret(dir, afterNode, forward ? false : !caretPosition.isAtEnd(), false);
+            }
+          }
+          return null;
+        }
+        var startContainer = range.startContainer;
+        var startOffset = range.startOffset;
+        var endOffset = range.endOffset;
+        if (startContainer.nodeType === 3 && startOffset === 0 && isContentEditableFalse(startContainer.parentNode)) {
+          startContainer = startContainer.parentNode;
+          startOffset = dom.nodeIndex(startContainer);
+          startContainer = startContainer.parentNode;
+        }
+        if (startContainer.nodeType !== 1) {
+          return null;
+        }
+        if (endOffset === startOffset + 1 && startContainer === range.endContainer) {
+          var node = startContainer.childNodes[startOffset];
+          if (isFakeSelectionTargetElement(node)) {
+            return selectElement(node);
+          }
+        }
+        return null;
+      };
+      var removeElementSelection = function () {
+        if (selectedElement) {
+          selectedElement.removeAttribute(elementSelectionAttr);
+        }
+        descendant(SugarElement.fromDom(editor.getBody()), '#' + realSelectionId).each(remove$7);
+        selectedElement = null;
+      };
+      var destroy = function () {
+        fakeCaret.destroy();
+        selectedElement = null;
+      };
+      var hideFakeCaret = function () {
+        fakeCaret.hide();
+      };
+      if (Env.ceFalse && !isRtc(editor)) {
+        registerEvents();
+      }
+      return {
+        showCaret: showCaret,
+        showBlockCaretContainer: showBlockCaretContainer,
+        hideFakeCaret: hideFakeCaret,
+        destroy: destroy
+      };
+    };
+
+    var Quirks = function (editor) {
+      var each = Tools.each;
+      var BACKSPACE = VK.BACKSPACE, DELETE = VK.DELETE, dom = editor.dom, selection = editor.selection, parser = editor.parser;
+      var isGecko = Env.gecko, isIE = Env.ie, isWebKit = Env.webkit;
+      var mceInternalUrlPrefix = 'data:text/mce-internal,';
+      var mceInternalDataType = isIE ? 'Text' : 'URL';
+      var setEditorCommandState = function (cmd, state) {
+        try {
+          editor.getDoc().execCommand(cmd, false, state);
+        } catch (ex) {
+        }
+      };
+      var isDefaultPrevented = function (e) {
+        return e.isDefaultPrevented();
+      };
+      var setMceInternalContent = function (e) {
+        var selectionHtml, internalContent;
+        if (e.dataTransfer) {
+          if (editor.selection.isCollapsed() && e.target.tagName === 'IMG') {
+            selection.select(e.target);
+          }
+          selectionHtml = editor.selection.getContent();
+          if (selectionHtml.length > 0) {
+            internalContent = mceInternalUrlPrefix + escape(editor.id) + ',' + escape(selectionHtml);
+            e.dataTransfer.setData(mceInternalDataType, internalContent);
+          }
+        }
+      };
+      var getMceInternalContent = function (e) {
+        var internalContent;
+        if (e.dataTransfer) {
+          internalContent = e.dataTransfer.getData(mceInternalDataType);
+          if (internalContent && internalContent.indexOf(mceInternalUrlPrefix) >= 0) {
+            internalContent = internalContent.substr(mceInternalUrlPrefix.length).split(',');
+            return {
+              id: unescape(internalContent[0]),
+              html: unescape(internalContent[1])
+            };
+          }
+        }
+        return null;
+      };
+      var insertClipboardContents = function (content, internal) {
+        if (editor.queryCommandSupported('mceInsertClipboardContent')) {
+          editor.execCommand('mceInsertClipboardContent', false, {
+            content: content,
+            internal: internal
+          });
+        } else {
+          editor.execCommand('mceInsertContent', false, content);
+        }
+      };
+      var emptyEditorWhenDeleting = function () {
+        var serializeRng = function (rng) {
+          var body = dom.create('body');
+          var contents = rng.cloneContents();
+          body.appendChild(contents);
+          return selection.serializer.serialize(body, { format: 'html' });
+        };
+        var allContentsSelected = function (rng) {
+          var selection = serializeRng(rng);
+          var allRng = dom.createRng();
+          allRng.selectNode(editor.getBody());
+          var allSelection = serializeRng(allRng);
+          return selection === allSelection;
+        };
+        editor.on('keydown', function (e) {
+          var keyCode = e.keyCode;
+          var isCollapsed, body;
+          if (!isDefaultPrevented(e) && (keyCode === DELETE || keyCode === BACKSPACE)) {
+            isCollapsed = editor.selection.isCollapsed();
+            body = editor.getBody();
+            if (isCollapsed && !dom.isEmpty(body)) {
+              return;
+            }
+            if (!isCollapsed && !allContentsSelected(editor.selection.getRng())) {
+              return;
+            }
+            e.preventDefault();
+            editor.setContent('');
+            if (body.firstChild && dom.isBlock(body.firstChild)) {
+              editor.selection.setCursorLocation(body.firstChild, 0);
+            } else {
+              editor.selection.setCursorLocation(body, 0);
+            }
+            editor.nodeChanged();
+          }
+        });
+      };
+      var selectAll = function () {
+        editor.shortcuts.add('meta+a', null, 'SelectAll');
+      };
+      var documentElementEditingFocus = function () {
+        if (!editor.inline) {
+          dom.bind(editor.getDoc(), 'mousedown mouseup', function (e) {
+            var rng;
+            if (e.target === editor.getDoc().documentElement) {
+              rng = selection.getRng();
+              editor.getBody().focus();
+              if (e.type === 'mousedown') {
+                if (isCaretContainer$2(rng.startContainer)) {
+                  return;
+                }
+                selection.placeCaretAt(e.clientX, e.clientY);
+              } else {
+                selection.setRng(rng);
+              }
+            }
+          });
+        }
+      };
+      var removeHrOnBackspace = function () {
+        editor.on('keydown', function (e) {
+          if (!isDefaultPrevented(e) && e.keyCode === BACKSPACE) {
+            if (!editor.getBody().getElementsByTagName('hr').length) {
+              return;
+            }
+            if (selection.isCollapsed() && selection.getRng().startOffset === 0) {
+              var node = selection.getNode();
+              var previousSibling = node.previousSibling;
+              if (node.nodeName === 'HR') {
+                dom.remove(node);
+                e.preventDefault();
+                return;
+              }
+              if (previousSibling && previousSibling.nodeName && previousSibling.nodeName.toLowerCase() === 'hr') {
+                dom.remove(previousSibling);
+                e.preventDefault();
+              }
+            }
+          }
+        });
+      };
+      var focusBody = function () {
+        if (!Range.prototype.getClientRects) {
+          editor.on('mousedown', function (e) {
+            if (!isDefaultPrevented(e) && e.target.nodeName === 'HTML') {
+              var body_1 = editor.getBody();
+              body_1.blur();
+              Delay.setEditorTimeout(editor, function () {
+                body_1.focus();
+              });
+            }
+          });
+        }
+      };
+      var selectControlElements = function () {
+        editor.on('click', function (e) {
+          var target = e.target;
+          if (/^(IMG|HR)$/.test(target.nodeName) && dom.getContentEditableParent(target) !== 'false') {
+            e.preventDefault();
+            editor.selection.select(target);
+            editor.nodeChanged();
+          }
+          if (target.nodeName === 'A' && dom.hasClass(target, 'mce-item-anchor')) {
+            e.preventDefault();
+            selection.select(target);
+          }
+        });
+      };
+      var removeStylesWhenDeletingAcrossBlockElements = function () {
+        var getAttributeApplyFunction = function () {
+          var template = dom.getAttribs(selection.getStart().cloneNode(false));
+          return function () {
+            var target = selection.getStart();
+            if (target !== editor.getBody()) {
+              dom.setAttrib(target, 'style', null);
+              each(template, function (attr) {
+                target.setAttributeNode(attr.cloneNode(true));
+              });
+            }
+          };
+        };
+        var isSelectionAcrossElements = function () {
+          return !selection.isCollapsed() && dom.getParent(selection.getStart(), dom.isBlock) !== dom.getParent(selection.getEnd(), dom.isBlock);
+        };
+        editor.on('keypress', function (e) {
+          var applyAttributes;
+          if (!isDefaultPrevented(e) && (e.keyCode === 8 || e.keyCode === 46) && isSelectionAcrossElements()) {
+            applyAttributes = getAttributeApplyFunction();
+            editor.getDoc().execCommand('delete', false, null);
+            applyAttributes();
+            e.preventDefault();
+            return false;
+          }
+        });
+        dom.bind(editor.getDoc(), 'cut', function (e) {
+          var applyAttributes;
+          if (!isDefaultPrevented(e) && isSelectionAcrossElements()) {
+            applyAttributes = getAttributeApplyFunction();
+            Delay.setEditorTimeout(editor, function () {
+              applyAttributes();
+            });
+          }
+        });
+      };
+      var disableBackspaceIntoATable = function () {
+        editor.on('keydown', function (e) {
+          if (!isDefaultPrevented(e) && e.keyCode === BACKSPACE) {
+            if (selection.isCollapsed() && selection.getRng().startOffset === 0) {
+              var previousSibling = selection.getNode().previousSibling;
+              if (previousSibling && previousSibling.nodeName && previousSibling.nodeName.toLowerCase() === 'table') {
+                e.preventDefault();
+                return false;
+              }
+            }
+          }
+        });
+      };
+      var removeBlockQuoteOnBackSpace = function () {
+        editor.on('keydown', function (e) {
+          var rng, parent;
+          if (isDefaultPrevented(e) || e.keyCode !== VK.BACKSPACE) {
+            return;
+          }
+          rng = selection.getRng();
+          var container = rng.startContainer;
+          var offset = rng.startOffset;
+          var root = dom.getRoot();
+          parent = container;
+          if (!rng.collapsed || offset !== 0) {
+            return;
+          }
+          while (parent && parent.parentNode && parent.parentNode.firstChild === parent && parent.parentNode !== root) {
+            parent = parent.parentNode;
+          }
+          if (parent.tagName === 'BLOCKQUOTE') {
+            editor.formatter.toggle('blockquote', null, parent);
+            rng = dom.createRng();
+            rng.setStart(container, 0);
+            rng.setEnd(container, 0);
+            selection.setRng(rng);
+          }
+        });
+      };
+      var setGeckoEditingOptions = function () {
+        var setOpts = function () {
+          setEditorCommandState('StyleWithCSS', false);
+          setEditorCommandState('enableInlineTableEditing', false);
+          if (!getObjectResizing(editor)) {
+            setEditorCommandState('enableObjectResizing', false);
+          }
+        };
+        if (!isReadOnly$1(editor)) {
+          editor.on('BeforeExecCommand mousedown', setOpts);
+        }
+      };
+      var addBrAfterLastLinks = function () {
+        var fixLinks = function () {
+          each(dom.select('a'), function (node) {
+            var parentNode = node.parentNode;
+            var root = dom.getRoot();
+            if (parentNode.lastChild === node) {
+              while (parentNode && !dom.isBlock(parentNode)) {
+                if (parentNode.parentNode.lastChild !== parentNode || parentNode === root) {
+                  return;
+                }
+                parentNode = parentNode.parentNode;
+              }
+              dom.add(parentNode, 'br', { 'data-mce-bogus': 1 });
+            }
+          });
+        };
+        editor.on('SetContent ExecCommand', function (e) {
+          if (e.type === 'setcontent' || e.command === 'mceInsertLink') {
+            fixLinks();
+          }
+        });
+      };
+      var setDefaultBlockType = function () {
+        if (getForcedRootBlock(editor)) {
+          editor.on('init', function () {
+            setEditorCommandState('DefaultParagraphSeparator', getForcedRootBlock(editor));
+          });
+        }
+      };
+      var normalizeSelection = function () {
+        editor.on('keyup focusin mouseup', function (e) {
+          if (!VK.modifierPressed(e)) {
+            selection.normalize();
+          }
+        }, true);
+      };
+      var showBrokenImageIcon = function () {
+        editor.contentStyles.push('img:-moz-broken {' + '-moz-force-broken-image-icon:1;' + 'min-width:24px;' + 'min-height:24px' + '}');
+      };
+      var restoreFocusOnKeyDown = function () {
+        if (!editor.inline) {
+          editor.on('keydown', function () {
+            if (document.activeElement === document.body) {
+              editor.getWin().focus();
+            }
+          });
+        }
+      };
+      var bodyHeight = function () {
+        if (!editor.inline) {
+          editor.contentStyles.push('body {min-height: 150px}');
+          editor.on('click', function (e) {
+            var rng;
+            if (e.target.nodeName === 'HTML') {
+              if (Env.ie > 11) {
+                editor.getBody().focus();
+                return;
+              }
+              rng = editor.selection.getRng();
+              editor.getBody().focus();
+              editor.selection.setRng(rng);
+              editor.selection.normalize();
+              editor.nodeChanged();
+            }
+          });
+        }
+      };
+      var blockCmdArrowNavigation = function () {
+        if (Env.mac) {
+          editor.on('keydown', function (e) {
+            if (VK.metaKeyPressed(e) && !e.shiftKey && (e.keyCode === 37 || e.keyCode === 39)) {
+              e.preventDefault();
+              var selection_1 = editor.selection.getSel();
+              selection_1.modify('move', e.keyCode === 37 ? 'backward' : 'forward', 'lineboundary');
+            }
+          });
+        }
+      };
+      var disableAutoUrlDetect = function () {
+        setEditorCommandState('AutoUrlDetect', false);
+      };
+      var tapLinksAndImages = function () {
+        editor.on('click', function (e) {
+          var elm = e.target;
+          do {
+            if (elm.tagName === 'A') {
+              e.preventDefault();
+              return;
+            }
+          } while (elm = elm.parentNode);
+        });
+        editor.contentStyles.push('.mce-content-body {-webkit-touch-callout: none}');
+      };
+      var blockFormSubmitInsideEditor = function () {
+        editor.on('init', function () {
+          editor.dom.bind(editor.getBody(), 'submit', function (e) {
+            e.preventDefault();
+          });
+        });
+      };
+      var removeAppleInterchangeBrs = function () {
+        parser.addNodeFilter('br', function (nodes) {
+          var i = nodes.length;
+          while (i--) {
+            if (nodes[i].attr('class') === 'Apple-interchange-newline') {
+              nodes[i].remove();
+            }
+          }
+        });
+      };
+      var ieInternalDragAndDrop = function () {
+        editor.on('dragstart', function (e) {
+          setMceInternalContent(e);
+        });
+        editor.on('drop', function (e) {
+          if (!isDefaultPrevented(e)) {
+            var internalContent = getMceInternalContent(e);
+            if (internalContent && internalContent.id !== editor.id) {
+              e.preventDefault();
+              var rng = fromPoint(e.x, e.y, editor.getDoc());
+              selection.setRng(rng);
+              insertClipboardContents(internalContent.html, true);
+            }
+          }
+        });
+      };
+      var refreshContentEditable = noop;
+      var isHidden = function () {
+        if (!isGecko || editor.removed) {
+          return false;
+        }
+        var sel = editor.selection.getSel();
+        return !sel || !sel.rangeCount || sel.rangeCount === 0;
+      };
+      var setupRtc = function () {
+        if (isWebKit) {
+          documentElementEditingFocus();
+          selectControlElements();
+          blockFormSubmitInsideEditor();
+          selectAll();
+          if (Env.iOS) {
+            restoreFocusOnKeyDown();
+            bodyHeight();
+            tapLinksAndImages();
+          }
+        }
+        if (isGecko) {
+          focusBody();
+          setGeckoEditingOptions();
+          showBrokenImageIcon();
+          blockCmdArrowNavigation();
+        }
+      };
+      var setup = function () {
+        removeBlockQuoteOnBackSpace();
+        emptyEditorWhenDeleting();
+        if (!Env.windowsPhone) {
+          normalizeSelection();
+        }
+        if (isWebKit) {
+          documentElementEditingFocus();
+          selectControlElements();
+          setDefaultBlockType();
+          blockFormSubmitInsideEditor();
+          disableBackspaceIntoATable();
+          removeAppleInterchangeBrs();
+          if (Env.iOS) {
+            restoreFocusOnKeyDown();
+            bodyHeight();
+            tapLinksAndImages();
+          } else {
+            selectAll();
+          }
+        }
+        if (Env.ie >= 11) {
+          bodyHeight();
+          disableBackspaceIntoATable();
+        }
+        if (Env.ie) {
+          selectAll();
+          disableAutoUrlDetect();
+          ieInternalDragAndDrop();
+        }
+        if (isGecko) {
+          removeHrOnBackspace();
+          focusBody();
+          removeStylesWhenDeletingAcrossBlockElements();
+          setGeckoEditingOptions();
+          addBrAfterLastLinks();
+          showBrokenImageIcon();
+          blockCmdArrowNavigation();
+          disableBackspaceIntoATable();
+        }
+      };
+      if (isRtc(editor)) {
+        setupRtc();
+      } else {
+        setup();
+      }
+      return {
+        refreshContentEditable: refreshContentEditable,
+        isHidden: isHidden
+      };
+    };
+
+    var DOM$6 = DOMUtils.DOM;
+    var appendStyle = function (editor, text) {
+      var body = SugarElement.fromDom(editor.getBody());
+      var container = getStyleContainer(getRootNode(body));
+      var style = SugarElement.fromTag('style');
+      set$1(style, 'type', 'text/css');
+      append$1(style, SugarElement.fromText(text));
+      append$1(container, style);
+      editor.on('remove', function () {
+        remove$7(style);
+      });
+    };
+    var getRootName = function (editor) {
+      return editor.inline ? editor.getElement().nodeName.toLowerCase() : undefined;
+    };
+    var removeUndefined = function (obj) {
+      return filter$3(obj, function (v) {
+        return isUndefined(v) === false;
+      });
+    };
+    var mkParserSettings = function (editor) {
+      var settings = editor.settings;
+      var blobCache = editor.editorUpload.blobCache;
+      return removeUndefined({
+        allow_conditional_comments: settings.allow_conditional_comments,
+        allow_html_data_urls: settings.allow_html_data_urls,
+        allow_svg_data_urls: settings.allow_svg_data_urls,
+        allow_html_in_named_anchor: settings.allow_html_in_named_anchor,
+        allow_script_urls: settings.allow_script_urls,
+        allow_unsafe_link_target: settings.allow_unsafe_link_target,
+        convert_fonts_to_spans: settings.convert_fonts_to_spans,
+        fix_list_elements: settings.fix_list_elements,
+        font_size_legacy_values: settings.font_size_legacy_values,
+        forced_root_block: settings.forced_root_block,
+        forced_root_block_attrs: settings.forced_root_block_attrs,
+        padd_empty_with_br: settings.padd_empty_with_br,
+        preserve_cdata: settings.preserve_cdata,
+        remove_trailing_brs: settings.remove_trailing_brs,
+        inline_styles: settings.inline_styles,
+        root_name: getRootName(editor),
+        validate: true,
+        blob_cache: blobCache,
+        document: editor.getDoc(),
+        images_dataimg_filter: settings.images_dataimg_filter
+      });
+    };
+    var mkSerializerSettings = function (editor) {
+      var settings = editor.settings;
+      return __assign(__assign({}, mkParserSettings(editor)), removeUndefined({
+        url_converter: settings.url_converter,
+        url_converter_scope: settings.url_converter_scope,
+        element_format: settings.element_format,
+        entities: settings.entities,
+        entity_encoding: settings.entity_encoding,
+        indent: settings.indent,
+        indent_after: settings.indent_after,
+        indent_before: settings.indent_before,
+        block_elements: settings.block_elements,
+        boolean_attributes: settings.boolean_attributes,
+        custom_elements: settings.custom_elements,
+        extended_valid_elements: settings.extended_valid_elements,
+        invalid_elements: settings.invalid_elements,
+        invalid_styles: settings.invalid_styles,
+        move_caret_before_on_enter_elements: settings.move_caret_before_on_enter_elements,
+        non_empty_elements: settings.non_empty_elements,
+        schema: settings.schema,
+        self_closing_elements: settings.self_closing_elements,
+        short_ended_elements: settings.short_ended_elements,
+        special: settings.special,
+        text_block_elements: settings.text_block_elements,
+        text_inline_elements: settings.text_inline_elements,
+        valid_children: settings.valid_children,
+        valid_classes: settings.valid_classes,
+        valid_elements: settings.valid_elements,
+        valid_styles: settings.valid_styles,
+        verify_html: settings.verify_html,
+        whitespace_elements: settings.whitespace_elements
+      }));
+    };
+    var createParser = function (editor) {
+      var parser = DomParser(mkParserSettings(editor), editor.schema);
+      parser.addAttributeFilter('src,href,style,tabindex', function (nodes, name) {
+        var i = nodes.length, node, value;
+        var dom = editor.dom;
+        var internalName = 'data-mce-' + name;
+        while (i--) {
+          node = nodes[i];
+          value = node.attr(name);
+          if (value && !node.attr(internalName)) {
+            if (value.indexOf('data:') === 0 || value.indexOf('blob:') === 0) {
+              continue;
+            }
+            if (name === 'style') {
+              value = dom.serializeStyle(dom.parseStyle(value), node.name);
+              if (!value.length) {
+                value = null;
+              }
+              node.attr(internalName, value);
+              node.attr(name, value);
+            } else if (name === 'tabindex') {
+              node.attr(internalName, value);
+              node.attr(name, null);
+            } else {
+              node.attr(internalName, editor.convertURL(value, name, node.name));
+            }
+          }
+        }
+      });
+      parser.addNodeFilter('script', function (nodes) {
+        var i = nodes.length;
+        while (i--) {
+          var node = nodes[i];
+          var type = node.attr('type') || 'no/type';
+          if (type.indexOf('mce-') !== 0) {
+            node.attr('type', 'mce-' + type);
+          }
+        }
+      });
+      if (editor.settings.preserve_cdata) {
+        parser.addNodeFilter('#cdata', function (nodes) {
+          var i = nodes.length;
+          while (i--) {
+            var node = nodes[i];
+            node.type = 8;
+            node.name = '#comment';
+            node.value = '[CDATA[' + editor.dom.encode(node.value) + ']]';
+          }
+        });
+      }
+      parser.addNodeFilter('p,h1,h2,h3,h4,h5,h6,div', function (nodes) {
+        var i = nodes.length;
+        var nonEmptyElements = editor.schema.getNonEmptyElements();
+        while (i--) {
+          var node = nodes[i];
+          if (node.isEmpty(nonEmptyElements) && node.getAll('br').length === 0) {
+            node.append(new AstNode('br', 1)).shortEnded = true;
+          }
+        }
+      });
+      return parser;
+    };
+    var autoFocus = function (editor) {
+      if (editor.settings.auto_focus) {
+        Delay.setEditorTimeout(editor, function () {
+          var focusEditor;
+          if (editor.settings.auto_focus === true) {
+            focusEditor = editor;
+          } else {
+            focusEditor = editor.editorManager.get(editor.settings.auto_focus);
+          }
+          if (!focusEditor.destroyed) {
+            focusEditor.focus();
+          }
+        }, 100);
+      }
+    };
+    var moveSelectionToFirstCaretPosition = function (editor) {
+      var root = editor.dom.getRoot();
+      if (!editor.inline && (!hasAnyRanges(editor) || editor.selection.getStart(true) === root)) {
+        firstPositionIn(root).each(function (pos) {
+          var node = pos.getNode();
+          var caretPos = isTable$3(node) ? firstPositionIn(node).getOr(pos) : pos;
+          if (Env.browser.isIE()) {
+            storeNative(editor, caretPos.toRange());
+          } else {
+            editor.selection.setRng(caretPos.toRange());
+          }
+        });
+      }
+    };
+    var initEditor = function (editor) {
+      editor.bindPendingEventDelegates();
+      editor.initialized = true;
+      fireInit(editor);
+      editor.focus(true);
+      moveSelectionToFirstCaretPosition(editor);
+      editor.nodeChanged({ initial: true });
+      editor.execCallback('init_instance_callback', editor);
+      autoFocus(editor);
+    };
+    var getStyleSheetLoader$1 = function (editor) {
+      return editor.inline ? editor.ui.styleSheetLoader : editor.dom.styleSheetLoader;
+    };
+    var makeStylesheetLoadingPromises = function (editor, css, framedFonts) {
+      var promises = [new promiseObj(function (resolve, reject) {
+          return getStyleSheetLoader$1(editor).loadAll(css, resolve, reject);
+        })];
+      if (editor.inline) {
+        return promises;
+      } else {
+        return promises.concat([new promiseObj(function (resolve, reject) {
+            return editor.ui.styleSheetLoader.loadAll(framedFonts, resolve, reject);
+          })]);
+      }
+    };
+    var loadContentCss = function (editor) {
+      var styleSheetLoader = getStyleSheetLoader$1(editor);
+      var fontCss = getFontCss(editor);
+      var css = editor.contentCSS;
+      var removeCss = function () {
+        styleSheetLoader.unloadAll(css);
+        if (!editor.inline) {
+          editor.ui.styleSheetLoader.unloadAll(fontCss);
+        }
+      };
+      var loaded = function () {
+        if (editor.removed) {
+          removeCss();
+        } else {
+          editor.on('remove', removeCss);
+        }
+      };
+      if (editor.contentStyles.length > 0) {
+        var contentCssText_1 = '';
+        Tools.each(editor.contentStyles, function (style) {
+          contentCssText_1 += style + '\r\n';
+        });
+        editor.dom.addStyle(contentCssText_1);
+      }
+      var allStylesheets = promiseObj.all(makeStylesheetLoadingPromises(editor, css, fontCss)).then(loaded).catch(loaded);
+      if (editor.settings.content_style) {
+        appendStyle(editor, editor.settings.content_style);
+      }
+      return allStylesheets;
+    };
+    var preInit = function (editor) {
+      var settings = editor.settings, doc = editor.getDoc(), body = editor.getBody();
+      firePreInit(editor);
+      if (!settings.browser_spellcheck && !settings.gecko_spellcheck) {
+        doc.body.spellcheck = false;
+        DOM$6.setAttrib(body, 'spellcheck', 'false');
+      }
+      editor.quirks = Quirks(editor);
+      firePostRender(editor);
+      var directionality = getDirectionality(editor);
+      if (directionality !== undefined) {
+        body.dir = directionality;
+      }
+      if (settings.protect) {
+        editor.on('BeforeSetContent', function (e) {
+          Tools.each(settings.protect, function (pattern) {
+            e.content = e.content.replace(pattern, function (str) {
+              return '<!--mce:protected ' + escape(str) + '-->';
+            });
+          });
+        });
+      }
+      editor.on('SetContent', function () {
+        editor.addVisual(editor.getBody());
+      });
+      editor.on('compositionstart compositionend', function (e) {
+        editor.composing = e.type === 'compositionstart';
+      });
+    };
+    var loadInitialContent = function (editor) {
+      if (!isRtc(editor)) {
+        editor.load({
+          initial: true,
+          format: 'html'
+        });
+      }
+      editor.startContent = editor.getContent({ format: 'raw' });
+    };
+    var initEditorWithInitialContent = function (editor) {
+      if (editor.removed !== true) {
+        loadInitialContent(editor);
+        initEditor(editor);
+      }
+    };
+    var initContentBody = function (editor, skipWrite) {
+      var settings = editor.settings;
+      var targetElm = editor.getElement();
+      var doc = editor.getDoc();
+      if (!settings.inline) {
+        editor.getElement().style.visibility = editor.orgVisibility;
+      }
+      if (!skipWrite && !editor.inline) {
+        doc.open();
+        doc.write(editor.iframeHTML);
+        doc.close();
+      }
+      if (editor.inline) {
+        DOM$6.addClass(targetElm, 'mce-content-body');
+        editor.contentDocument = doc = document;
+        editor.contentWindow = window;
+        editor.bodyElement = targetElm;
+        editor.contentAreaContainer = targetElm;
+      }
+      var body = editor.getBody();
+      body.disabled = true;
+      editor.readonly = !!settings.readonly;
+      if (!editor.readonly) {
+        if (editor.inline && DOM$6.getStyle(body, 'position', true) === 'static') {
+          body.style.position = 'relative';
+        }
+        body.contentEditable = editor.getParam('content_editable_state', true);
+      }
+      body.disabled = false;
+      editor.editorUpload = EditorUpload(editor);
+      editor.schema = Schema(settings);
+      editor.dom = DOMUtils(doc, {
+        keep_values: true,
+        url_converter: editor.convertURL,
+        url_converter_scope: editor,
+        hex_colors: settings.force_hex_style_colors,
+        update_styles: true,
+        root_element: editor.inline ? editor.getBody() : null,
+        collect: function () {
+          return editor.inline;
+        },
+        schema: editor.schema,
+        contentCssCors: shouldUseContentCssCors(editor),
+        referrerPolicy: getReferrerPolicy(editor),
+        onSetAttrib: function (e) {
+          editor.fire('SetAttrib', e);
+        }
+      });
+      editor.parser = createParser(editor);
+      editor.serializer = DomSerializer(mkSerializerSettings(editor), editor);
+      editor.selection = EditorSelection(editor.dom, editor.getWin(), editor.serializer, editor);
+      editor.annotator = Annotator(editor);
+      editor.formatter = Formatter(editor);
+      editor.undoManager = UndoManager(editor);
+      editor._nodeChangeDispatcher = new NodeChange(editor);
+      editor._selectionOverrides = SelectionOverrides(editor);
+      setup$e(editor);
+      setup$3(editor);
+      if (!isRtc(editor)) {
+        setup$2(editor);
+      }
+      var caret = setup$4(editor);
+      setup$f(editor, caret);
+      setup$d(editor);
+      setup$g(editor);
+      var setupRtcThunk = setup$i(editor);
+      preInit(editor);
+      setupRtcThunk.fold(function () {
+        loadContentCss(editor).then(function () {
+          return initEditorWithInitialContent(editor);
+        });
+      }, function (setupRtc) {
+        editor.setProgressState(true);
+        loadContentCss(editor).then(function () {
+          setupRtc().then(function (_rtcMode) {
+            editor.setProgressState(false);
+            initEditorWithInitialContent(editor);
+          }, function (err) {
+            editor.notificationManager.open({
+              type: 'error',
+              text: String(err)
+            });
+            initEditorWithInitialContent(editor);
+          });
+        });
+      });
+    };
+
+    var DOM$5 = DOMUtils.DOM;
+    var relaxDomain = function (editor, ifr) {
+      if (document.domain !== window.location.hostname && Env.browser.isIE()) {
+        var bodyUuid = uuid('mce');
+        editor[bodyUuid] = function () {
+          initContentBody(editor);
+        };
+        var domainRelaxUrl = 'javascript:(function(){' + 'document.open();document.domain="' + document.domain + '";' + 'var ed = window.parent.tinymce.get("' + editor.id + '");document.write(ed.iframeHTML);' + 'document.close();ed.' + bodyUuid + '(true);})()';
+        DOM$5.setAttrib(ifr, 'src', domainRelaxUrl);
+        return true;
+      }
+      return false;
+    };
+    var createIframeElement = function (id, title, height, customAttrs) {
+      var iframe = SugarElement.fromTag('iframe');
+      setAll$1(iframe, customAttrs);
+      setAll$1(iframe, {
+        id: id + '_ifr',
+        frameBorder: '0',
+        allowTransparency: 'true',
+        title: title
+      });
+      add$1(iframe, 'tox-edit-area__iframe');
+      return iframe;
+    };
+    var getIframeHtml = function (editor) {
+      var iframeHTML = getDocType(editor) + '<html><head>';
+      if (getDocumentBaseUrl(editor) !== editor.documentBaseUrl) {
+        iframeHTML += '<base href="' + editor.documentBaseURI.getURI() + '" />';
+      }
+      iframeHTML += '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />';
+      var bodyId = getBodyId(editor);
+      var bodyClass = getBodyClass(editor);
+      if (getContentSecurityPolicy(editor)) {
+        iframeHTML += '<meta http-equiv="Content-Security-Policy" content="' + getContentSecurityPolicy(editor) + '" />';
+      }
+      iframeHTML += '</head><body id="' + bodyId + '" class="mce-content-body ' + bodyClass + '" data-id="' + editor.id + '"><br></body></html>';
+      return iframeHTML;
+    };
+    var createIframe = function (editor, o) {
+      var iframeTranslatedTitle = editor.translate(getIframeTitle(editor));
+      var ifr = createIframeElement(editor.id, iframeTranslatedTitle, o.height, getIframeAttrs(editor)).dom;
+      ifr.onload = function () {
+        ifr.onload = null;
+        editor.fire('load');
+      };
+      var isDomainRelaxed = relaxDomain(editor, ifr);
+      editor.contentAreaContainer = o.iframeContainer;
+      editor.iframeElement = ifr;
+      editor.iframeHTML = getIframeHtml(editor);
+      DOM$5.add(o.iframeContainer, ifr);
+      return isDomainRelaxed;
+    };
+    var init$1 = function (editor, boxInfo) {
+      var isDomainRelaxed = createIframe(editor, boxInfo);
+      if (boxInfo.editorContainer) {
+        DOM$5.get(boxInfo.editorContainer).style.display = editor.orgDisplay;
+        editor.hidden = DOM$5.isHidden(boxInfo.editorContainer);
+      }
+      editor.getElement().style.display = 'none';
+      DOM$5.setAttrib(editor.id, 'aria-hidden', 'true');
+      if (!isDomainRelaxed) {
+        initContentBody(editor);
+      }
+    };
+
+    var DOM$4 = DOMUtils.DOM;
+    var initPlugin = function (editor, initializedPlugins, plugin) {
+      var Plugin = PluginManager.get(plugin);
+      var pluginUrl = PluginManager.urls[plugin] || editor.documentBaseUrl.replace(/\/$/, '');
+      plugin = Tools.trim(plugin);
+      if (Plugin && Tools.inArray(initializedPlugins, plugin) === -1) {
+        Tools.each(PluginManager.dependencies(plugin), function (dep) {
+          initPlugin(editor, initializedPlugins, dep);
+        });
+        if (editor.plugins[plugin]) {
+          return;
+        }
+        try {
+          var pluginInstance = new Plugin(editor, pluginUrl, editor.$);
+          editor.plugins[plugin] = pluginInstance;
+          if (pluginInstance.init) {
+            pluginInstance.init(editor, pluginUrl);
+            initializedPlugins.push(plugin);
+          }
+        } catch (e) {
+          pluginInitError(editor, plugin, e);
+        }
+      }
+    };
+    var trimLegacyPrefix = function (name) {
+      return name.replace(/^\-/, '');
+    };
+    var initPlugins = function (editor) {
+      var initializedPlugins = [];
+      Tools.each(getPlugins(editor).split(/[ ,]/), function (name) {
+        initPlugin(editor, initializedPlugins, trimLegacyPrefix(name));
+      });
+    };
+    var initIcons = function (editor) {
+      var iconPackName = Tools.trim(getIconPackName(editor));
+      var currentIcons = editor.ui.registry.getAll().icons;
+      var loadIcons = __assign(__assign({}, IconManager.get('default').icons), IconManager.get(iconPackName).icons);
+      each$j(loadIcons, function (svgData, icon) {
+        if (!has$2(currentIcons, icon)) {
+          editor.ui.registry.addIcon(icon, svgData);
+        }
+      });
+    };
+    var initTheme = function (editor) {
+      var theme = getTheme(editor);
+      if (isString$1(theme)) {
+        editor.settings.theme = trimLegacyPrefix(theme);
+        var Theme = ThemeManager.get(theme);
+        editor.theme = new Theme(editor, ThemeManager.urls[theme]);
+        if (editor.theme.init) {
+          editor.theme.init(editor, ThemeManager.urls[theme] || editor.documentBaseUrl.replace(/\/$/, ''), editor.$);
+        }
+      } else {
+        editor.theme = {};
+      }
+    };
+    var renderFromLoadedTheme = function (editor) {
+      return editor.theme.renderUI();
+    };
+    var renderFromThemeFunc = function (editor) {
+      var elm = editor.getElement();
+      var theme = getTheme(editor);
+      var info = theme(editor, elm);
+      if (info.editorContainer.nodeType) {
+        info.editorContainer.id = info.editorContainer.id || editor.id + '_parent';
+      }
+      if (info.iframeContainer && info.iframeContainer.nodeType) {
+        info.iframeContainer.id = info.iframeContainer.id || editor.id + '_iframecontainer';
+      }
+      info.height = info.iframeHeight ? info.iframeHeight : elm.offsetHeight;
+      return info;
+    };
+    var createThemeFalseResult = function (element) {
+      return {
+        editorContainer: element,
+        iframeContainer: element,
+        api: {}
+      };
+    };
+    var renderThemeFalseIframe = function (targetElement) {
+      var iframeContainer = DOM$4.create('div');
+      DOM$4.insertAfter(iframeContainer, targetElement);
+      return createThemeFalseResult(iframeContainer);
+    };
+    var renderThemeFalse = function (editor) {
+      var targetElement = editor.getElement();
+      return editor.inline ? createThemeFalseResult(null) : renderThemeFalseIframe(targetElement);
+    };
+    var renderThemeUi = function (editor) {
+      var elm = editor.getElement();
+      editor.orgDisplay = elm.style.display;
+      if (isString$1(getTheme(editor))) {
+        return renderFromLoadedTheme(editor);
+      } else if (isFunction(getTheme(editor))) {
+        return renderFromThemeFunc(editor);
+      } else {
+        return renderThemeFalse(editor);
+      }
+    };
+    var augmentEditorUiApi = function (editor, api) {
+      var uiApiFacade = {
+        show: Optional.from(api.show).getOr(noop),
+        hide: Optional.from(api.hide).getOr(noop),
+        disable: Optional.from(api.disable).getOr(noop),
+        isDisabled: Optional.from(api.isDisabled).getOr(never),
+        enable: function () {
+          if (!editor.mode.isReadOnly()) {
+            Optional.from(api.enable).map(call);
+          }
+        }
+      };
+      editor.ui = __assign(__assign({}, editor.ui), uiApiFacade);
+    };
+    var init = function (editor) {
+      editor.fire('ScriptsLoaded');
+      initIcons(editor);
+      initTheme(editor);
+      initPlugins(editor);
+      var renderInfo = renderThemeUi(editor);
+      augmentEditorUiApi(editor, Optional.from(renderInfo.api).getOr({}));
+      var boxInfo = {
+        editorContainer: renderInfo.editorContainer,
+        iframeContainer: renderInfo.iframeContainer
+      };
+      editor.editorContainer = boxInfo.editorContainer ? boxInfo.editorContainer : null;
+      appendContentCssFromSettings(editor);
+      if (editor.inline) {
+        return initContentBody(editor);
+      } else {
+        return init$1(editor, boxInfo);
+      }
+    };
+
+    var DOM$3 = DOMUtils.DOM;
+    var hasSkipLoadPrefix = function (name) {
+      return name.charAt(0) === '-';
+    };
+    var loadLanguage = function (scriptLoader, editor) {
+      var languageCode = getLanguageCode(editor);
+      var languageUrl = getLanguageUrl(editor);
+      if (I18n.hasCode(languageCode) === false && languageCode !== 'en') {
+        var url_1 = languageUrl !== '' ? languageUrl : editor.editorManager.baseURL + '/langs/' + languageCode + '.js';
+        scriptLoader.add(url_1, noop, undefined, function () {
+          languageLoadError(editor, url_1, languageCode);
+        });
+      }
+    };
+    var loadTheme = function (scriptLoader, editor, suffix, callback) {
+      var theme = getTheme(editor);
+      if (isString$1(theme)) {
+        if (!hasSkipLoadPrefix(theme) && !has$2(ThemeManager.urls, theme)) {
+          var themeUrl = getThemeUrl(editor);
+          if (themeUrl) {
+            ThemeManager.load(theme, editor.documentBaseURI.toAbsolute(themeUrl));
+          } else {
+            ThemeManager.load(theme, 'themes/' + theme + '/theme' + suffix + '.js');
+          }
+        }
+        scriptLoader.loadQueue(function () {
+          ThemeManager.waitFor(theme, callback);
+        });
+      } else {
+        callback();
+      }
+    };
+    var getIconsUrlMetaFromUrl = function (editor) {
+      return Optional.from(getIconsUrl(editor)).filter(function (url) {
+        return url.length > 0;
+      }).map(function (url) {
+        return {
+          url: url,
+          name: Optional.none()
+        };
+      });
+    };
+    var getIconsUrlMetaFromName = function (editor, name, suffix) {
+      return Optional.from(name).filter(function (name) {
+        return name.length > 0 && !IconManager.has(name);
+      }).map(function (name) {
+        return {
+          url: editor.editorManager.baseURL + '/icons/' + name + '/icons' + suffix + '.js',
+          name: Optional.some(name)
+        };
+      });
+    };
+    var loadIcons = function (scriptLoader, editor, suffix) {
+      var defaultIconsUrl = getIconsUrlMetaFromName(editor, 'default', suffix);
+      var customIconsUrl = getIconsUrlMetaFromUrl(editor).orThunk(function () {
+        return getIconsUrlMetaFromName(editor, getIconPackName(editor), '');
+      });
+      each$k(cat([
+        defaultIconsUrl,
+        customIconsUrl
+      ]), function (urlMeta) {
+        scriptLoader.add(urlMeta.url, noop, undefined, function () {
+          iconsLoadError(editor, urlMeta.url, urlMeta.name.getOrUndefined());
+        });
+      });
+    };
+    var loadPlugins = function (editor, suffix) {
+      Tools.each(getExternalPlugins$1(editor), function (url, name) {
+        PluginManager.load(name, url, noop, undefined, function () {
+          pluginLoadError(editor, url, name);
+        });
+        editor.settings.plugins += ' ' + name;
+      });
+      Tools.each(getPlugins(editor).split(/[ ,]/), function (plugin) {
+        plugin = Tools.trim(plugin);
+        if (plugin && !PluginManager.urls[plugin]) {
+          if (hasSkipLoadPrefix(plugin)) {
+            plugin = plugin.substr(1, plugin.length);
+            var dependencies = PluginManager.dependencies(plugin);
+            Tools.each(dependencies, function (depPlugin) {
+              var defaultSettings = {
+                prefix: 'plugins/',
+                resource: depPlugin,
+                suffix: '/plugin' + suffix + '.js'
+              };
+              var dep = PluginManager.createUrl(defaultSettings, depPlugin);
+              PluginManager.load(dep.resource, dep, noop, undefined, function () {
+                pluginLoadError(editor, dep.prefix + dep.resource + dep.suffix, dep.resource);
+              });
+            });
+          } else {
+            var url_2 = {
+              prefix: 'plugins/',
+              resource: plugin,
+              suffix: '/plugin' + suffix + '.js'
+            };
+            PluginManager.load(plugin, url_2, noop, undefined, function () {
+              pluginLoadError(editor, url_2.prefix + url_2.resource + url_2.suffix, plugin);
+            });
+          }
+        }
+      });
+    };
+    var loadScripts = function (editor, suffix) {
+      var scriptLoader = ScriptLoader.ScriptLoader;
+      loadTheme(scriptLoader, editor, suffix, function () {
+        loadLanguage(scriptLoader, editor);
+        loadIcons(scriptLoader, editor, suffix);
+        loadPlugins(editor, suffix);
+        scriptLoader.loadQueue(function () {
+          if (!editor.removed) {
+            init(editor);
+          }
+        }, editor, function () {
+          if (!editor.removed) {
+            init(editor);
+          }
+        });
+      });
+    };
+    var getStyleSheetLoader = function (element, editor) {
+      return instance.forElement(element, {
+        contentCssCors: hasContentCssCors(editor),
+        referrerPolicy: getReferrerPolicy(editor)
+      });
+    };
+    var render = function (editor) {
+      var id = editor.id;
+      I18n.setCode(getLanguageCode(editor));
+      var readyHandler = function () {
+        DOM$3.unbind(window, 'ready', readyHandler);
+        editor.render();
+      };
+      if (!EventUtils.Event.domLoaded) {
+        DOM$3.bind(window, 'ready', readyHandler);
+        return;
+      }
+      if (!editor.getElement()) {
+        return;
+      }
+      if (!Env.contentEditable) {
+        return;
+      }
+      var element = SugarElement.fromDom(editor.getElement());
+      var snapshot = clone$3(element);
+      editor.on('remove', function () {
+        eachr(element.dom.attributes, function (attr) {
+          return remove$6(element, attr.name);
+        });
+        setAll$1(element, snapshot);
+      });
+      editor.ui.styleSheetLoader = getStyleSheetLoader(element, editor);
+      if (!isInline(editor)) {
+        editor.orgVisibility = editor.getElement().style.visibility;
+        editor.getElement().style.visibility = 'hidden';
+      } else {
+        editor.inline = true;
+      }
+      var form = editor.getElement().form || DOM$3.getParent(id, 'form');
+      if (form) {
+        editor.formElement = form;
+        if (hasHiddenInput(editor) && !isTextareaOrInput(editor.getElement())) {
+          DOM$3.insertAfter(DOM$3.create('input', {
+            type: 'hidden',
+            name: id
+          }), id);
+          editor.hasHiddenInput = true;
+        }
+        editor.formEventDelegate = function (e) {
+          editor.fire(e.type, e);
+        };
+        DOM$3.bind(form, 'submit reset', editor.formEventDelegate);
+        editor.on('reset', function () {
+          editor.resetContent();
+        });
+        if (shouldPatchSubmit(editor) && !form.submit.nodeType && !form.submit.length && !form._mceOldSubmit) {
+          form._mceOldSubmit = form.submit;
+          form.submit = function () {
+            editor.editorManager.triggerSave();
+            editor.setDirty(false);
+            return form._mceOldSubmit(form);
+          };
+        }
+      }
+      editor.windowManager = WindowManager(editor);
+      editor.notificationManager = NotificationManager(editor);
+      if (isEncodingXml(editor)) {
+        editor.on('GetContent', function (e) {
+          if (e.save) {
+            e.content = DOM$3.encode(e.content);
+          }
+        });
+      }
+      if (shouldAddFormSubmitTrigger(editor)) {
+        editor.on('submit', function () {
+          if (editor.initialized) {
+            editor.save();
+          }
+        });
+      }
+      if (shouldAddUnloadTrigger(editor)) {
+        editor._beforeUnload = function () {
+          if (editor.initialized && !editor.destroyed && !editor.isHidden()) {
+            editor.save({
+              format: 'raw',
+              no_events: true,
+              set_dirty: false
+            });
+          }
+        };
+        editor.editorManager.on('BeforeUnload', editor._beforeUnload);
+      }
+      editor.editorManager.add(editor);
+      loadScripts(editor, editor.suffix);
+    };
+
+    var addVisual = function (editor, elm) {
+      return addVisual$1(editor, elm);
+    };
+
+    var legacyPropNames = {
+      'font-size': 'size',
+      'font-family': 'face'
+    };
+    var getSpecifiedFontProp = function (propName, rootElm, elm) {
+      var getProperty = function (elm) {
+        return getRaw(elm, propName).orThunk(function () {
+          if (name(elm) === 'font') {
+            return get$9(legacyPropNames, propName).bind(function (legacyPropName) {
+              return getOpt(elm, legacyPropName);
+            });
+          } else {
+            return Optional.none();
+          }
+        });
+      };
+      var isRoot = function (elm) {
+        return eq(SugarElement.fromDom(rootElm), elm);
+      };
+      return closest$1(SugarElement.fromDom(elm), function (elm) {
+        return getProperty(elm);
+      }, isRoot);
+    };
+    var normalizeFontFamily = function (fontFamily) {
+      return fontFamily.replace(/[\'\"\\]/g, '').replace(/,\s+/g, ',');
+    };
+    var getComputedFontProp = function (propName, elm) {
+      return Optional.from(DOMUtils.DOM.getStyle(elm, propName, true));
+    };
+    var getFontProp = function (propName) {
+      return function (rootElm, elm) {
+        return Optional.from(elm).map(SugarElement.fromDom).filter(isElement$6).bind(function (element) {
+          return getSpecifiedFontProp(propName, rootElm, element.dom).or(getComputedFontProp(propName, element.dom));
+        }).getOr('');
+      };
+    };
+    var getFontSize = getFontProp('font-size');
+    var getFontFamily = compose(normalizeFontFamily, getFontProp('font-family'));
+
+    var findFirstCaretElement = function (editor) {
+      return firstPositionIn(editor.getBody()).map(function (caret) {
+        var container = caret.container();
+        return isText$7(container) ? container.parentNode : container;
+      });
+    };
+    var getCaretElement = function (editor) {
+      return Optional.from(editor.selection.getRng()).bind(function (rng) {
+        var root = editor.getBody();
+        var atStartOfNode = rng.startContainer === root && rng.startOffset === 0;
+        return atStartOfNode ? Optional.none() : Optional.from(editor.selection.getStart(true));
+      });
+    };
+    var bindRange = function (editor, binder) {
+      return getCaretElement(editor).orThunk(curry(findFirstCaretElement, editor)).map(SugarElement.fromDom).filter(isElement$6).bind(binder);
+    };
+    var mapRange = function (editor, mapper) {
+      return bindRange(editor, compose1(Optional.some, mapper));
+    };
+
+    var fromFontSizeNumber = function (editor, value) {
+      if (/^[0-9.]+$/.test(value)) {
+        var fontSizeNumber = parseInt(value, 10);
+        if (fontSizeNumber >= 1 && fontSizeNumber <= 7) {
+          var fontSizes = getFontStyleValues(editor);
+          var fontClasses = getFontSizeClasses(editor);
+          if (fontClasses) {
+            return fontClasses[fontSizeNumber - 1] || value;
+          } else {
+            return fontSizes[fontSizeNumber - 1] || value;
+          }
+        } else {
+          return value;
+        }
+      } else {
+        return value;
+      }
+    };
+    var normalizeFontNames = function (font) {
+      var fonts = font.split(/\s*,\s*/);
+      return map$3(fonts, function (font) {
+        if (font.indexOf(' ') !== -1 && !(startsWith(font, '"') || startsWith(font, '\''))) {
+          return '\'' + font + '\'';
+        } else {
+          return font;
+        }
+      }).join(',');
+    };
+    var fontNameAction = function (editor, value) {
+      var font = fromFontSizeNumber(editor, value);
+      editor.formatter.toggle('fontname', { value: normalizeFontNames(font) });
+      editor.nodeChanged();
+    };
+    var fontNameQuery = function (editor) {
+      return mapRange(editor, function (elm) {
+        return getFontFamily(editor.getBody(), elm.dom);
+      }).getOr('');
+    };
+    var fontSizeAction = function (editor, value) {
+      editor.formatter.toggle('fontsize', { value: fromFontSizeNumber(editor, value) });
+      editor.nodeChanged();
+    };
+    var fontSizeQuery = function (editor) {
+      return mapRange(editor, function (elm) {
+        return getFontSize(editor.getBody(), elm.dom);
+      }).getOr('');
+    };
+
+    var lineHeightQuery = function (editor) {
+      return mapRange(editor, function (elm) {
+        var root = SugarElement.fromDom(editor.getBody());
+        var specifiedStyle = closest$1(elm, function (elm) {
+          return getRaw(elm, 'line-height');
+        }, curry(eq, root));
+        var computedStyle = function () {
+          var lineHeight = parseFloat(get$5(elm, 'line-height'));
+          var fontSize = parseFloat(get$5(elm, 'font-size'));
+          return String(lineHeight / fontSize);
+        };
+        return specifiedStyle.getOrThunk(computedStyle);
+      }).getOr('');
+    };
+    var lineHeightAction = function (editor, lineHeight) {
+      editor.formatter.toggle('lineheight', { value: String(lineHeight) });
+      editor.nodeChanged();
+    };
+
+    var processValue = function (value) {
+      if (typeof value !== 'string') {
+        var details = Tools.extend({
+          paste: value.paste,
+          data: { paste: value.paste }
+        }, value);
+        return {
+          content: value.content,
+          details: details
+        };
+      }
+      return {
+        content: value,
+        details: {}
+      };
+    };
+    var insertAtCaret = function (editor, value) {
+      var result = processValue(value);
+      insertContent(editor, result.content, result.details);
+    };
+
+    var each$5 = Tools.each;
+    var map = Tools.map, inArray = Tools.inArray;
+    var EditorCommands = function () {
+      function EditorCommands(editor) {
+        this.commands = {
+          state: {},
+          exec: {},
+          value: {}
+        };
+        this.editor = editor;
+        this.setupCommands(editor);
+      }
+      EditorCommands.prototype.execCommand = function (command, ui, value, args) {
+        var func, state = false;
+        var self = this;
+        if (self.editor.removed) {
+          return;
+        }
+        if (command.toLowerCase() !== 'mcefocus') {
+          if (!/^(mceAddUndoLevel|mceEndUndoLevel|mceBeginUndoLevel|mceRepaint)$/.test(command) && (!args || !args.skip_focus)) {
+            self.editor.focus();
+          } else {
+            restore(self.editor);
+          }
+        }
+        args = self.editor.fire('BeforeExecCommand', {
+          command: command,
+          ui: ui,
+          value: value
+        });
+        if (args.isDefaultPrevented()) {
+          return false;
+        }
+        var customCommand = command.toLowerCase();
+        if (func = self.commands.exec[customCommand]) {
+          func(customCommand, ui, value);
+          self.editor.fire('ExecCommand', {
+            command: command,
+            ui: ui,
+            value: value
+          });
+          return true;
+        }
+        each$5(this.editor.plugins, function (p) {
+          if (p.execCommand && p.execCommand(command, ui, value)) {
+            self.editor.fire('ExecCommand', {
+              command: command,
+              ui: ui,
+              value: value
+            });
+            state = true;
+            return false;
+          }
+        });
+        if (state) {
+          return state;
+        }
+        if (self.editor.theme && self.editor.theme.execCommand && self.editor.theme.execCommand(command, ui, value)) {
+          self.editor.fire('ExecCommand', {
+            command: command,
+            ui: ui,
+            value: value
+          });
+          return true;
+        }
+        try {
+          state = self.editor.getDoc().execCommand(command, ui, value);
+        } catch (ex) {
+        }
+        if (state) {
+          self.editor.fire('ExecCommand', {
+            command: command,
+            ui: ui,
+            value: value
+          });
+          return true;
+        }
+        return false;
+      };
+      EditorCommands.prototype.queryCommandState = function (command) {
+        var func;
+        if (this.editor.quirks.isHidden() || this.editor.removed) {
+          return;
+        }
+        command = command.toLowerCase();
+        if (func = this.commands.state[command]) {
+          return func(command);
+        }
+        try {
+          return this.editor.getDoc().queryCommandState(command);
+        } catch (ex) {
+        }
+        return false;
+      };
+      EditorCommands.prototype.queryCommandValue = function (command) {
+        var func;
+        if (this.editor.quirks.isHidden() || this.editor.removed) {
+          return;
+        }
+        command = command.toLowerCase();
+        if (func = this.commands.value[command]) {
+          return func(command);
+        }
+        try {
+          return this.editor.getDoc().queryCommandValue(command);
+        } catch (ex) {
+        }
+      };
+      EditorCommands.prototype.addCommands = function (commandList, type) {
+        if (type === void 0) {
+          type = 'exec';
+        }
+        var self = this;
+        each$5(commandList, function (callback, command) {
+          each$5(command.toLowerCase().split(','), function (command) {
+            self.commands[type][command] = callback;
+          });
+        });
+      };
+      EditorCommands.prototype.addCommand = function (command, callback, scope) {
+        var _this = this;
+        command = command.toLowerCase();
+        this.commands.exec[command] = function (command, ui, value, args) {
+          return callback.call(scope || _this.editor, ui, value, args);
+        };
+      };
+      EditorCommands.prototype.queryCommandSupported = function (command) {
+        command = command.toLowerCase();
+        if (this.commands.exec[command]) {
+          return true;
+        }
+        try {
+          return this.editor.getDoc().queryCommandSupported(command);
+        } catch (ex) {
+        }
+        return false;
+      };
+      EditorCommands.prototype.addQueryStateHandler = function (command, callback, scope) {
+        var _this = this;
+        command = command.toLowerCase();
+        this.commands.state[command] = function () {
+          return callback.call(scope || _this.editor);
+        };
+      };
+      EditorCommands.prototype.addQueryValueHandler = function (command, callback, scope) {
+        var _this = this;
+        command = command.toLowerCase();
+        this.commands.value[command] = function () {
+          return callback.call(scope || _this.editor);
+        };
+      };
+      EditorCommands.prototype.hasCustomCommand = function (command) {
+        command = command.toLowerCase();
+        return !!this.commands.exec[command];
+      };
+      EditorCommands.prototype.execNativeCommand = function (command, ui, value) {
+        if (ui === undefined) {
+          ui = false;
+        }
+        if (value === undefined) {
+          value = null;
+        }
+        return this.editor.getDoc().execCommand(command, ui, value);
+      };
+      EditorCommands.prototype.isFormatMatch = function (name) {
+        return this.editor.formatter.match(name);
+      };
+      EditorCommands.prototype.toggleFormat = function (name, value) {
+        this.editor.formatter.toggle(name, value);
+        this.editor.nodeChanged();
+      };
+      EditorCommands.prototype.storeSelection = function (type) {
+        this.selectionBookmark = this.editor.selection.getBookmark(type);
+      };
+      EditorCommands.prototype.restoreSelection = function () {
+        this.editor.selection.moveToBookmark(this.selectionBookmark);
+      };
+      EditorCommands.prototype.setupCommands = function (editor) {
+        var self = this;
+        this.addCommands({
+          'mceResetDesignMode,mceBeginUndoLevel': noop,
+          'mceEndUndoLevel,mceAddUndoLevel': function () {
+            editor.undoManager.add();
+          },
+          'mceFocus': function (_command, _ui, value) {
+            focus(editor, value);
+          },
+          'Cut,Copy,Paste': function (command) {
+            var doc = editor.getDoc();
+            var failed;
+            try {
+              self.execNativeCommand(command);
+            } catch (ex) {
+              failed = true;
+            }
+            if (command === 'paste' && !doc.queryCommandEnabled(command)) {
+              failed = true;
+            }
+            if (failed || !doc.queryCommandSupported(command)) {
+              var msg = editor.translate('Your browser doesn\'t support direct access to the clipboard. ' + 'Please use the Ctrl+X/C/V keyboard shortcuts instead.');
+              if (Env.mac) {
+                msg = msg.replace(/Ctrl\+/g, '\u2318+');
+              }
+              editor.notificationManager.open({
+                text: msg,
+                type: 'error'
+              });
+            }
+          },
+          'unlink': function () {
+            if (editor.selection.isCollapsed()) {
+              var elm = editor.dom.getParent(editor.selection.getStart(), 'a');
+              if (elm) {
+                editor.dom.remove(elm, true);
+              }
+              return;
+            }
+            editor.formatter.remove('link');
+          },
+          'JustifyLeft,JustifyCenter,JustifyRight,JustifyFull,JustifyNone': function (command) {
+            var align = command.substring(7);
+            if (align === 'full') {
+              align = 'justify';
+            }
+            each$5('left,center,right,justify'.split(','), function (name) {
+              if (align !== name) {
+                editor.formatter.remove('align' + name);
+              }
+            });
+            if (align !== 'none') {
+              self.toggleFormat('align' + align);
+            }
+          },
+          'InsertUnorderedList,InsertOrderedList': function (command) {
+            var listParent;
+            self.execNativeCommand(command);
+            var listElm = editor.dom.getParent(editor.selection.getNode(), 'ol,ul');
+            if (listElm) {
+              listParent = listElm.parentNode;
+              if (/^(H[1-6]|P|ADDRESS|PRE)$/.test(listParent.nodeName)) {
+                self.storeSelection();
+                editor.dom.split(listParent, listElm);
+                self.restoreSelection();
+              }
+            }
+          },
+          'Bold,Italic,Underline,Strikethrough,Superscript,Subscript': function (command) {
+            self.toggleFormat(command);
+          },
+          'ForeColor,HiliteColor': function (command, ui, value) {
+            self.toggleFormat(command, { value: value });
+          },
+          'FontName': function (command, ui, value) {
+            fontNameAction(editor, value);
+          },
+          'FontSize': function (command, ui, value) {
+            fontSizeAction(editor, value);
+          },
+          'LineHeight': function (command, ui, value) {
+            lineHeightAction(editor, value);
+          },
+          'Lang': function (command, ui, lang) {
+            self.toggleFormat(command, {
+              value: lang.code,
+              customValue: lang.customCode
+            });
+          },
+          'RemoveFormat': function (command) {
+            editor.formatter.remove(command);
+          },
+          'mceBlockQuote': function () {
+            self.toggleFormat('blockquote');
+          },
+          'FormatBlock': function (command, ui, value) {
+            return self.toggleFormat(value || 'p');
+          },
+          'mceCleanup': function () {
+            var bookmark = editor.selection.getBookmark();
+            editor.setContent(editor.getContent());
+            editor.selection.moveToBookmark(bookmark);
+          },
+          'mceRemoveNode': function (command, ui, value) {
+            var node = value || editor.selection.getNode();
+            if (node !== editor.getBody()) {
+              self.storeSelection();
+              editor.dom.remove(node, true);
+              self.restoreSelection();
+            }
+          },
+          'mceSelectNodeDepth': function (command, ui, value) {
+            var counter = 0;
+            editor.dom.getParent(editor.selection.getNode(), function (node) {
+              if (node.nodeType === 1 && counter++ === value) {
+                editor.selection.select(node);
+                return false;
+              }
+            }, editor.getBody());
+          },
+          'mceSelectNode': function (command, ui, value) {
+            editor.selection.select(value);
+          },
+          'mceInsertContent': function (command, ui, value) {
+            insertAtCaret(editor, value);
+          },
+          'mceInsertRawHTML': function (command, ui, value) {
+            editor.selection.setContent('tiny_mce_marker');
+            var content = editor.getContent();
+            editor.setContent(content.replace(/tiny_mce_marker/g, function () {
+              return value;
+            }));
+          },
+          'mceInsertNewLine': function (command, ui, value) {
+            insert(editor, value);
+          },
+          'mceToggleFormat': function (command, ui, value) {
+            self.toggleFormat(value);
+          },
+          'mceSetContent': function (command, ui, value) {
+            editor.setContent(value);
+          },
+          'Indent,Outdent': function (command) {
+            handle(editor, command);
+          },
+          'mceRepaint': noop,
+          'InsertHorizontalRule': function () {
+            editor.execCommand('mceInsertContent', false, '<hr />');
+          },
+          'mceToggleVisualAid': function () {
+            editor.hasVisual = !editor.hasVisual;
+            editor.addVisual();
+          },
+          'mceReplaceContent': function (command, ui, value) {
+            editor.execCommand('mceInsertContent', false, value.replace(/\{\$selection\}/g, editor.selection.getContent({ format: 'text' })));
+          },
+          'mceInsertLink': function (command, ui, value) {
+            if (typeof value === 'string') {
+              value = { href: value };
+            }
+            var anchor = editor.dom.getParent(editor.selection.getNode(), 'a');
+            value.href = value.href.replace(/ /g, '%20');
+            if (!anchor || !value.href) {
+              editor.formatter.remove('link');
+            }
+            if (value.href) {
+              editor.formatter.apply('link', value, anchor);
+            }
+          },
+          'selectAll': function () {
+            var editingHost = editor.dom.getParent(editor.selection.getStart(), isContentEditableTrue$4);
+            if (editingHost) {
+              var rng = editor.dom.createRng();
+              rng.selectNodeContents(editingHost);
+              editor.selection.setRng(rng);
+            }
+          },
+          'mceNewDocument': function () {
+            editor.setContent('');
+          },
+          'InsertLineBreak': function (command, ui, value) {
+            insert$1(editor, value);
+            return true;
+          }
+        });
+        var alignStates = function (name) {
+          return function () {
+            var selection = editor.selection;
+            var nodes = selection.isCollapsed() ? [editor.dom.getParent(selection.getNode(), editor.dom.isBlock)] : selection.getSelectedBlocks();
+            var matches = map(nodes, function (node) {
+              return !!editor.formatter.matchNode(node, name);
+            });
+            return inArray(matches, true) !== -1;
+          };
+        };
+        self.addCommands({
+          'JustifyLeft': alignStates('alignleft'),
+          'JustifyCenter': alignStates('aligncenter'),
+          'JustifyRight': alignStates('alignright'),
+          'JustifyFull': alignStates('alignjustify'),
+          'Bold,Italic,Underline,Strikethrough,Superscript,Subscript': function (command) {
+            return self.isFormatMatch(command);
+          },
+          'mceBlockQuote': function () {
+            return self.isFormatMatch('blockquote');
+          },
+          'Outdent': function () {
+            return canOutdent(editor);
+          },
+          'InsertUnorderedList,InsertOrderedList': function (command) {
+            var list = editor.dom.getParent(editor.selection.getNode(), 'ul,ol');
+            return list && (command === 'insertunorderedlist' && list.tagName === 'UL' || command === 'insertorderedlist' && list.tagName === 'OL');
+          }
+        }, 'state');
+        self.addCommands({
+          Undo: function () {
+            editor.undoManager.undo();
+          },
+          Redo: function () {
+            editor.undoManager.redo();
+          }
+        });
+        self.addQueryValueHandler('FontName', function () {
+          return fontNameQuery(editor);
+        }, this);
+        self.addQueryValueHandler('FontSize', function () {
+          return fontSizeQuery(editor);
+        }, this);
+        self.addQueryValueHandler('LineHeight', function () {
+          return lineHeightQuery(editor);
+        }, this);
+      };
+      return EditorCommands;
+    }();
+
+    var internalContentEditableAttr = 'data-mce-contenteditable';
+    var toggleClass = function (elm, cls, state) {
+      if (has(elm, cls) && state === false) {
+        remove$3(elm, cls);
+      } else if (state) {
+        add$1(elm, cls);
+      }
+    };
+    var setEditorCommandState = function (editor, cmd, state) {
+      try {
+        editor.getDoc().execCommand(cmd, false, String(state));
+      } catch (ex) {
+      }
+    };
+    var setContentEditable = function (elm, state) {
+      elm.dom.contentEditable = state ? 'true' : 'false';
+    };
+    var switchOffContentEditableTrue = function (elm) {
+      each$k(descendants(elm, '*[contenteditable="true"]'), function (elm) {
+        set$1(elm, internalContentEditableAttr, 'true');
+        setContentEditable(elm, false);
+      });
+    };
+    var switchOnContentEditableTrue = function (elm) {
+      each$k(descendants(elm, '*[' + internalContentEditableAttr + '="true"]'), function (elm) {
+        remove$6(elm, internalContentEditableAttr);
+        setContentEditable(elm, true);
+      });
+    };
+    var removeFakeSelection = function (editor) {
+      Optional.from(editor.selection.getNode()).each(function (elm) {
+        elm.removeAttribute('data-mce-selected');
+      });
+    };
+    var restoreFakeSelection = function (editor) {
+      editor.selection.setRng(editor.selection.getRng());
+    };
+    var toggleReadOnly = function (editor, state) {
+      var body = SugarElement.fromDom(editor.getBody());
+      toggleClass(body, 'mce-content-readonly', state);
+      if (state) {
+        editor.selection.controlSelection.hideResizeRect();
+        editor._selectionOverrides.hideFakeCaret();
+        removeFakeSelection(editor);
+        editor.readonly = true;
+        setContentEditable(body, false);
+        switchOffContentEditableTrue(body);
+      } else {
+        editor.readonly = false;
+        setContentEditable(body, true);
+        switchOnContentEditableTrue(body);
+        setEditorCommandState(editor, 'StyleWithCSS', false);
+        setEditorCommandState(editor, 'enableInlineTableEditing', false);
+        setEditorCommandState(editor, 'enableObjectResizing', false);
+        if (hasEditorOrUiFocus(editor)) {
+          editor.focus();
+        }
+        restoreFakeSelection(editor);
+        editor.nodeChanged();
+      }
+    };
+    var isReadOnly = function (editor) {
+      return editor.readonly;
+    };
+    var registerFilters = function (editor) {
+      editor.parser.addAttributeFilter('contenteditable', function (nodes) {
+        if (isReadOnly(editor)) {
+          each$k(nodes, function (node) {
+            node.attr(internalContentEditableAttr, node.attr('contenteditable'));
+            node.attr('contenteditable', 'false');
+          });
+        }
+      });
+      editor.serializer.addAttributeFilter(internalContentEditableAttr, function (nodes) {
+        if (isReadOnly(editor)) {
+          each$k(nodes, function (node) {
+            node.attr('contenteditable', node.attr(internalContentEditableAttr));
+          });
+        }
+      });
+      editor.serializer.addTempAttr(internalContentEditableAttr);
+    };
+    var registerReadOnlyContentFilters = function (editor) {
+      if (editor.serializer) {
+        registerFilters(editor);
+      } else {
+        editor.on('PreInit', function () {
+          registerFilters(editor);
+        });
+      }
+    };
+    var isClickEvent = function (e) {
+      return e.type === 'click';
+    };
+    var getAnchorHrefOpt = function (editor, elm) {
+      var isRoot = function (elm) {
+        return eq(elm, SugarElement.fromDom(editor.getBody()));
+      };
+      return closest$2(elm, 'a', isRoot).bind(function (a) {
+        return getOpt(a, 'href');
+      });
+    };
+    var processReadonlyEvents = function (editor, e) {
+      if (isClickEvent(e) && !VK.metaKeyPressed(e)) {
+        var elm = SugarElement.fromDom(e.target);
+        getAnchorHrefOpt(editor, elm).each(function (href) {
+          e.preventDefault();
+          if (/^#/.test(href)) {
+            var targetEl = editor.dom.select(href + ',[name="' + removeLeading(href, '#') + '"]');
+            if (targetEl.length) {
+              editor.selection.scrollIntoView(targetEl[0], true);
+            }
+          } else {
+            window.open(href, '_blank', 'rel=noopener noreferrer,menubar=yes,toolbar=yes,location=yes,status=yes,resizable=yes,scrollbars=yes');
+          }
+        });
+      }
+    };
+    var registerReadOnlySelectionBlockers = function (editor) {
+      editor.on('ShowCaret', function (e) {
+        if (isReadOnly(editor)) {
+          e.preventDefault();
+        }
+      });
+      editor.on('ObjectSelected', function (e) {
+        if (isReadOnly(editor)) {
+          e.preventDefault();
+        }
+      });
+    };
+
+    var nativeEvents = Tools.makeMap('focus blur focusin focusout click dblclick mousedown mouseup mousemove mouseover beforepaste paste cut copy selectionchange ' + 'mouseout mouseenter mouseleave wheel keydown keypress keyup input beforeinput contextmenu dragstart dragend dragover ' + 'draggesture dragdrop drop drag submit ' + 'compositionstart compositionend compositionupdate touchstart touchmove touchend touchcancel', ' ');
+    var EventDispatcher = function () {
+      function EventDispatcher(settings) {
+        this.bindings = {};
+        this.settings = settings || {};
+        this.scope = this.settings.scope || this;
+        this.toggleEvent = this.settings.toggleEvent || never;
+      }
+      EventDispatcher.isNative = function (name) {
+        return !!nativeEvents[name.toLowerCase()];
+      };
+      EventDispatcher.prototype.fire = function (name, args) {
+        var lcName = name.toLowerCase();
+        var event = normalize$3(lcName, args || {}, this.scope);
+        if (this.settings.beforeFire) {
+          this.settings.beforeFire(event);
+        }
+        var handlers = this.bindings[lcName];
+        if (handlers) {
+          for (var i = 0, l = handlers.length; i < l; i++) {
+            var callback = handlers[i];
+            if (callback.removed) {
+              continue;
+            }
+            if (callback.once) {
+              this.off(lcName, callback.func);
+            }
+            if (event.isImmediatePropagationStopped()) {
+              return event;
+            }
+            if (callback.func.call(this.scope, event) === false) {
+              event.preventDefault();
+              return event;
+            }
+          }
+        }
+        return event;
+      };
+      EventDispatcher.prototype.on = function (name, callback, prepend, extra) {
+        if (callback === false) {
+          callback = never;
+        }
+        if (callback) {
+          var wrappedCallback = {
+            func: callback,
+            removed: false
+          };
+          if (extra) {
+            Tools.extend(wrappedCallback, extra);
+          }
+          var names = name.toLowerCase().split(' ');
+          var i = names.length;
+          while (i--) {
+            var currentName = names[i];
+            var handlers = this.bindings[currentName];
+            if (!handlers) {
+              handlers = [];
+              this.toggleEvent(currentName, true);
+            }
+            if (prepend) {
+              handlers = __spreadArray([wrappedCallback], handlers);
+            } else {
+              handlers = __spreadArray(__spreadArray([], handlers), [wrappedCallback]);
+            }
+            this.bindings[currentName] = handlers;
+          }
+        }
+        return this;
+      };
+      EventDispatcher.prototype.off = function (name, callback) {
+        var _this = this;
+        if (name) {
+          var names = name.toLowerCase().split(' ');
+          var i = names.length;
+          while (i--) {
+            var currentName = names[i];
+            var handlers = this.bindings[currentName];
+            if (!currentName) {
+              each$j(this.bindings, function (_value, bindingName) {
+                _this.toggleEvent(bindingName, false);
+                delete _this.bindings[bindingName];
+              });
+              return this;
+            }
+            if (handlers) {
+              if (!callback) {
+                handlers.length = 0;
+              } else {
+                var filteredHandlers = partition(handlers, function (handler) {
+                  return handler.func === callback;
+                });
+                handlers = filteredHandlers.fail;
+                this.bindings[currentName] = handlers;
+                each$k(filteredHandlers.pass, function (handler) {
+                  handler.removed = true;
+                });
+              }
+              if (!handlers.length) {
+                this.toggleEvent(name, false);
+                delete this.bindings[currentName];
+              }
+            }
+          }
+        } else {
+          each$j(this.bindings, function (_value, name) {
+            _this.toggleEvent(name, false);
+          });
+          this.bindings = {};
+        }
+        return this;
+      };
+      EventDispatcher.prototype.once = function (name, callback, prepend) {
+        return this.on(name, callback, prepend, { once: true });
+      };
+      EventDispatcher.prototype.has = function (name) {
+        name = name.toLowerCase();
+        return !(!this.bindings[name] || this.bindings[name].length === 0);
+      };
+      return EventDispatcher;
+    }();
+
+    var getEventDispatcher = function (obj) {
+      if (!obj._eventDispatcher) {
+        obj._eventDispatcher = new EventDispatcher({
+          scope: obj,
+          toggleEvent: function (name, state) {
+            if (EventDispatcher.isNative(name) && obj.toggleNativeEvent) {
+              obj.toggleNativeEvent(name, state);
+            }
+          }
+        });
+      }
+      return obj._eventDispatcher;
+    };
+    var Observable = {
+      fire: function (name, args, bubble) {
+        var self = this;
+        if (self.removed && name !== 'remove' && name !== 'detach') {
+          return args;
+        }
+        var dispatcherArgs = getEventDispatcher(self).fire(name, args);
+        if (bubble !== false && self.parent) {
+          var parent_1 = self.parent();
+          while (parent_1 && !dispatcherArgs.isPropagationStopped()) {
+            parent_1.fire(name, dispatcherArgs, false);
+            parent_1 = parent_1.parent();
+          }
+        }
+        return dispatcherArgs;
+      },
+      on: function (name, callback, prepend) {
+        return getEventDispatcher(this).on(name, callback, prepend);
+      },
+      off: function (name, callback) {
+        return getEventDispatcher(this).off(name, callback);
+      },
+      once: function (name, callback) {
+        return getEventDispatcher(this).once(name, callback);
+      },
+      hasEventListeners: function (name) {
+        return getEventDispatcher(this).has(name);
+      }
+    };
+
+    var DOM$2 = DOMUtils.DOM;
+    var customEventRootDelegates;
+    var getEventTarget = function (editor, eventName) {
+      if (eventName === 'selectionchange') {
+        return editor.getDoc();
+      }
+      if (!editor.inline && /^mouse|touch|click|contextmenu|drop|dragover|dragend/.test(eventName)) {
+        return editor.getDoc().documentElement;
+      }
+      var eventRoot = getEventRoot(editor);
+      if (eventRoot) {
+        if (!editor.eventRoot) {
+          editor.eventRoot = DOM$2.select(eventRoot)[0];
+        }
+        return editor.eventRoot;
+      }
+      return editor.getBody();
+    };
+    var isListening = function (editor) {
+      return !editor.hidden && !isReadOnly(editor);
+    };
+    var fireEvent = function (editor, eventName, e) {
+      if (isListening(editor)) {
+        editor.fire(eventName, e);
+      } else if (isReadOnly(editor)) {
+        processReadonlyEvents(editor, e);
+      }
+    };
+    var bindEventDelegate = function (editor, eventName) {
+      var delegate;
+      if (!editor.delegates) {
+        editor.delegates = {};
+      }
+      if (editor.delegates[eventName] || editor.removed) {
+        return;
+      }
+      var eventRootElm = getEventTarget(editor, eventName);
+      if (getEventRoot(editor)) {
+        if (!customEventRootDelegates) {
+          customEventRootDelegates = {};
+          editor.editorManager.on('removeEditor', function () {
+            if (!editor.editorManager.activeEditor) {
+              if (customEventRootDelegates) {
+                each$j(customEventRootDelegates, function (_value, name) {
+                  editor.dom.unbind(getEventTarget(editor, name));
+                });
+                customEventRootDelegates = null;
+              }
+            }
+          });
+        }
+        if (customEventRootDelegates[eventName]) {
+          return;
+        }
+        delegate = function (e) {
+          var target = e.target;
+          var editors = editor.editorManager.get();
+          var i = editors.length;
+          while (i--) {
+            var body = editors[i].getBody();
+            if (body === target || DOM$2.isChildOf(target, body)) {
+              fireEvent(editors[i], eventName, e);
+            }
+          }
+        };
+        customEventRootDelegates[eventName] = delegate;
+        DOM$2.bind(eventRootElm, eventName, delegate);
+      } else {
+        delegate = function (e) {
+          fireEvent(editor, eventName, e);
+        };
+        DOM$2.bind(eventRootElm, eventName, delegate);
+        editor.delegates[eventName] = delegate;
+      }
+    };
+    var EditorObservable = __assign(__assign({}, Observable), {
+      bindPendingEventDelegates: function () {
+        var self = this;
+        Tools.each(self._pendingNativeEvents, function (name) {
+          bindEventDelegate(self, name);
+        });
+      },
+      toggleNativeEvent: function (name, state) {
+        var self = this;
+        if (name === 'focus' || name === 'blur') {
+          return;
+        }
+        if (self.removed) {
+          return;
+        }
+        if (state) {
+          if (self.initialized) {
+            bindEventDelegate(self, name);
+          } else {
+            if (!self._pendingNativeEvents) {
+              self._pendingNativeEvents = [name];
+            } else {
+              self._pendingNativeEvents.push(name);
+            }
+          }
+        } else if (self.initialized) {
+          self.dom.unbind(getEventTarget(self, name), name, self.delegates[name]);
+          delete self.delegates[name];
+        }
+      },
+      unbindAllNativeEvents: function () {
+        var self = this;
+        var body = self.getBody();
+        var dom = self.dom;
+        if (self.delegates) {
+          each$j(self.delegates, function (value, name) {
+            self.dom.unbind(getEventTarget(self, name), name, value);
+          });
+          delete self.delegates;
+        }
+        if (!self.inline && body && dom) {
+          body.onload = null;
+          dom.unbind(self.getWin());
+          dom.unbind(self.getDoc());
+        }
+        if (dom) {
+          dom.unbind(body);
+          dom.unbind(self.getContainer());
+        }
+      }
+    });
+
+    var defaultModes = [
+      'design',
+      'readonly'
+    ];
+    var switchToMode = function (editor, activeMode, availableModes, mode) {
+      var oldMode = availableModes[activeMode.get()];
+      var newMode = availableModes[mode];
+      try {
+        newMode.activate();
+      } catch (e) {
+        console.error('problem while activating editor mode ' + mode + ':', e);
+        return;
+      }
+      oldMode.deactivate();
+      if (oldMode.editorReadOnly !== newMode.editorReadOnly) {
+        toggleReadOnly(editor, newMode.editorReadOnly);
+      }
+      activeMode.set(mode);
+      fireSwitchMode(editor, mode);
+    };
+    var setMode = function (editor, availableModes, activeMode, mode) {
+      if (mode === activeMode.get()) {
+        return;
+      } else if (!has$2(availableModes, mode)) {
+        throw new Error('Editor mode \'' + mode + '\' is invalid');
+      }
+      if (editor.initialized) {
+        switchToMode(editor, activeMode, availableModes, mode);
+      } else {
+        editor.on('init', function () {
+          return switchToMode(editor, activeMode, availableModes, mode);
+        });
+      }
+    };
+    var registerMode = function (availableModes, mode, api) {
+      var _a;
+      if (contains$3(defaultModes, mode)) {
+        throw new Error('Cannot override default mode ' + mode);
+      }
+      return __assign(__assign({}, availableModes), (_a = {}, _a[mode] = __assign(__assign({}, api), {
+        deactivate: function () {
+          try {
+            api.deactivate();
+          } catch (e) {
+            console.error('problem while deactivating editor mode ' + mode + ':', e);
+          }
+        }
+      }), _a));
+    };
+
+    var create$4 = function (editor) {
+      var activeMode = Cell('design');
+      var availableModes = Cell({
+        design: {
+          activate: noop,
+          deactivate: noop,
+          editorReadOnly: false
+        },
+        readonly: {
+          activate: noop,
+          deactivate: noop,
+          editorReadOnly: true
+        }
+      });
+      registerReadOnlyContentFilters(editor);
+      registerReadOnlySelectionBlockers(editor);
+      return {
+        isReadOnly: function () {
+          return isReadOnly(editor);
+        },
+        set: function (mode) {
+          return setMode(editor, availableModes.get(), activeMode, mode);
+        },
+        get: function () {
+          return activeMode.get();
+        },
+        register: function (mode, api) {
+          availableModes.set(registerMode(availableModes.get(), mode, api));
+        }
+      };
+    };
+
+    var each$4 = Tools.each, explode$1 = Tools.explode;
+    var keyCodeLookup = {
+      f1: 112,
+      f2: 113,
+      f3: 114,
+      f4: 115,
+      f5: 116,
+      f6: 117,
+      f7: 118,
+      f8: 119,
+      f9: 120,
+      f10: 121,
+      f11: 122,
+      f12: 123
+    };
+    var modifierNames = Tools.makeMap('alt,ctrl,shift,meta,access');
+    var parseShortcut = function (pattern) {
+      var key;
+      var shortcut = {};
+      each$4(explode$1(pattern.toLowerCase(), '+'), function (value) {
+        if (value in modifierNames) {
+          shortcut[value] = true;
+        } else {
+          if (/^[0-9]{2,}$/.test(value)) {
+            shortcut.keyCode = parseInt(value, 10);
+          } else {
+            shortcut.charCode = value.charCodeAt(0);
+            shortcut.keyCode = keyCodeLookup[value] || value.toUpperCase().charCodeAt(0);
+          }
+        }
+      });
+      var id = [shortcut.keyCode];
+      for (key in modifierNames) {
+        if (shortcut[key]) {
+          id.push(key);
+        } else {
+          shortcut[key] = false;
+        }
+      }
+      shortcut.id = id.join(',');
+      if (shortcut.access) {
+        shortcut.alt = true;
+        if (Env.mac) {
+          shortcut.ctrl = true;
+        } else {
+          shortcut.shift = true;
+        }
+      }
+      if (shortcut.meta) {
+        if (Env.mac) {
+          shortcut.meta = true;
+        } else {
+          shortcut.ctrl = true;
+          shortcut.meta = false;
+        }
+      }
+      return shortcut;
+    };
+    var Shortcuts = function () {
+      function Shortcuts(editor) {
+        this.shortcuts = {};
+        this.pendingPatterns = [];
+        this.editor = editor;
+        var self = this;
+        editor.on('keyup keypress keydown', function (e) {
+          if ((self.hasModifier(e) || self.isFunctionKey(e)) && !e.isDefaultPrevented()) {
+            each$4(self.shortcuts, function (shortcut) {
+              if (self.matchShortcut(e, shortcut)) {
+                self.pendingPatterns = shortcut.subpatterns.slice(0);
+                if (e.type === 'keydown') {
+                  self.executeShortcutAction(shortcut);
+                }
+                return true;
+              }
+            });
+            if (self.matchShortcut(e, self.pendingPatterns[0])) {
+              if (self.pendingPatterns.length === 1) {
+                if (e.type === 'keydown') {
+                  self.executeShortcutAction(self.pendingPatterns[0]);
+                }
+              }
+              self.pendingPatterns.shift();
+            }
+          }
+        });
+      }
+      Shortcuts.prototype.add = function (pattern, desc, cmdFunc, scope) {
+        var self = this;
+        var func = self.normalizeCommandFunc(cmdFunc);
+        each$4(explode$1(Tools.trim(pattern)), function (pattern) {
+          var shortcut = self.createShortcut(pattern, desc, func, scope);
+          self.shortcuts[shortcut.id] = shortcut;
+        });
+        return true;
+      };
+      Shortcuts.prototype.remove = function (pattern) {
+        var shortcut = this.createShortcut(pattern);
+        if (this.shortcuts[shortcut.id]) {
+          delete this.shortcuts[shortcut.id];
+          return true;
+        }
+        return false;
+      };
+      Shortcuts.prototype.normalizeCommandFunc = function (cmdFunc) {
+        var self = this;
+        var cmd = cmdFunc;
+        if (typeof cmd === 'string') {
+          return function () {
+            self.editor.execCommand(cmd, false, null);
+          };
+        } else if (Tools.isArray(cmd)) {
+          return function () {
+            self.editor.execCommand(cmd[0], cmd[1], cmd[2]);
+          };
+        } else {
+          return cmd;
+        }
+      };
+      Shortcuts.prototype.createShortcut = function (pattern, desc, cmdFunc, scope) {
+        var shortcuts = Tools.map(explode$1(pattern, '>'), parseShortcut);
+        shortcuts[shortcuts.length - 1] = Tools.extend(shortcuts[shortcuts.length - 1], {
+          func: cmdFunc,
+          scope: scope || this.editor
+        });
+        return Tools.extend(shortcuts[0], {
+          desc: this.editor.translate(desc),
+          subpatterns: shortcuts.slice(1)
+        });
+      };
+      Shortcuts.prototype.hasModifier = function (e) {
+        return e.altKey || e.ctrlKey || e.metaKey;
+      };
+      Shortcuts.prototype.isFunctionKey = function (e) {
+        return e.type === 'keydown' && e.keyCode >= 112 && e.keyCode <= 123;
+      };
+      Shortcuts.prototype.matchShortcut = function (e, shortcut) {
+        if (!shortcut) {
+          return false;
+        }
+        if (shortcut.ctrl !== e.ctrlKey || shortcut.meta !== e.metaKey) {
+          return false;
+        }
+        if (shortcut.alt !== e.altKey || shortcut.shift !== e.shiftKey) {
+          return false;
+        }
+        if (e.keyCode === shortcut.keyCode || e.charCode && e.charCode === shortcut.charCode) {
+          e.preventDefault();
+          return true;
+        }
+        return false;
+      };
+      Shortcuts.prototype.executeShortcutAction = function (shortcut) {
+        return shortcut.func ? shortcut.func.call(shortcut.scope) : null;
+      };
+      return Shortcuts;
+    }();
+
+    var create$3 = function () {
+      var buttons = {};
+      var menuItems = {};
+      var popups = {};
+      var icons = {};
+      var contextMenus = {};
+      var contextToolbars = {};
+      var sidebars = {};
+      var add = function (collection, type) {
+        return function (name, spec) {
+          return collection[name.toLowerCase()] = __assign(__assign({}, spec), { type: type });
+        };
+      };
+      var addIcon = function (name, svgData) {
+        return icons[name.toLowerCase()] = svgData;
+      };
+      return {
+        addButton: add(buttons, 'button'),
+        addGroupToolbarButton: add(buttons, 'grouptoolbarbutton'),
+        addToggleButton: add(buttons, 'togglebutton'),
+        addMenuButton: add(buttons, 'menubutton'),
+        addSplitButton: add(buttons, 'splitbutton'),
+        addMenuItem: add(menuItems, 'menuitem'),
+        addNestedMenuItem: add(menuItems, 'nestedmenuitem'),
+        addToggleMenuItem: add(menuItems, 'togglemenuitem'),
+        addAutocompleter: add(popups, 'autocompleter'),
+        addContextMenu: add(contextMenus, 'contextmenu'),
+        addContextToolbar: add(contextToolbars, 'contexttoolbar'),
+        addContextForm: add(contextToolbars, 'contextform'),
+        addSidebar: add(sidebars, 'sidebar'),
+        addIcon: addIcon,
+        getAll: function () {
+          return {
+            buttons: buttons,
+            menuItems: menuItems,
+            icons: icons,
+            popups: popups,
+            contextMenus: contextMenus,
+            contextToolbars: contextToolbars,
+            sidebars: sidebars
+          };
+        }
+      };
+    };
+
+    var registry = function () {
+      var bridge = create$3();
+      return {
+        addAutocompleter: bridge.addAutocompleter,
+        addButton: bridge.addButton,
+        addContextForm: bridge.addContextForm,
+        addContextMenu: bridge.addContextMenu,
+        addContextToolbar: bridge.addContextToolbar,
+        addIcon: bridge.addIcon,
+        addMenuButton: bridge.addMenuButton,
+        addMenuItem: bridge.addMenuItem,
+        addNestedMenuItem: bridge.addNestedMenuItem,
+        addSidebar: bridge.addSidebar,
+        addSplitButton: bridge.addSplitButton,
+        addToggleButton: bridge.addToggleButton,
+        addGroupToolbarButton: bridge.addGroupToolbarButton,
+        addToggleMenuItem: bridge.addToggleMenuItem,
+        getAll: bridge.getAll
+      };
+    };
+
+    var each$3 = Tools.each, trim = Tools.trim;
+    var queryParts = 'source protocol authority userInfo user password host port relative path directory file query anchor'.split(' ');
+    var DEFAULT_PORTS = {
+      ftp: 21,
+      http: 80,
+      https: 443,
+      mailto: 25
+    };
+    var URI = function () {
+      function URI(url, settings) {
+        url = trim(url);
+        this.settings = settings || {};
+        var baseUri = this.settings.base_uri;
+        var self = this;
+        if (/^([\w\-]+):([^\/]{2})/i.test(url) || /^\s*#/.test(url)) {
+          self.source = url;
+          return;
+        }
+        var isProtocolRelative = url.indexOf('//') === 0;
+        if (url.indexOf('/') === 0 && !isProtocolRelative) {
+          url = (baseUri ? baseUri.protocol || 'http' : 'http') + '://mce_host' + url;
+        }
+        if (!/^[\w\-]*:?\/\//.test(url)) {
+          var baseUrl = this.settings.base_uri ? this.settings.base_uri.path : new URI(document.location.href).directory;
+          if (this.settings.base_uri && this.settings.base_uri.protocol == '') {
+            url = '//mce_host' + self.toAbsPath(baseUrl, url);
+          } else {
+            var match = /([^#?]*)([#?]?.*)/.exec(url);
+            url = (baseUri && baseUri.protocol || 'http') + '://mce_host' + self.toAbsPath(baseUrl, match[1]) + match[2];
+          }
+        }
+        url = url.replace(/@@/g, '(mce_at)');
+        var urlMatch = /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@\/]*):?([^:@\/]*))?@)?(\[[a-zA-Z0-9:.%]+\]|[^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/.exec(url);
+        each$3(queryParts, function (v, i) {
+          var part = urlMatch[i];
+          if (part) {
+            part = part.replace(/\(mce_at\)/g, '@@');
+          }
+          self[v] = part;
+        });
+        if (baseUri) {
+          if (!self.protocol) {
+            self.protocol = baseUri.protocol;
+          }
+          if (!self.userInfo) {
+            self.userInfo = baseUri.userInfo;
+          }
+          if (!self.port && self.host === 'mce_host') {
+            self.port = baseUri.port;
+          }
+          if (!self.host || self.host === 'mce_host') {
+            self.host = baseUri.host;
+          }
+          self.source = '';
+        }
+        if (isProtocolRelative) {
+          self.protocol = '';
+        }
+      }
+      URI.parseDataUri = function (uri) {
+        var type;
+        var uriComponents = decodeURIComponent(uri).split(',');
+        var matches = /data:([^;]+)/.exec(uriComponents[0]);
+        if (matches) {
+          type = matches[1];
+        }
+        return {
+          type: type,
+          data: uriComponents[1]
+        };
+      };
+      URI.getDocumentBaseUrl = function (loc) {
+        var baseUrl;
+        if (loc.protocol.indexOf('http') !== 0 && loc.protocol !== 'file:') {
+          baseUrl = loc.href;
+        } else {
+          baseUrl = loc.protocol + '//' + loc.host + loc.pathname;
+        }
+        if (/^[^:]+:\/\/\/?[^\/]+\//.test(baseUrl)) {
+          baseUrl = baseUrl.replace(/[\?#].*$/, '').replace(/[\/\\][^\/]+$/, '');
+          if (!/[\/\\]$/.test(baseUrl)) {
+            baseUrl += '/';
+          }
+        }
+        return baseUrl;
+      };
+      URI.prototype.setPath = function (path) {
+        var pathMatch = /^(.*?)\/?(\w+)?$/.exec(path);
+        this.path = pathMatch[0];
+        this.directory = pathMatch[1];
+        this.file = pathMatch[2];
+        this.source = '';
+        this.getURI();
+      };
+      URI.prototype.toRelative = function (uri) {
+        var output;
+        if (uri === './') {
+          return uri;
+        }
+        var relativeUri = new URI(uri, { base_uri: this });
+        if (relativeUri.host !== 'mce_host' && this.host !== relativeUri.host && relativeUri.host || this.port !== relativeUri.port || this.protocol !== relativeUri.protocol && relativeUri.protocol !== '') {
+          return relativeUri.getURI();
+        }
+        var tu = this.getURI(), uu = relativeUri.getURI();
+        if (tu === uu || tu.charAt(tu.length - 1) === '/' && tu.substr(0, tu.length - 1) === uu) {
+          return tu;
+        }
+        output = this.toRelPath(this.path, relativeUri.path);
+        if (relativeUri.query) {
+          output += '?' + relativeUri.query;
+        }
+        if (relativeUri.anchor) {
+          output += '#' + relativeUri.anchor;
+        }
+        return output;
+      };
+      URI.prototype.toAbsolute = function (uri, noHost) {
+        var absoluteUri = new URI(uri, { base_uri: this });
+        return absoluteUri.getURI(noHost && this.isSameOrigin(absoluteUri));
+      };
+      URI.prototype.isSameOrigin = function (uri) {
+        if (this.host == uri.host && this.protocol == uri.protocol) {
+          if (this.port == uri.port) {
+            return true;
+          }
+          var defaultPort = DEFAULT_PORTS[this.protocol];
+          if (defaultPort && (this.port || defaultPort) == (uri.port || defaultPort)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      URI.prototype.toRelPath = function (base, path) {
+        var breakPoint = 0, out = '', i, l;
+        var normalizedBase = base.substring(0, base.lastIndexOf('/')).split('/');
+        var items = path.split('/');
+        if (normalizedBase.length >= items.length) {
+          for (i = 0, l = normalizedBase.length; i < l; i++) {
+            if (i >= items.length || normalizedBase[i] !== items[i]) {
+              breakPoint = i + 1;
+              break;
+            }
+          }
+        }
+        if (normalizedBase.length < items.length) {
+          for (i = 0, l = items.length; i < l; i++) {
+            if (i >= normalizedBase.length || normalizedBase[i] !== items[i]) {
+              breakPoint = i + 1;
+              break;
+            }
+          }
+        }
+        if (breakPoint === 1) {
+          return path;
+        }
+        for (i = 0, l = normalizedBase.length - (breakPoint - 1); i < l; i++) {
+          out += '../';
+        }
+        for (i = breakPoint - 1, l = items.length; i < l; i++) {
+          if (i !== breakPoint - 1) {
+            out += '/' + items[i];
+          } else {
+            out += items[i];
+          }
+        }
+        return out;
+      };
+      URI.prototype.toAbsPath = function (base, path) {
+        var i, nb = 0, o = [], outPath;
+        var tr = /\/$/.test(path) ? '/' : '';
+        var normalizedBase = base.split('/');
+        var normalizedPath = path.split('/');
+        each$3(normalizedBase, function (k) {
+          if (k) {
+            o.push(k);
+          }
+        });
+        normalizedBase = o;
+        for (i = normalizedPath.length - 1, o = []; i >= 0; i--) {
+          if (normalizedPath[i].length === 0 || normalizedPath[i] === '.') {
+            continue;
+          }
+          if (normalizedPath[i] === '..') {
+            nb++;
+            continue;
+          }
+          if (nb > 0) {
+            nb--;
+            continue;
+          }
+          o.push(normalizedPath[i]);
+        }
+        i = normalizedBase.length - nb;
+        if (i <= 0) {
+          outPath = reverse(o).join('/');
+        } else {
+          outPath = normalizedBase.slice(0, i).join('/') + '/' + reverse(o).join('/');
+        }
+        if (outPath.indexOf('/') !== 0) {
+          outPath = '/' + outPath;
+        }
+        if (tr && outPath.lastIndexOf('/') !== outPath.length - 1) {
+          outPath += tr;
+        }
+        return outPath;
+      };
+      URI.prototype.getURI = function (noProtoHost) {
+        if (noProtoHost === void 0) {
+          noProtoHost = false;
+        }
+        var s;
+        if (!this.source || noProtoHost) {
+          s = '';
+          if (!noProtoHost) {
+            if (this.protocol) {
+              s += this.protocol + '://';
+            } else {
+              s += '//';
+            }
+            if (this.userInfo) {
+              s += this.userInfo + '@';
+            }
+            if (this.host) {
+              s += this.host;
+            }
+            if (this.port) {
+              s += ':' + this.port;
+            }
+          }
+          if (this.path) {
+            s += this.path;
+          }
+          if (this.query) {
+            s += '?' + this.query;
+          }
+          if (this.anchor) {
+            s += '#' + this.anchor;
+          }
+          this.source = s;
+        }
+        return this.source;
+      };
+      return URI;
+    }();
+
+    var DOM$1 = DOMUtils.DOM;
+    var extend$3 = Tools.extend, each$2 = Tools.each;
+    var resolve = Tools.resolve;
+    var ie = Env.ie;
+    var Editor = function () {
+      function Editor(id, settings, editorManager) {
+        var _this = this;
+        this.plugins = {};
+        this.contentCSS = [];
+        this.contentStyles = [];
+        this.loadedCSS = {};
+        this.isNotDirty = false;
+        this.editorManager = editorManager;
+        this.documentBaseUrl = editorManager.documentBaseURL;
+        extend$3(this, EditorObservable);
+        this.settings = getEditorSettings(this, id, this.documentBaseUrl, editorManager.defaultSettings, settings);
+        if (this.settings.suffix) {
+          editorManager.suffix = this.settings.suffix;
+        }
+        this.suffix = editorManager.suffix;
+        if (this.settings.base_url) {
+          editorManager._setBaseUrl(this.settings.base_url);
+        }
+        this.baseUri = editorManager.baseURI;
+        if (this.settings.referrer_policy) {
+          ScriptLoader.ScriptLoader._setReferrerPolicy(this.settings.referrer_policy);
+          DOMUtils.DOM.styleSheetLoader._setReferrerPolicy(this.settings.referrer_policy);
+        }
+        AddOnManager.languageLoad = this.settings.language_load;
+        AddOnManager.baseURL = editorManager.baseURL;
+        this.id = id;
+        this.setDirty(false);
+        this.documentBaseURI = new URI(this.settings.document_base_url, { base_uri: this.baseUri });
+        this.baseURI = this.baseUri;
+        this.inline = !!this.settings.inline;
+        this.shortcuts = new Shortcuts(this);
+        this.editorCommands = new EditorCommands(this);
+        if (this.settings.cache_suffix) {
+          Env.cacheSuffix = this.settings.cache_suffix.replace(/^[\?\&]+/, '');
+        }
+        this.ui = {
+          registry: registry(),
+          styleSheetLoader: undefined,
+          show: noop,
+          hide: noop,
+          enable: noop,
+          disable: noop,
+          isDisabled: never
+        };
+        var self = this;
+        var modeInstance = create$4(self);
+        this.mode = modeInstance;
+        this.setMode = modeInstance.set;
+        editorManager.fire('SetupEditor', { editor: this });
+        this.execCallback('setup', this);
+        this.$ = DomQuery.overrideDefaults(function () {
+          return {
+            context: _this.inline ? _this.getBody() : _this.getDoc(),
+            element: _this.getBody()
+          };
+        });
+      }
+      Editor.prototype.render = function () {
+        render(this);
+      };
+      Editor.prototype.focus = function (skipFocus) {
+        this.execCommand('mceFocus', false, skipFocus);
+      };
+      Editor.prototype.hasFocus = function () {
+        return hasFocus(this);
+      };
+      Editor.prototype.execCallback = function (name) {
+        var x = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+          x[_i - 1] = arguments[_i];
+        }
+        var self = this;
+        var callback = self.settings[name], scope;
+        if (!callback) {
+          return;
+        }
+        if (self.callbackLookup && (scope = self.callbackLookup[name])) {
+          callback = scope.func;
+          scope = scope.scope;
+        }
+        if (typeof callback === 'string') {
+          scope = callback.replace(/\.\w+$/, '');
+          scope = scope ? resolve(scope) : 0;
+          callback = resolve(callback);
+          self.callbackLookup = self.callbackLookup || {};
+          self.callbackLookup[name] = {
+            func: callback,
+            scope: scope
+          };
+        }
+        return callback.apply(scope || self, x);
+      };
+      Editor.prototype.translate = function (text) {
+        return I18n.translate(text);
+      };
+      Editor.prototype.getParam = function (name, defaultVal, type) {
+        return getParam(this, name, defaultVal, type);
+      };
+      Editor.prototype.hasPlugin = function (name, loaded) {
+        var hasPlugin = contains$3(getPlugins(this).split(/[ ,]/), name);
+        if (hasPlugin) {
+          return loaded ? PluginManager.get(name) !== undefined : true;
+        } else {
+          return false;
+        }
+      };
+      Editor.prototype.nodeChanged = function (args) {
+        this._nodeChangeDispatcher.nodeChanged(args);
+      };
+      Editor.prototype.addCommand = function (name, callback, scope) {
+        this.editorCommands.addCommand(name, callback, scope);
+      };
+      Editor.prototype.addQueryStateHandler = function (name, callback, scope) {
+        this.editorCommands.addQueryStateHandler(name, callback, scope);
+      };
+      Editor.prototype.addQueryValueHandler = function (name, callback, scope) {
+        this.editorCommands.addQueryValueHandler(name, callback, scope);
+      };
+      Editor.prototype.addShortcut = function (pattern, desc, cmdFunc, scope) {
+        this.shortcuts.add(pattern, desc, cmdFunc, scope);
+      };
+      Editor.prototype.execCommand = function (cmd, ui, value, args) {
+        return this.editorCommands.execCommand(cmd, ui, value, args);
+      };
+      Editor.prototype.queryCommandState = function (cmd) {
+        return this.editorCommands.queryCommandState(cmd);
+      };
+      Editor.prototype.queryCommandValue = function (cmd) {
+        return this.editorCommands.queryCommandValue(cmd);
+      };
+      Editor.prototype.queryCommandSupported = function (cmd) {
+        return this.editorCommands.queryCommandSupported(cmd);
+      };
+      Editor.prototype.show = function () {
+        var self = this;
+        if (self.hidden) {
+          self.hidden = false;
+          if (self.inline) {
+            self.getBody().contentEditable = 'true';
+          } else {
+            DOM$1.show(self.getContainer());
+            DOM$1.hide(self.id);
+          }
+          self.load();
+          self.fire('show');
+        }
+      };
+      Editor.prototype.hide = function () {
+        var self = this, doc = self.getDoc();
+        if (!self.hidden) {
+          if (ie && doc && !self.inline) {
+            doc.execCommand('SelectAll');
+          }
+          self.save();
+          if (self.inline) {
+            self.getBody().contentEditable = 'false';
+            if (self === self.editorManager.focusedEditor) {
+              self.editorManager.focusedEditor = null;
+            }
+          } else {
+            DOM$1.hide(self.getContainer());
+            DOM$1.setStyle(self.id, 'display', self.orgDisplay);
+          }
+          self.hidden = true;
+          self.fire('hide');
+        }
+      };
+      Editor.prototype.isHidden = function () {
+        return !!this.hidden;
+      };
+      Editor.prototype.setProgressState = function (state, time) {
+        this.fire('ProgressState', {
+          state: state,
+          time: time
+        });
+      };
+      Editor.prototype.load = function (args) {
+        var self = this;
+        var elm = self.getElement(), html;
+        if (self.removed) {
+          return '';
+        }
+        if (elm) {
+          args = args || {};
+          args.load = true;
+          var value = isTextareaOrInput(elm) ? elm.value : elm.innerHTML;
+          html = self.setContent(value, args);
+          args.element = elm;
+          if (!args.no_events) {
+            self.fire('LoadContent', args);
+          }
+          args.element = elm = null;
+          return html;
+        }
+      };
+      Editor.prototype.save = function (args) {
+        var self = this;
+        var elm = self.getElement(), html, form;
+        if (!elm || !self.initialized || self.removed) {
+          return;
+        }
+        args = args || {};
+        args.save = true;
+        args.element = elm;
+        html = args.content = self.getContent(args);
+        if (!args.no_events) {
+          self.fire('SaveContent', args);
+        }
+        if (args.format === 'raw') {
+          self.fire('RawSaveContent', args);
+        }
+        html = args.content;
+        if (!isTextareaOrInput(elm)) {
+          if (args.is_removing || !self.inline) {
+            elm.innerHTML = html;
+          }
+          if (form = DOM$1.getParent(self.id, 'form')) {
+            each$2(form.elements, function (elm) {
+              if (elm.name === self.id) {
+                elm.value = html;
+                return false;
+              }
+            });
+          }
+        } else {
+          elm.value = html;
+        }
+        args.element = elm = null;
+        if (args.set_dirty !== false) {
+          self.setDirty(false);
+        }
+        return html;
+      };
+      Editor.prototype.setContent = function (content, args) {
+        return setContent(this, content, args);
+      };
+      Editor.prototype.getContent = function (args) {
+        return getContent(this, args);
+      };
+      Editor.prototype.insertContent = function (content, args) {
+        if (args) {
+          content = extend$3({ content: content }, args);
+        }
+        this.execCommand('mceInsertContent', false, content);
+      };
+      Editor.prototype.resetContent = function (initialContent) {
+        if (initialContent === undefined) {
+          setContent(this, this.startContent, { format: 'raw' });
+        } else {
+          setContent(this, initialContent);
+        }
+        this.undoManager.reset();
+        this.setDirty(false);
+        this.nodeChanged();
+      };
+      Editor.prototype.isDirty = function () {
+        return !this.isNotDirty;
+      };
+      Editor.prototype.setDirty = function (state) {
+        var oldState = !this.isNotDirty;
+        this.isNotDirty = !state;
+        if (state && state !== oldState) {
+          this.fire('dirty');
+        }
+      };
+      Editor.prototype.getContainer = function () {
+        var self = this;
+        if (!self.container) {
+          self.container = DOM$1.get(self.editorContainer || self.id + '_parent');
+        }
+        return self.container;
+      };
+      Editor.prototype.getContentAreaContainer = function () {
+        return this.contentAreaContainer;
+      };
+      Editor.prototype.getElement = function () {
+        if (!this.targetElm) {
+          this.targetElm = DOM$1.get(this.id);
+        }
+        return this.targetElm;
+      };
+      Editor.prototype.getWin = function () {
+        var self = this;
+        var elm;
+        if (!self.contentWindow) {
+          elm = self.iframeElement;
+          if (elm) {
+            self.contentWindow = elm.contentWindow;
+          }
+        }
+        return self.contentWindow;
+      };
+      Editor.prototype.getDoc = function () {
+        var self = this;
+        var win;
+        if (!self.contentDocument) {
+          win = self.getWin();
+          if (win) {
+            self.contentDocument = win.document;
+          }
+        }
+        return self.contentDocument;
+      };
+      Editor.prototype.getBody = function () {
+        var doc = this.getDoc();
+        return this.bodyElement || (doc ? doc.body : null);
+      };
+      Editor.prototype.convertURL = function (url, name, elm) {
+        var self = this, settings = self.settings;
+        if (settings.urlconverter_callback) {
+          return self.execCallback('urlconverter_callback', url, elm, true, name);
+        }
+        if (!settings.convert_urls || elm && elm.nodeName === 'LINK' || url.indexOf('file:') === 0 || url.length === 0) {
+          return url;
+        }
+        if (settings.relative_urls) {
+          return self.documentBaseURI.toRelative(url);
+        }
+        url = self.documentBaseURI.toAbsolute(url, settings.remove_script_host);
+        return url;
+      };
+      Editor.prototype.addVisual = function (elm) {
+        addVisual(this, elm);
+      };
+      Editor.prototype.remove = function () {
+        remove(this);
+      };
+      Editor.prototype.destroy = function (automatic) {
+        destroy(this, automatic);
+      };
+      Editor.prototype.uploadImages = function (callback) {
+        return this.editorUpload.uploadImages(callback);
+      };
+      Editor.prototype._scanForImages = function () {
+        return this.editorUpload.scanForImages();
+      };
+      Editor.prototype.addButton = function () {
+        throw new Error('editor.addButton has been removed in tinymce 5x, use editor.ui.registry.addButton or editor.ui.registry.addToggleButton or editor.ui.registry.addSplitButton instead');
+      };
+      Editor.prototype.addSidebar = function () {
+        throw new Error('editor.addSidebar has been removed in tinymce 5x, use editor.ui.registry.addSidebar instead');
+      };
+      Editor.prototype.addMenuItem = function () {
+        throw new Error('editor.addMenuItem has been removed in tinymce 5x, use editor.ui.registry.addMenuItem instead');
+      };
+      Editor.prototype.addContextToolbar = function () {
+        throw new Error('editor.addContextToolbar has been removed in tinymce 5x, use editor.ui.registry.addContextToolbar instead');
+      };
+      return Editor;
+    }();
+
+    var DOM = DOMUtils.DOM;
+    var explode = Tools.explode, each$1 = Tools.each, extend$2 = Tools.extend;
+    var instanceCounter = 0, boundGlobalEvents = false;
+    var beforeUnloadDelegate;
+    var legacyEditors = [];
+    var editors = [];
+    var isValidLegacyKey = function (id) {
+      return id !== 'length';
+    };
+    var globalEventDelegate = function (e) {
+      var type = e.type;
+      each$1(EditorManager.get(), function (editor) {
+        switch (type) {
+        case 'scroll':
+          editor.fire('ScrollWindow', e);
+          break;
+        case 'resize':
+          editor.fire('ResizeWindow', e);
+          break;
+        }
+      });
+    };
+    var toggleGlobalEvents = function (state) {
+      if (state !== boundGlobalEvents) {
+        if (state) {
+          DomQuery(window).on('resize scroll', globalEventDelegate);
+        } else {
+          DomQuery(window).off('resize scroll', globalEventDelegate);
+        }
+        boundGlobalEvents = state;
+      }
+    };
+    var removeEditorFromList = function (targetEditor) {
+      var oldEditors = editors;
+      delete legacyEditors[targetEditor.id];
+      for (var i = 0; i < legacyEditors.length; i++) {
+        if (legacyEditors[i] === targetEditor) {
+          legacyEditors.splice(i, 1);
+          break;
+        }
+      }
+      editors = filter$4(editors, function (editor) {
+        return targetEditor !== editor;
+      });
+      if (EditorManager.activeEditor === targetEditor) {
+        EditorManager.activeEditor = editors.length > 0 ? editors[0] : null;
+      }
+      if (EditorManager.focusedEditor === targetEditor) {
+        EditorManager.focusedEditor = null;
+      }
+      return oldEditors.length !== editors.length;
+    };
+    var purgeDestroyedEditor = function (editor) {
+      if (editor && editor.initialized && !(editor.getContainer() || editor.getBody()).parentNode) {
+        removeEditorFromList(editor);
+        editor.unbindAllNativeEvents();
+        editor.destroy(true);
+        editor.removed = true;
+        editor = null;
+      }
+      return editor;
+    };
+    var isQuirksMode = document.compatMode !== 'CSS1Compat';
+    var EditorManager = __assign(__assign({}, Observable), {
+      baseURI: null,
+      baseURL: null,
+      defaultSettings: {},
+      documentBaseURL: null,
+      suffix: null,
+      $: DomQuery,
+      majorVersion: '5',
+      minorVersion: '9.2',
+      releaseDate: '2021-09-08',
+      editors: legacyEditors,
+      i18n: I18n,
+      activeEditor: null,
+      focusedEditor: null,
+      settings: {},
+      setup: function () {
+        var self = this;
+        var baseURL, documentBaseURL, suffix = '';
+        documentBaseURL = URI.getDocumentBaseUrl(document.location);
+        if (/^[^:]+:\/\/\/?[^\/]+\//.test(documentBaseURL)) {
+          documentBaseURL = documentBaseURL.replace(/[\?#].*$/, '').replace(/[\/\\][^\/]+$/, '');
+          if (!/[\/\\]$/.test(documentBaseURL)) {
+            documentBaseURL += '/';
+          }
+        }
+        var preInit = window.tinymce || window.tinyMCEPreInit;
+        if (preInit) {
+          baseURL = preInit.base || preInit.baseURL;
+          suffix = preInit.suffix;
+        } else {
+          var scripts = document.getElementsByTagName('script');
+          for (var i = 0; i < scripts.length; i++) {
+            var src = scripts[i].src || '';
+            if (src === '') {
+              continue;
+            }
+            var srcScript = src.substring(src.lastIndexOf('/'));
+            if (/tinymce(\.full|\.jquery|)(\.min|\.dev|)\.js/.test(src)) {
+              if (srcScript.indexOf('.min') !== -1) {
+                suffix = '.min';
+              }
+              baseURL = src.substring(0, src.lastIndexOf('/'));
+              break;
+            }
+          }
+          if (!baseURL && document.currentScript) {
+            var src = document.currentScript.src;
+            if (src.indexOf('.min') !== -1) {
+              suffix = '.min';
+            }
+            baseURL = src.substring(0, src.lastIndexOf('/'));
+          }
+        }
+        self.baseURL = new URI(documentBaseURL).toAbsolute(baseURL);
+        self.documentBaseURL = documentBaseURL;
+        self.baseURI = new URI(self.baseURL);
+        self.suffix = suffix;
+        setup$l(self);
+      },
+      overrideDefaults: function (defaultSettings) {
+        var baseUrl = defaultSettings.base_url;
+        if (baseUrl) {
+          this._setBaseUrl(baseUrl);
+        }
+        var suffix = defaultSettings.suffix;
+        if (defaultSettings.suffix) {
+          this.suffix = suffix;
+        }
+        this.defaultSettings = defaultSettings;
+        var pluginBaseUrls = defaultSettings.plugin_base_urls;
+        if (pluginBaseUrls !== undefined) {
+          each$j(pluginBaseUrls, function (pluginBaseUrl, pluginName) {
+            AddOnManager.PluginManager.urls[pluginName] = pluginBaseUrl;
+          });
+        }
+      },
+      init: function (settings) {
+        var self = this;
+        var result;
+        var invalidInlineTargets = Tools.makeMap('area base basefont br col frame hr img input isindex link meta param embed source wbr track ' + 'colgroup option table tbody tfoot thead tr th td script noscript style textarea video audio iframe object menu', ' ');
+        var isInvalidInlineTarget = function (settings, elm) {
+          return settings.inline && elm.tagName.toLowerCase() in invalidInlineTargets;
+        };
+        var createId = function (elm) {
+          var id = elm.id;
+          if (!id) {
+            id = get$9(elm, 'name').filter(function (name) {
+              return !DOM.get(name);
+            }).getOrThunk(DOM.uniqueId);
+            elm.setAttribute('id', id);
+          }
+          return id;
+        };
+        var execCallback = function (name) {
+          var callback = settings[name];
+          if (!callback) {
+            return;
+          }
+          return callback.apply(self, []);
+        };
+        var hasClass = function (elm, className) {
+          return className.constructor === RegExp ? className.test(elm.className) : DOM.hasClass(elm, className);
+        };
+        var findTargets = function (settings) {
+          var targets = [];
+          if (Env.browser.isIE() && Env.browser.version.major < 11) {
+            initError('TinyMCE does not support the browser you are using. For a list of supported' + ' browsers please see: https://www.tinymce.com/docs/get-started/system-requirements/');
+            return [];
+          } else if (isQuirksMode) {
+            initError('Failed to initialize the editor as the document is not in standards mode. ' + 'TinyMCE requires standards mode.');
+            return [];
+          }
+          if (settings.types) {
+            each$1(settings.types, function (type) {
+              targets = targets.concat(DOM.select(type.selector));
+            });
+            return targets;
+          } else if (settings.selector) {
+            return DOM.select(settings.selector);
+          } else if (settings.target) {
+            return [settings.target];
+          }
+          switch (settings.mode) {
+          case 'exact':
+            var l = settings.elements || '';
+            if (l.length > 0) {
+              each$1(explode(l), function (id) {
+                var elm = DOM.get(id);
+                if (elm) {
+                  targets.push(elm);
+                } else {
+                  each$1(document.forms, function (f) {
+                    each$1(f.elements, function (e) {
+                      if (e.name === id) {
+                        id = 'mce_editor_' + instanceCounter++;
+                        DOM.setAttrib(e, 'id', id);
+                        targets.push(e);
+                      }
+                    });
+                  });
+                }
+              });
+            }
+            break;
+          case 'textareas':
+          case 'specific_textareas':
+            each$1(DOM.select('textarea'), function (elm) {
+              if (settings.editor_deselector && hasClass(elm, settings.editor_deselector)) {
+                return;
+              }
+              if (!settings.editor_selector || hasClass(elm, settings.editor_selector)) {
+                targets.push(elm);
+              }
+            });
+            break;
+          }
+          return targets;
+        };
+        var provideResults = function (editors) {
+          result = editors;
+        };
+        var initEditors = function () {
+          var initCount = 0;
+          var editors = [];
+          var targets;
+          var createEditor = function (id, settings, targetElm) {
+            var editor = new Editor(id, settings, self);
+            editors.push(editor);
+            editor.on('init', function () {
+              if (++initCount === targets.length) {
+                provideResults(editors);
+              }
+            });
+            editor.targetElm = editor.targetElm || targetElm;
+            editor.render();
+          };
+          DOM.unbind(window, 'ready', initEditors);
+          execCallback('onpageload');
+          targets = DomQuery.unique(findTargets(settings));
+          if (settings.types) {
+            each$1(settings.types, function (type) {
+              Tools.each(targets, function (elm) {
+                if (DOM.is(elm, type.selector)) {
+                  createEditor(createId(elm), extend$2({}, settings, type), elm);
+                  return false;
+                }
+                return true;
+              });
+            });
+            return;
+          }
+          Tools.each(targets, function (elm) {
+            purgeDestroyedEditor(self.get(elm.id));
+          });
+          targets = Tools.grep(targets, function (elm) {
+            return !self.get(elm.id);
+          });
+          if (targets.length === 0) {
+            provideResults([]);
+          } else {
+            each$1(targets, function (elm) {
+              if (isInvalidInlineTarget(settings, elm)) {
+                initError('Could not initialize inline editor on invalid inline target element', elm);
+              } else {
+                createEditor(createId(elm), settings, elm);
+              }
+            });
+          }
+        };
+        self.settings = settings;
+        DOM.bind(window, 'ready', initEditors);
+        return new promiseObj(function (resolve) {
+          if (result) {
+            resolve(result);
+          } else {
+            provideResults = function (editors) {
+              resolve(editors);
+            };
+          }
+        });
+      },
+      get: function (id) {
+        if (arguments.length === 0) {
+          return editors.slice(0);
+        } else if (isString$1(id)) {
+          return find$3(editors, function (editor) {
+            return editor.id === id;
+          }).getOr(null);
+        } else if (isNumber(id)) {
+          return editors[id] ? editors[id] : null;
+        } else {
+          return null;
+        }
+      },
+      add: function (editor) {
+        var self = this;
+        var existingEditor = legacyEditors[editor.id];
+        if (existingEditor === editor) {
+          return editor;
+        }
+        if (self.get(editor.id) === null) {
+          if (isValidLegacyKey(editor.id)) {
+            legacyEditors[editor.id] = editor;
+          }
+          legacyEditors.push(editor);
+          editors.push(editor);
+        }
+        toggleGlobalEvents(true);
+        self.activeEditor = editor;
+        self.fire('AddEditor', { editor: editor });
+        if (!beforeUnloadDelegate) {
+          beforeUnloadDelegate = function (e) {
+            var event = self.fire('BeforeUnload');
+            if (event.returnValue) {
+              e.preventDefault();
+              e.returnValue = event.returnValue;
+              return event.returnValue;
+            }
+          };
+          window.addEventListener('beforeunload', beforeUnloadDelegate);
+        }
+        return editor;
+      },
+      createEditor: function (id, settings) {
+        return this.add(new Editor(id, settings, this));
+      },
+      remove: function (selector) {
+        var self = this;
+        var i, editor;
+        if (!selector) {
+          for (i = editors.length - 1; i >= 0; i--) {
+            self.remove(editors[i]);
+          }
+          return;
+        }
+        if (isString$1(selector)) {
+          each$1(DOM.select(selector), function (elm) {
+            editor = self.get(elm.id);
+            if (editor) {
+              self.remove(editor);
+            }
+          });
+          return;
+        }
+        editor = selector;
+        if (isNull(self.get(editor.id))) {
+          return null;
+        }
+        if (removeEditorFromList(editor)) {
+          self.fire('RemoveEditor', { editor: editor });
+        }
+        if (editors.length === 0) {
+          window.removeEventListener('beforeunload', beforeUnloadDelegate);
+        }
+        editor.remove();
+        toggleGlobalEvents(editors.length > 0);
+        return editor;
+      },
+      execCommand: function (cmd, ui, value) {
+        var self = this, editor = self.get(value);
+        switch (cmd) {
+        case 'mceAddEditor':
+          if (!self.get(value)) {
+            new Editor(value, self.settings, self).render();
+          }
+          return true;
+        case 'mceRemoveEditor':
+          if (editor) {
+            editor.remove();
+          }
+          return true;
+        case 'mceToggleEditor':
+          if (!editor) {
+            self.execCommand('mceAddEditor', false, value);
+            return true;
+          }
+          if (editor.isHidden()) {
+            editor.show();
+          } else {
+            editor.hide();
+          }
+          return true;
+        }
+        if (self.activeEditor) {
+          return self.activeEditor.execCommand(cmd, ui, value);
+        }
+        return false;
+      },
+      triggerSave: function () {
+        each$1(editors, function (editor) {
+          editor.save();
+        });
+      },
+      addI18n: function (code, items) {
+        I18n.add(code, items);
+      },
+      translate: function (text) {
+        return I18n.translate(text);
+      },
+      setActive: function (editor) {
+        var activeEditor = this.activeEditor;
+        if (this.activeEditor !== editor) {
+          if (activeEditor) {
+            activeEditor.fire('deactivate', { relatedTarget: editor });
+          }
+          editor.fire('activate', { relatedTarget: activeEditor });
+        }
+        this.activeEditor = editor;
+      },
+      _setBaseUrl: function (baseUrl) {
+        this.baseURL = new URI(this.documentBaseURL).toAbsolute(baseUrl.replace(/\/+$/, ''));
+        this.baseURI = new URI(this.baseURL);
+      }
+    });
+    EditorManager.setup();
+
+    var min$1 = Math.min, max$1 = Math.max, round$1 = Math.round;
+    var relativePosition = function (rect, targetRect, rel) {
+      var x = targetRect.x;
+      var y = targetRect.y;
+      var w = rect.w;
+      var h = rect.h;
+      var targetW = targetRect.w;
+      var targetH = targetRect.h;
+      var relChars = (rel || '').split('');
+      if (relChars[0] === 'b') {
+        y += targetH;
+      }
+      if (relChars[1] === 'r') {
+        x += targetW;
+      }
+      if (relChars[0] === 'c') {
+        y += round$1(targetH / 2);
+      }
+      if (relChars[1] === 'c') {
+        x += round$1(targetW / 2);
+      }
+      if (relChars[3] === 'b') {
+        y -= h;
+      }
+      if (relChars[4] === 'r') {
+        x -= w;
+      }
+      if (relChars[3] === 'c') {
+        y -= round$1(h / 2);
+      }
+      if (relChars[4] === 'c') {
+        x -= round$1(w / 2);
+      }
+      return create$2(x, y, w, h);
+    };
+    var findBestRelativePosition = function (rect, targetRect, constrainRect, rels) {
+      var pos, i;
+      for (i = 0; i < rels.length; i++) {
+        pos = relativePosition(rect, targetRect, rels[i]);
+        if (pos.x >= constrainRect.x && pos.x + pos.w <= constrainRect.w + constrainRect.x && pos.y >= constrainRect.y && pos.y + pos.h <= constrainRect.h + constrainRect.y) {
+          return rels[i];
+        }
+      }
+      return null;
+    };
+    var inflate = function (rect, w, h) {
+      return create$2(rect.x - w, rect.y - h, rect.w + w * 2, rect.h + h * 2);
+    };
+    var intersect = function (rect, cropRect) {
+      var x1 = max$1(rect.x, cropRect.x);
+      var y1 = max$1(rect.y, cropRect.y);
+      var x2 = min$1(rect.x + rect.w, cropRect.x + cropRect.w);
+      var y2 = min$1(rect.y + rect.h, cropRect.y + cropRect.h);
+      if (x2 - x1 < 0 || y2 - y1 < 0) {
+        return null;
+      }
+      return create$2(x1, y1, x2 - x1, y2 - y1);
+    };
+    var clamp = function (rect, clampRect, fixedSize) {
+      var x1 = rect.x;
+      var y1 = rect.y;
+      var x2 = rect.x + rect.w;
+      var y2 = rect.y + rect.h;
+      var cx2 = clampRect.x + clampRect.w;
+      var cy2 = clampRect.y + clampRect.h;
+      var underflowX1 = max$1(0, clampRect.x - x1);
+      var underflowY1 = max$1(0, clampRect.y - y1);
+      var overflowX2 = max$1(0, x2 - cx2);
+      var overflowY2 = max$1(0, y2 - cy2);
+      x1 += underflowX1;
+      y1 += underflowY1;
+      if (fixedSize) {
+        x2 += underflowX1;
+        y2 += underflowY1;
+        x1 -= overflowX2;
+        y1 -= overflowY2;
+      }
+      x2 -= overflowX2;
+      y2 -= overflowY2;
+      return create$2(x1, y1, x2 - x1, y2 - y1);
+    };
+    var create$2 = function (x, y, w, h) {
+      return {
+        x: x,
+        y: y,
+        w: w,
+        h: h
+      };
+    };
+    var fromClientRect = function (clientRect) {
+      return create$2(clientRect.left, clientRect.top, clientRect.width, clientRect.height);
+    };
+    var Rect = {
+      inflate: inflate,
+      relativePosition: relativePosition,
+      findBestRelativePosition: findBestRelativePosition,
+      intersect: intersect,
+      clamp: clamp,
+      create: create$2,
+      fromClientRect: fromClientRect
+    };
+
+    var awaiter = function (resolveCb, rejectCb, timeout) {
+      if (timeout === void 0) {
+        timeout = 1000;
+      }
+      var done = false;
+      var timer = null;
+      var complete = function (completer) {
+        return function () {
+          var args = [];
+          for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+          }
+          if (!done) {
+            done = true;
+            if (timer !== null) {
+              clearTimeout(timer);
+              timer = null;
+            }
+            completer.apply(null, args);
+          }
+        };
+      };
+      var resolve = complete(resolveCb);
+      var reject = complete(rejectCb);
+      var start = function () {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+          args[_i] = arguments[_i];
+        }
+        if (!done && timer === null) {
+          timer = setTimeout(function () {
+            return reject.apply(null, args);
+          }, timeout);
+        }
+      };
+      return {
+        start: start,
+        resolve: resolve,
+        reject: reject
+      };
+    };
+    var create$1 = function () {
+      var tasks = {};
+      var resultFns = {};
+      var load = function (id, url) {
+        var loadErrMsg = 'Script at URL "' + url + '" failed to load';
+        var runErrMsg = 'Script at URL "' + url + '" did not call `tinymce.Resource.add(\'' + id + '\', data)` within 1 second';
+        if (tasks[id] !== undefined) {
+          return tasks[id];
+        } else {
+          var task = new promiseObj(function (resolve, reject) {
+            var waiter = awaiter(resolve, reject);
+            resultFns[id] = waiter.resolve;
+            ScriptLoader.ScriptLoader.loadScript(url, function () {
+              return waiter.start(runErrMsg);
+            }, function () {
+              return waiter.reject(loadErrMsg);
+            });
+          });
+          tasks[id] = task;
+          return task;
+        }
+      };
+      var add = function (id, data) {
+        if (resultFns[id] !== undefined) {
+          resultFns[id](data);
+          delete resultFns[id];
+        }
+        tasks[id] = promiseObj.resolve(data);
+      };
+      return {
+        load: load,
+        add: add
+      };
+    };
+    var Resource = create$1();
+
+    var each = Tools.each, extend$1 = Tools.extend;
+    var extendClass, initializing;
+    var Class = function () {
+    };
+    Class.extend = extendClass = function (props) {
+      var self = this;
+      var _super = self.prototype;
+      var Class = function () {
+        var i, mixins, mixin;
+        var self = this;
+        if (!initializing) {
+          if (self.init) {
+            self.init.apply(self, arguments);
+          }
+          mixins = self.Mixins;
+          if (mixins) {
+            i = mixins.length;
+            while (i--) {
+              mixin = mixins[i];
+              if (mixin.init) {
+                mixin.init.apply(self, arguments);
+              }
+            }
+          }
+        }
+      };
+      var dummy = function () {
+        return this;
+      };
+      var createMethod = function (name, fn) {
+        return function () {
+          var self = this;
+          var tmp = self._super;
+          self._super = _super[name];
+          var ret = fn.apply(self, arguments);
+          self._super = tmp;
+          return ret;
+        };
+      };
+      initializing = true;
+      var prototype = new self();
+      initializing = false;
+      if (props.Mixins) {
+        each(props.Mixins, function (mixin) {
+          for (var name_1 in mixin) {
+            if (name_1 !== 'init') {
+              props[name_1] = mixin[name_1];
+            }
+          }
+        });
+        if (_super.Mixins) {
+          props.Mixins = _super.Mixins.concat(props.Mixins);
+        }
+      }
+      if (props.Methods) {
+        each(props.Methods.split(','), function (name) {
+          props[name] = dummy;
+        });
+      }
+      if (props.Properties) {
+        each(props.Properties.split(','), function (name) {
+          var fieldName = '_' + name;
+          props[name] = function (value) {
+            var self = this;
+            if (value !== undefined) {
+              self[fieldName] = value;
+              return self;
+            }
+            return self[fieldName];
+          };
+        });
+      }
+      if (props.Statics) {
+        each(props.Statics, function (func, name) {
+          Class[name] = func;
+        });
+      }
+      if (props.Defaults && _super.Defaults) {
+        props.Defaults = extend$1({}, _super.Defaults, props.Defaults);
+      }
+      each$j(props, function (member, name) {
+        if (typeof member === 'function' && _super[name]) {
+          prototype[name] = createMethod(name, member);
+        } else {
+          prototype[name] = member;
+        }
+      });
+      Class.prototype = prototype;
+      Class.constructor = Class;
+      Class.extend = extendClass;
+      return Class;
+    };
+
+    var min = Math.min, max = Math.max, round = Math.round;
+    var Color = function (value) {
+      var self = {};
+      var r = 0, g = 0, b = 0;
+      var rgb2hsv = function (r, g, b) {
+        var h, s, v;
+        h = 0;
+        s = 0;
+        v = 0;
+        r = r / 255;
+        g = g / 255;
+        b = b / 255;
+        var minRGB = min(r, min(g, b));
+        var maxRGB = max(r, max(g, b));
+        if (minRGB === maxRGB) {
+          v = minRGB;
+          return {
+            h: 0,
+            s: 0,
+            v: v * 100
+          };
+        }
+        var d = r === minRGB ? g - b : b === minRGB ? r - g : b - r;
+        h = r === minRGB ? 3 : b === minRGB ? 1 : 5;
+        h = 60 * (h - d / (maxRGB - minRGB));
+        s = (maxRGB - minRGB) / maxRGB;
+        v = maxRGB;
+        return {
+          h: round(h),
+          s: round(s * 100),
+          v: round(v * 100)
+        };
+      };
+      var hsvToRgb = function (hue, saturation, brightness) {
+        hue = (parseInt(hue, 10) || 0) % 360;
+        saturation = parseInt(saturation, 10) / 100;
+        brightness = parseInt(brightness, 10) / 100;
+        saturation = max(0, min(saturation, 1));
+        brightness = max(0, min(brightness, 1));
+        if (saturation === 0) {
+          r = g = b = round(255 * brightness);
+          return;
+        }
+        var side = hue / 60;
+        var chroma = brightness * saturation;
+        var x = chroma * (1 - Math.abs(side % 2 - 1));
+        var match = brightness - chroma;
+        switch (Math.floor(side)) {
+        case 0:
+          r = chroma;
+          g = x;
+          b = 0;
+          break;
+        case 1:
+          r = x;
+          g = chroma;
+          b = 0;
+          break;
+        case 2:
+          r = 0;
+          g = chroma;
+          b = x;
+          break;
+        case 3:
+          r = 0;
+          g = x;
+          b = chroma;
+          break;
+        case 4:
+          r = x;
+          g = 0;
+          b = chroma;
+          break;
+        case 5:
+          r = chroma;
+          g = 0;
+          b = x;
+          break;
+        default:
+          r = g = b = 0;
+        }
+        r = round(255 * (r + match));
+        g = round(255 * (g + match));
+        b = round(255 * (b + match));
+      };
+      var toHex = function () {
+        var hex = function (val) {
+          val = parseInt(val, 10).toString(16);
+          return val.length > 1 ? val : '0' + val;
+        };
+        return '#' + hex(r) + hex(g) + hex(b);
+      };
+      var toRgb = function () {
+        return {
+          r: r,
+          g: g,
+          b: b
+        };
+      };
+      var toHsv = function () {
+        return rgb2hsv(r, g, b);
+      };
+      var parse = function (value) {
+        var matches;
+        if (typeof value === 'object') {
+          if ('r' in value) {
+            r = value.r;
+            g = value.g;
+            b = value.b;
+          } else if ('v' in value) {
+            hsvToRgb(value.h, value.s, value.v);
+          }
+        } else {
+          if (matches = /rgb\s*\(\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)[^\)]*\)/gi.exec(value)) {
+            r = parseInt(matches[1], 10);
+            g = parseInt(matches[2], 10);
+            b = parseInt(matches[3], 10);
+          } else if (matches = /#([0-F]{2})([0-F]{2})([0-F]{2})/gi.exec(value)) {
+            r = parseInt(matches[1], 16);
+            g = parseInt(matches[2], 16);
+            b = parseInt(matches[3], 16);
+          } else if (matches = /#([0-F])([0-F])([0-F])/gi.exec(value)) {
+            r = parseInt(matches[1] + matches[1], 16);
+            g = parseInt(matches[2] + matches[2], 16);
+            b = parseInt(matches[3] + matches[3], 16);
+          }
+        }
+        r = r < 0 ? 0 : r > 255 ? 255 : r;
+        g = g < 0 ? 0 : g > 255 ? 255 : g;
+        b = b < 0 ? 0 : b > 255 ? 255 : b;
+        return self;
+      };
+      if (value) {
+        parse(value);
+      }
+      self.toRgb = toRgb;
+      self.toHsv = toHsv;
+      self.toHex = toHex;
+      self.parse = parse;
+      return self;
+    };
+
+    var serialize = function (obj) {
+      var data = JSON.stringify(obj);
+      if (!isString$1(data)) {
+        return data;
+      }
+      return data.replace(/[\u0080-\uFFFF]/g, function (match) {
+        var hexCode = match.charCodeAt(0).toString(16);
+        return '\\u' + '0000'.substring(hexCode.length) + hexCode;
+      });
+    };
+    var JSONUtils = {
+      serialize: serialize,
+      parse: function (text) {
+        try {
+          return JSON.parse(text);
+        } catch (ex) {
+        }
+      }
+    };
+
+    var JSONP = {
+      callbacks: {},
+      count: 0,
+      send: function (settings) {
+        var self = this, dom = DOMUtils.DOM, count = settings.count !== undefined ? settings.count : self.count;
+        var id = 'tinymce_jsonp_' + count;
+        self.callbacks[count] = function (json) {
+          dom.remove(id);
+          delete self.callbacks[count];
+          settings.callback(json);
+        };
+        dom.add(dom.doc.body, 'script', {
+          id: id,
+          src: settings.url,
+          type: 'text/javascript'
+        });
+        self.count++;
+      }
+    };
+
+    var XHR = __assign(__assign({}, Observable), {
+      send: function (settings) {
+        var xhr, count = 0;
+        var ready = function () {
+          if (!settings.async || xhr.readyState === 4 || count++ > 10000) {
+            if (settings.success && count < 10000 && xhr.status === 200) {
+              settings.success.call(settings.success_scope, '' + xhr.responseText, xhr, settings);
+            } else if (settings.error) {
+              settings.error.call(settings.error_scope, count > 10000 ? 'TIMED_OUT' : 'GENERAL', xhr, settings);
+            }
+            xhr = null;
+          } else {
+            Delay.setTimeout(ready, 10);
+          }
+        };
+        settings.scope = settings.scope || this;
+        settings.success_scope = settings.success_scope || settings.scope;
+        settings.error_scope = settings.error_scope || settings.scope;
+        settings.async = settings.async !== false;
+        settings.data = settings.data || '';
+        XHR.fire('beforeInitialize', { settings: settings });
+        xhr = new XMLHttpRequest();
+        if (xhr.overrideMimeType) {
+          xhr.overrideMimeType(settings.content_type);
+        }
+        xhr.open(settings.type || (settings.data ? 'POST' : 'GET'), settings.url, settings.async);
+        if (settings.crossDomain) {
+          xhr.withCredentials = true;
+        }
+        if (settings.content_type) {
+          xhr.setRequestHeader('Content-Type', settings.content_type);
+        }
+        if (settings.requestheaders) {
+          Tools.each(settings.requestheaders, function (header) {
+            xhr.setRequestHeader(header.key, header.value);
+          });
+        }
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr = XHR.fire('beforeSend', {
+          xhr: xhr,
+          settings: settings
+        }).xhr;
+        xhr.send(settings.data);
+        if (!settings.async) {
+          return ready();
+        }
+        Delay.setTimeout(ready, 10);
+      }
+    });
+
+    var extend = Tools.extend;
+    var JSONRequest = function () {
+      function JSONRequest(settings) {
+        this.settings = extend({}, settings);
+        this.count = 0;
+      }
+      JSONRequest.sendRPC = function (o) {
+        return new JSONRequest().send(o);
+      };
+      JSONRequest.prototype.send = function (args) {
+        var ecb = args.error, scb = args.success;
+        var xhrArgs = extend(this.settings, args);
+        xhrArgs.success = function (c, x) {
+          c = JSONUtils.parse(c);
+          if (typeof c === 'undefined') {
+            c = { error: 'JSON Parse error.' };
+          }
+          if (c.error) {
+            ecb.call(xhrArgs.error_scope || xhrArgs.scope, c.error, x);
+          } else {
+            scb.call(xhrArgs.success_scope || xhrArgs.scope, c.result);
+          }
+        };
+        xhrArgs.error = function (ty, x) {
+          if (ecb) {
+            ecb.call(xhrArgs.error_scope || xhrArgs.scope, ty, x);
+          }
+        };
+        xhrArgs.data = JSONUtils.serialize({
+          id: args.id || 'c' + this.count++,
+          method: args.method,
+          params: args.params
+        });
+        xhrArgs.content_type = 'application/json';
+        XHR.send(xhrArgs);
+      };
+      return JSONRequest;
+    }();
+
+    var create = function () {
+      return function () {
+        var data = {};
+        var keys = [];
+        var storage = {
+          getItem: function (key) {
+            var item = data[key];
+            return item ? item : null;
+          },
+          setItem: function (key, value) {
+            keys.push(key);
+            data[key] = String(value);
+          },
+          key: function (index) {
+            return keys[index];
+          },
+          removeItem: function (key) {
+            keys = keys.filter(function (k) {
+              return k === key;
+            });
+            delete data[key];
+          },
+          clear: function () {
+            keys = [];
+            data = {};
+          },
+          length: 0
+        };
+        Object.defineProperty(storage, 'length', {
+          get: function () {
+            return keys.length;
+          },
+          configurable: false,
+          enumerable: false
+        });
+        return storage;
+      }();
+    };
+
+    var localStorage;
+    try {
+      var test = '__storage_test__';
+      localStorage = window.localStorage;
+      localStorage.setItem(test, test);
+      localStorage.removeItem(test);
+    } catch (e) {
+      localStorage = create();
+    }
+    var LocalStorage = localStorage;
+
+    var publicApi = {
+      geom: { Rect: Rect },
+      util: {
+        Promise: promiseObj,
+        Delay: Delay,
+        Tools: Tools,
+        VK: VK,
+        URI: URI,
+        Class: Class,
+        EventDispatcher: EventDispatcher,
+        Observable: Observable,
+        I18n: I18n,
+        XHR: XHR,
+        JSON: JSONUtils,
+        JSONRequest: JSONRequest,
+        JSONP: JSONP,
+        LocalStorage: LocalStorage,
+        Color: Color,
+        ImageUploader: ImageUploader
+      },
+      dom: {
+        EventUtils: EventUtils,
+        Sizzle: Sizzle,
+        DomQuery: DomQuery,
+        TreeWalker: DomTreeWalker,
+        TextSeeker: TextSeeker,
+        DOMUtils: DOMUtils,
+        ScriptLoader: ScriptLoader,
+        RangeUtils: RangeUtils,
+        Serializer: DomSerializer,
+        StyleSheetLoader: StyleSheetLoader,
+        ControlSelection: ControlSelection,
+        BookmarkManager: BookmarkManager,
+        Selection: EditorSelection,
+        Event: EventUtils.Event
+      },
+      html: {
+        Styles: Styles,
+        Entities: Entities,
+        Node: AstNode,
+        Schema: Schema,
+        SaxParser: SaxParser,
+        DomParser: DomParser,
+        Writer: Writer,
+        Serializer: HtmlSerializer
+      },
+      Env: Env,
+      AddOnManager: AddOnManager,
+      Annotator: Annotator,
+      Formatter: Formatter,
+      UndoManager: UndoManager,
+      EditorCommands: EditorCommands,
+      WindowManager: WindowManager,
+      NotificationManager: NotificationManager,
+      EditorObservable: EditorObservable,
+      Shortcuts: Shortcuts,
+      Editor: Editor,
+      FocusManager: FocusManager,
+      EditorManager: EditorManager,
+      DOM: DOMUtils.DOM,
+      ScriptLoader: ScriptLoader.ScriptLoader,
+      PluginManager: PluginManager,
+      ThemeManager: ThemeManager,
+      IconManager: IconManager,
+      Resource: Resource,
+      trim: Tools.trim,
+      isArray: Tools.isArray,
+      is: Tools.is,
+      toArray: Tools.toArray,
+      makeMap: Tools.makeMap,
+      each: Tools.each,
+      map: Tools.map,
+      grep: Tools.grep,
+      inArray: Tools.inArray,
+      extend: Tools.extend,
+      create: Tools.create,
+      walk: Tools.walk,
+      createNS: Tools.createNS,
+      resolve: Tools.resolve,
+      explode: Tools.explode,
+      _addCacheSuffix: Tools._addCacheSuffix,
+      isOpera: Env.opera,
+      isWebKit: Env.webkit,
+      isIE: Env.ie,
+      isGecko: Env.gecko,
+      isMac: Env.mac
+    };
+    var tinymce = Tools.extend(EditorManager, publicApi);
+
+    var exportToModuleLoaders = function (tinymce) {
+      if (typeof module === 'object') {
+        try {
+          module.exports = tinymce;
+        } catch (_) {
+        }
+      }
+    };
+    var exportToWindowGlobal = function (tinymce) {
+      window.tinymce = tinymce;
+      window.tinyMCE = tinymce;
+    };
+    exportToWindowGlobal(tinymce);
+    exportToModuleLoaders(tinymce);
+
+}());
