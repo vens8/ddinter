@@ -1,0 +1,314 @@
+body{
+    text-align: center;
+}
+
+#title {
+    position: relative;
+    bottom: 40%;
+    background-color: #3FADA8;
+}
+
+.container-fluid {
+    color: white;
+    padding: 1% 17% 6%;
+}
+
+.navbar {
+    font-family: Ubuntu, sans-serif;
+    padding: 0 0 4.5rem;
+}
+
+.navbar-nav {
+    font-family: 'Montserrat-Light', sans-serif;
+    font-size: 1.2rem;
+}
+
+.nav-item {
+    margin-top: 0;
+    /*margin-right: 10%;*/
+    margin-left: 0;
+    margin-bottom: 0;
+    padding: 0.5rem;
+}
+
+#title {
+    text-align: left;
+}
+
+.brand {
+    font-size: 2.5rem;
+    font-weight: bold;
+    font-family: Ubuntu, sans-serif;
+}
+
+.playStore {
+    color: white;
+    border: white 1px solid;
+}
+
+.login-form{
+  background-color: #fff;
+  width:100%;
+  height:100%;
+  color:#000;
+  padding-top: 1%;
+  padding-bottom: 4%;
+  border-radius: 3%;
+}
+
+
+
+h1 {
+    font-family: 'Montserrat-Black', sans-serif;
+    font-weight: 500;
+    font-size: 3.5rem;
+    line-height: 1.5;
+}
+
+.download {
+    font-family: 'Montserrat-Light', sans-serif;
+    font-size: 1.2rem;
+    margin: 1.5rem 1rem 0 0;
+    padding: 0.5rem 1rem 0.5rem 0.5rem;
+}
+
+.download i {
+    padding: 0 0.5rem;
+}
+
+
+
+.landing-text {
+    font-weight: bolder;
+}
+
+#features {
+    position: relative;
+    z-index: 2;
+    background-color: white;
+    padding: 7% 15%;
+    color: #8f8f8f;
+}
+
+#features h3 {
+    font-size: 1.5rem;
+    font-family: 'Montserrat-Bold', sans-serif;
+    font-weight: bold;
+    color: black;
+    margin-top: 2%;
+}
+
+.feature-div {
+    padding: 5%;
+}
+
+#help{
+  background-color: #3fada8;
+  position: relative;
+  font-family: 'Montserrat', sans-serif;
+  z-index: 2;
+  padding: 7% 15%;
+  color: #fff;
+  text-align:left;
+}
+
+#help .btn{
+  background-color: #fff;
+  color:#3fada8;
+}
+
+#help .btn:hover{
+  border:1px solid #fff;
+  color:#fff;
+  background-color: #3fada8;
+}
+
+
+.login-btn, .reg-btn{
+  background-color: #3fada8;
+  padding:1em;
+  font-weight: bold;
+  color:white;
+  font-size: 1rem;
+  width:100%;
+}
+
+.get-started{
+  padding-left:0;
+  margin-left: 0;
+}
+
+.img {
+    margin: 20px 20px 50px;
+    width: 15%;
+}
+
+.white-section {
+    padding: 100px;
+}
+
+.section-heading {
+    color: black;
+    font-weight: bolder;
+}
+
+
+.pricing-column {
+    color: #000000;
+    font-weight: normal;
+}
+
+.pricing-column h2 {
+    font-size: 3rem;
+    line-height: 2rem;
+    font-weight: bolder;
+}
+
+.pricing-column h3 {
+    font-weight: bolder;
+}
+
+.pricing-column {
+    padding: 1.25rem;
+}
+
+.card-body {
+    color: #8f8f8f;
+    line-height: 1.5rem;
+    padding: 30px;
+}
+
+.card-body h2 {
+    color: black;
+    margin-bottom: 20px;
+}
+
+.card-body button {
+    display: block;
+    width: 100%;
+}
+
+
+.footer-container {
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+    width: 100%;
+}
+
+.footer-container i {
+    padding: 5px;
+    margin: 5px;
+}
+
+.footer-container p {
+    margin: 10px;
+    color: #8f8f8f;
+}
+
+@media (max-width: 1030px) {
+
+
+    .iphone-img {
+        padding-top: 100px;
+        position: static;
+        transform: rotate(0);
+    }
+
+    .row, .landing-text {
+        text-align: center;
+    }
+
+    #title {
+        text-align: center;
+    }
+
+}
+
+
+.dashboard-container{
+  color:black;
+  background-color: white;
+}
+
+.jumbotron{
+  background-color: inherit;
+}
+
+.dashboard-profile{
+  margin-top: 5%;
+}
+
+.dashboard-navs{
+  color:#3fada8;
+  font-weight: normal;
+  border-bottom: 1px solid #3fada8;
+}
+
+.dashboard-navsss{
+  color:#3fada8;
+  font-weight: normal;
+}
+.profile-item-header, .profile-item{
+  text-align: right;
+  min-height: 2em;
+}
+
+.profile-item-header{
+  border:none;
+}
+
+.profile-item{
+  min-height:2em;
+}
+
+.project_heading{
+  text-align: left;
+  padding:1%;
+  display:inline-block;
+}
+
+.add-new{
+  text-align: right;
+  margin-left: 65%;
+  display: inline-block;
+  margin-bottom: 5px;
+  padding:4px;
+  /* padding-top:2px;
+  padding-bottom:2px; */
+  background-color: #3fada8;
+  color:white;
+}
+
+.add-new:hover{
+  color:#3fada8;
+  background-color: white;
+  border:1px #3fada8 solid;
+}
+
+.project_card{
+  margin-left:10px;
+  margin-right:10px;
+  color:black;
+  text-align: left;
+}
+
+.project-title{
+color:#3fada8;
+}
+
+.btn-project{
+  /* max-width:10%; */
+  padding:0px;
+  background-color: #3fada8;
+  color:white;
+}
+
+.btn-project:hover{
+  color:#3fada8;
+  border:1px #3fada8 solid;
+  background-color: white;
+}
+
+.e-profile{
+  text-align: left;
+}
