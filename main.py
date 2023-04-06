@@ -103,7 +103,7 @@ def getInteractions():
                 for id in interaction.keys():
                     if id in drugIDs:
                         # Generate a unique key for the interaction
-                        key = f"{drugID}|{id}|{interaction[id]}"
+                        key = "{}|{}|{}".format(drugID, id, interaction[id])
                         # Add the interaction to the set if it's unique
                         if key not in interactionSet:
                             interactionSet.add(key)
