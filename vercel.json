@@ -3,6 +3,6 @@
     { "src": "main.py", "use": "@vercel/python" }
   ],
   "routes": [
-    { "handle": "*", "script": "auto" }
+    { "handle": "error"}
   ]
 }

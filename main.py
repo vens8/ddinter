@@ -13,6 +13,7 @@ drugsList, sortedInteractionDictionary = {}, {}
 
 app = Flask(__name__, template_folder='templates')
 
+
 @app.route('/')
 def dd_inter():
     fetch_process_drugs()
