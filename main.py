@@ -119,4 +119,4 @@ def getInteractions():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host='ddinter.vercel.app', port=5001)
+    app.run(debug=False, host='0.0.0.0', port=5001)
