@@ -1,3 +1,4 @@
 .vercel
 .config
 node_modules
+errorlog.txt
