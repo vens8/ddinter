@@ -5,14 +5,13 @@ import configparser
 from logging import FileHandler,WARNING
 
 drugsList, sortedInteractionDictionary = {}, {}
-config = configparser.ConfigParser()
-config.read('.config')
+# config = configparser.ConfigParser()
+# config.read('.config')
+# app.secret_key = config.get('Section', 'flaskKey')
+# file_handler = FileHandler('errorlog.txt')
+# file_handler.setLevel(WARNING)
 
 app = Flask(__name__, template_folder='templates')
-app.secret_key = config.get('Section', 'flaskKey')
-file_handler = FileHandler('errorlog.txt')
-file_handler.setLevel(WARNING)
-
 
 @app.route('/')
 def dd_inter():
