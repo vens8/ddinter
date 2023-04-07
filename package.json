@@ -3,10 +3,7 @@
     "bootstrap": "^5.3.0-alpha3"
   },
   "scripts": {
-    "start": "python main.py",
+    "start": "python api/main.py",
     "vercel-build": "npm install && npm run build"
-  },
-  "dependencies": {
-    "flask": "^2.1.0"
   }
 }

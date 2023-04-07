@@ -1,53 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-	<meta charset="utf-8">
-	<meta content="width=device-width, initial-scale=1.0" name="viewport">
-
-	<title>Safe ICU</title>
-	<meta content="" name="description">
-	<meta content="" name="keywords">
-
-	<!-- Favicons -->
-<!--	<link href="static/img/favicon.png" rel="icon">-->
-	<link href="static/img/apple-touch-icon.png" rel="apple-touch-icon">
-
-	<!-- Google Fonts -->
-	<link href="https://fonts.gstatic.com" rel="preconnect">
-	<link
-			href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Nunito:300,300i,400,400i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i"
-			rel="stylesheet">
-
-	<!-- Vendor CSS Files -->
-<!--	<link href="static/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/remixicon/remixicon.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/quill/quill.snow.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/quill/quill.bubble.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/simple-datatables/style.css" rel="stylesheet">-->
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js"
-			integrity="sha512-AA1Bzp5Q0K1KanKKmvN/4d3IRKVlv9PYgwFPvm32nPO6QS8yH1HO7LbgB1pgiOxPtfeg5zEn2ba64MUcqJx6CA=="
-			crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-	<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css"
-		  integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
-	<!-- <link href="static/platform_style.css" rel="stylesheet"> -->
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-	<!-- <link rel="stylesheet" href="static/css/style.css">   -->
-<!--	<link rel="stylesheet" href="static/textSummarisation.css">-->
-
-	<!-- Template Main CSS File -->
-<!--	<link href="static/css/style_new.css" rel="stylesheet">-->
-	<!-- <link href="static/platform_style.css" rel="stylesheet"> -->
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-	<!-- <link rel="stylesheet" href="static/css/style.css"> -->
-<!--	<script src='static/Chart.min.js' type="text/javascript"></script>-->
-<!--	<script src="Server/working/static/js/ddinter.js"></script>-->
-	<style>
-    input[type=text] {
+  <meta charset="UTF-8">
+  <title>My Drug List</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css" integrity="sha384-QC0/KM9tJvApoT3KM7GzFZn3ZtMz1+d6H4YY6b4dWm9gJvqLMbSJoCkTcN6kkzTl" crossorigin="anonymous">
+  <style>
+  input[type=text] {
       border: 0;
-      
+
     }
 
     input[type=text]:focus {
@@ -76,13 +37,7 @@
       transition: 0.4s;
       border-radius: 5px;
     }
-
-
-
-	</style>
-
-	<style>
-    /* Include the padding and border in an element's total width and height */
+  /* Include the padding and border in an element's total width and height */
     * {
       box-sizing: border-box;
     }
@@ -150,43 +105,6 @@
       position: absolute;
       left: 5px;
     }
-    /* Define the sidebar's default position */
-    .sidebar {
-      position: fixed;
-      top: 60px;
-      left: -250px;
-      height: 100%;
-      width: 250px;
-      z-index: 999;
-      background-color: #fff;
-      box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.2);
-      transition: all 0.3s ease-in-out;
-    }
-
-    /* Define the sidebar's visible position */
-    .sidebar.active {
-      left: 0;
-    }
-
-    /* Define the toggle button's position */
-    #sidebar-toggle {
-      position: absolute;
-      top: 10px;
-      left: 3px;
-      font-size: 24px;
-      color: #333;
-      background-color: transparent;
-      border: none;
-      outline: none;
-      cursor: pointer;
-    }
-
-    /* Define the button's icon */
-    #sidebar-toggle i {
-      vertical-align: middle;
-    }
-
-    /* Define the main content's position */
     #myhomepage {
       margin-left: 250px;
       transition: all 0.3s ease-in-out;
@@ -196,7 +114,10 @@
     #myhomepage.active {
       margin-left: 0;
     }
-
+    .tag-container {
+      display: flex;
+      align-items: center;
+    }
 
     /* Style the close button */
     .close {
@@ -226,97 +147,125 @@
       display: table;
       clear: both;
     }
-
-    /* Style the input */
-    #myInput {
-      
-      margin: 0;
-      margin-bottom: 35px;
-      border: solid 3px black;
-      border-radius: 10px;
-      width: 60%;
-      padding: 10px;
-      float: center;
-      font-size: 16px;
-    }
-
-    .myInput {
-      
-      margin: 0;
-      margin-bottom: 35px;
-      border: solid 3px black;
-      border-radius: 10px;
-      width: 60%;
-      padding: 10px;
-      float: center;
-      font-size: 16px;
-    }
-
-    /* Style the "Add" button */
-    .addBtn {
-      padding: 10px;
-      
+    #footer {
+      position: fixed;
+      bottom: 0;
+      left: -19%;
       width: 100%;
-      background: #d9d9d9;
-      color: #170411;
-      float: center;
-      text-align: center;
-      font-size: 18px;
-      cursor: pointer;
-      transition: 0.3s;
-      border-radius: 5px;
-      
-      
+      display: flex; /* Add this */
+      justify-content: center; /* Add this */
     }
 
-    .addBtn:hover {
-      background-color: #bedcf7;
+
+    /* Center align the content within the footer */
+    #footer .copyright {
+      text-align: center;
     }
+
+
+
+
 
     .myheading {
-      color: #0c0c0f;
-      font-family: Helvetica, 'Open Sans', Arial, sans-serif;
-      font-size: 32px;
-      font-weight: bold;
-      background-image: linear-gradient(to right, #004C99, #ff6666);
-      font-size: 32px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      width: 300px;
-      text-align: center;
-      margin: auto;
-      white-space: nowrap;
-      padding-bottom: 50px;
-      background-clip: text;
-      color: transparent;
-      -webkit-background-clip: text;
-    }
+  color: #0c0c0f;
+  font-family: Helvetica, "Open Sans", Arial, sans-serif;
+  font-size: 32px;
+  font-weight: bold;
+  background-image: linear-gradient(to right, #004C99, #ff6666);
 
-    .myheading:before {
-      background-color: #046e18;
-      content: '';
-      display: block;
-      height: 3px;
-      width: 275px;
-      margin-bottom: 5px;
-    }
+  display: flex;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  width: 300px;
+  text-align: center;
+  margin: auto;
+  white-space: nowrap;
+  padding-bottom: 50px;
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.myheading:before,
+.myheading:after {
+  background-color: #064c02;
+  content: "";
+  display: block;
+  height: 3px;
+  width: 275px;
+  margin-bottom: 5px;
+}
 
-    .myheading:after {
-      background-color: #064c02;
-      content: '';
-      display: block;
-      margin-top: 5px;
-      /* left: 0; */
-      /* right: 25; */
-      margin-right: 0px;
-      bottom: 0;
-      height: 3px;
-      width: 275px;
-      margin-bottom: 5px;
-    }
+.myheading:before {
+  background-color: #046e18;
+}
 
-    #mybtn {
+.myheading:after {
+  margin-top: 5px;
+}
+#myInput {
+  position: relative;
+  margin: 0 auto;
+  margin-bottom: 3px;
+  margin-left: 85px;
+  border: solid 3px black;
+  border-radius: 10px;
+  width: 50%;
+  padding: 10px;
+  float: center;
+  font-size: 16px;
+}
+
+.myInput {
+  flex: 1;
+  display: inline-block;
+  margin: 0 auto;
+  margin-bottom: 3px;
+  margin-left: 85px;
+  border: solid 3px black;
+  border-radius: 10px;
+  width: 50%;
+  padding: 10px;
+  float: left;
+  font-size: 16px;
+}
+.addBtn {
+  padding: 10px;
+  display: inline-block;
+  width: 10%;
+  background: #d9d9d9;
+  vertical-align: middle;
+  color: #170411;
+  float: center;
+  text-align: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.3s;
+  border-radius: 5px;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+@media only screen and (max-width: 768px) {
+  .addBtn {
+    width: 30%;
+  }
+}
+
+@media only screen and (max-width: 576px) {
+  .addBtn {
+    width: 50%;
+  }
+}
+
+.addBtn:hover {
+  background-color: #bedcf7;
+}
+#mybtn {
       content: "";
       position: relative;
       bottom: 0px;
@@ -405,79 +354,16 @@
       color: #5a5a5a;
       text-align: center;
     }
-
-    /* #dropdown {
-			position: relative;
-			display: inline-block;c
-			width: 200px;
-			margin-top: 10px;
-		} */
-
-    #dropdown {
-      margin: 0;
-      margin-bottom: 35px;
-      border: solid 3px black;
-      border-radius: 10px;
-      width: 100%;
-      padding: 10px;
-      float: center;
-		}
-		
-		#dropdown-input {
-      margin: 0;
-      margin-bottom: 35px;
-      border: solid 3px black;
-      border-radius: 10px;
-      width: 100%;
-      padding: 10px;
-      float: left;
-      font-size: 16px;
-		}
-		
-		.dropdown-list {
-			position: absolute;
-			top: 37%;
-			left: 25%;
-      right: 0.5px;
-			z-index: 1;
-			width: 43%;
-			max-height: 200px;
-			overflow-y: auto;
-			background-color: #fff;
-			border: 1px solid #0e0e0e;
-			border-radius: 4px;
-			box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-		}
-		
-		.dropdown-list-item {
-			padding: 10px;
-			cursor: pointer;
-      color:#0c0c0f
-		}
-		
-		.dropdown-list-item:hover {
-			background-color: #d0d3d3;
-		}
-
-
-    /* Set the footer position to fixed at the bottom of the screen */
-    #footer {
-      position: fixed;
-      bottom: 0;
-      left: -19%;
-      width: 100%;
-      display: flex; /* Add this */
-      justify-content: center; /* Add this */
-    }
-
-
-    /* Center align the content within the footer */
-    #footer .copyright {
-      text-align: center;
-    }
-
-
     /* Style the tags */
+    #tag-section {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
     .tag {
       display: inline-block;
       background-color: #bedcf7;
@@ -487,6 +373,7 @@
       margin-bottom: 5px;
       border-radius: 5px;
       font-size: 16px;
+      margin-top: -5px;
     }
 
     .tag button {
@@ -502,11 +389,52 @@
     .tag button:hover {
       background-color: #232222;
     }
+#dropdown {
+      margin: 0;
+      margin-bottom: 35px;
+      border: solid 3px black;
+      border-radius: 10px;
+      width: 100%;
+      padding: 10px;
+      float: center;
+		}
 
+		#dropdown-input {
+      margin: 0;
+      margin-bottom: 35px;
+      border: solid 3px black;
+      border-radius: 10px;
+      width: 100%;
+      padding: 10px;
+      float: left;
+      font-size: 16px;
+		}
 
+		.dropdown-list {
+			position: absolute;
+            top: 100%;
+            left: 25%;
+      right: 0.5px;
+			z-index: 1;
+			width: 50.5%;
+			height: 200px;
+			overflow-y: auto;
+			background-color: #fff;
+			border: 1px solid #0e0e0e;
+			border-radius: 4px;
+			box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+		}
 
+		.dropdown-list-item {
+			padding: 10px;
+			cursor: pointer;
+      color:#0c0c0f
+		}
 
-	</style>
+		.dropdown-list-item:hover {
+			background-color: #d0d3d3;
+		}
+  </style>
 
 </head>
 
@@ -520,9 +448,6 @@
   window.onbeforeunload = function (e) {
     localStorage.setItem('scrollpos', window.scrollY);
   };
-
-
-
 </script>
 
 <script>
@@ -704,7 +629,7 @@ function deleteLoading() {
   loadingdiv.innerHTML = ""
 }
 
-function updateTable(interactions) {
+function updatetable(interactions) {
   deleteTable();
   deleteNote();
   if (interactions.length > 0) {
@@ -770,7 +695,7 @@ function fetchData() {
       .then(data => {
         window.drugsList = data;  // Declare the variable as global
         console.log('inside', window.drugsList);
-        
+
         // Creating a swapped drugsList
         window.swappedDrugsList = {};
         for (const key in window.drugsList) {
@@ -815,6 +740,8 @@ function initDropdown() {
   input.addEventListener('click', function() {
     // console.log("Im being clicked");
     // Toggle the visibility of the dropdown list
+    list.style.top = input.offsetTop + input.offsetHeight + 'px';
+    list.style.left = input.offsetLeft + 'px';
     if (list.style.display === 'block') {
       list.style.display = 'none';
     } else {
@@ -861,23 +788,72 @@ function initDropdown() {
     for (let i = 0; i < dropdownList.children.length; i++) {
       const option = dropdownList.children[i];
       const optionText = option.textContent.toLowerCase();
-      
+
       if (optionText.includes(searchValue)) {
         option.style.display = 'block';
         found = true;
       } else {
         //dropdownList.innerHTML = '<div class="dropdown-list-item">Option not found</div>';
         option.style.display = 'none';
-      
+
       }
     }
-  //   if (!found) {
-  //     dropdownList.innerHTML = '<div class="dropdown-list-item">Option not found</div>';
-  //   } else {
-  //     option.style.display = 'block';
-  //     dropdownList.innerHTML = originalDropdownHTML;
-  //   }
   });
+
+let selectedOptionIndex = -1; // initialize the selected option index to 0
+
+dropdownSearch.addEventListener('keydown', (event) => {
+  const key = event.key;
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    event.preventDefault();
+    const visibleOptions = Array.from(dropdownList.children).filter((option) => option.style.display !== 'none');
+    if (visibleOptions.length > 0) {
+      if (selectedOptionIndex === -1) {
+        selectedOptionIndex = key === "ArrowUp" ? visibleOptions.length - 1 : 0;
+      } else {
+        selectedOptionIndex = (selectedOptionIndex + (key === "ArrowUp" ? -1 : 1) + visibleOptions.length) % visibleOptions.length;
+      }
+      visibleOptions.forEach((option, index) => {
+        if (index === selectedOptionIndex) {
+          option.classList.add('selected');
+          dropdownSearch.value = option.textContent;
+        } else {
+          option.classList.remove('selected');
+        }
+      });
+    }
+  } else if (key === "Enter") {
+    const selectedOption = dropdownList.querySelector('.selected');
+    if (selectedOption) {
+      selectedOption.click();
+    }
+  }
+});
+
+
+//dropdownList.addEventListener('click', (event) => {
+//  dropdownSearch.value = event.target.textContent;
+//  dropdownSearch.focus();
+//  dropdownList.innerHTML = originalDropdownHTML; // reset the dropdown menu to its original HTML
+//  selectedOptionIndex = -1; // reset the selected option index
+// });
+
+dropdownList.addEventListener('click', (event) => {
+  dropdownSearch.value = event.target.textContent;
+  dropdownSearch.focus();
+  dropdownList.innerHTML = originalDropdownHTML; // reset the dropdown menu to its original HTML
+  for (let i = 0; i < dropdownList.children.length; i++) {
+    const option = dropdownList.children[i];
+    const optionText = option.textContent.toLowerCase();
+    if (optionText.includes(dropdownSearch.value.toLowerCase().trim())) {
+      option.style.display = 'block';
+    } else {
+      option.style.display = 'none';
+    }
+  }
+  selectedOptionIndex = -1;
+});
+
 
 
 
@@ -961,12 +937,28 @@ async function submitList() {
   }
 }
 
-
 function submitDelay() {
   // Fetch data (pretty large so it takes some time)
   // fetchData();
   // Call submitList after 2 seconds so that data is recorded
   setTimeout(submitList,2000);
+}
+
+function toCamelCase(str){
+  let newStr = "";
+  if(str){
+    let wordArr = str.split(/[-_]/g);
+    for (let i in wordArr){
+      if(i > 0){
+        newStr += wordArr[i].charAt(0).toUpperCase() + wordArr[i].slice(1);
+      }else{
+        newStr += wordArr[i]
+      }
+    }
+  }else{
+    return newStr
+  }
+  return newStr;
 }
 
 
@@ -978,6 +970,7 @@ function addTag() {
   console.log("It was me")
   var tagList = document.getElementById("tag-list");
   var inputValue = document.getElementById("myInput").value.trim();
+  console.log('cameled', inputValue);
   const input = document.querySelector('.myInput');
 
   if (inputValue === '') {
@@ -1012,103 +1005,37 @@ function deleteTag(button) {
   }
 }
 
-
-
-
 </script>
-
 <body>
-
-<!-- ======= Header ======= -->
-<header id="header" class="header fixed-top d-flex align-items-center">
-	<div class="d-flex align-items-center justify-content-between">
-		<a href="/" class="logo d-flex align-items-center">
-			<span class="d-lg-block">SAFE ICU</span>
-		</a>
-		<button class="sidebar-toggle" id="sidebar-toggle">
-			<i class="bi bi-list"></i>
-		</button>
-	</div>
-</header>
-
-<!-- ======= Sidebar ======= -->
-<aside id="sidebar" class="sidebar">
-	<ul class="sidebar-nav" id="sidebar-nav">
-		<li class="nav-item">
-			<a class="nav-link collapsed" href="/first_page">
-				<i class="bi bi-house-door-fill"></i>
-				<span>Dashboard</span>
-			</a>
-		</li>
-		<li class="nav-item">
-			<a class="nav-link collapsed" href="./tensorboard">
-				<i class="bi bi-calendar2-minus-fill"></i>
-				<span>Tensorboard</span>
-			</a>
-		</li>
-		<li class="nav-item">
-			<a class="nav-link collapsed" href="./network_page">
-				<i class="bi bi-union"></i>
-				<span>Word Graph</span>
-			</a>
-		</li>
-		<li class="nav-item">
-			<a class="nav-link collapsed" id="active" href="./ddinter">
-				<i class="bi bi-union"></i>
-				<span>DD Inter</span>
-			</a>
-		</li>
-		<li class="nav-item">
-			<a class="nav-link collapsed" href="/back">
-				<i class="bi bi-door-closed-fill"></i>
-				<span>Sign out</span>
-			</a>
-		</li>
-	</ul>
-</aside><!-- End Sidebar-->
-
-<script>
-    const sidebarToggle = document.getElementById("sidebar-toggle");
-    const sidebar = document.getElementById("sidebar");
-
-    sidebarToggle.addEventListener("click", function() {
-      console.log('toggling');
-      sidebar.classList.toggle("active");
-    });
+<h1 class="myheading">My Drug List</h1>
+<div id="tag-list"></div>
 
 
+<main class="container py-3">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <!--            <label for="drug-name" class="form-label">Drug Name</label>-->
+                <!--            <input type="text" class="form-control" id="drug-name" placeholder="Enter drug name">-->
+                <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >
+                <span id = "tagButton" onclick="addTag()" class="addBtn">Add Tag</span>
+                <span  id = "gfg" onclick="newElement()" class="addBtn">Add</span>
+                <span onclick="reset()" class="addBtn">Reset List</span>
+                <div class="dropdown-list">
+                </div>
 
-</script>
 
+            </div>
 
-<!-- Body Start -->
-<div id="myhomepage">
-	<div id="myDIV" class="header">
-		<h2 class="myheading">My Drug List</h2>
-		<div class="tag-container">
-			<div id="tag-list"></div>
-			<input type="text" class="myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()">
-			<div class="dropdown-list">
-			</div>
-			<!-- <input type="text" id="myInput" class="drop" placeholder="Type a drug name..."> -->
-			<!-- <div id="dropdown" class="dropdown">
-			  <input type="text" id="dropdown-input" class="dropdown-input" placeholder="Search a drug...">
-			  <div class="dropdown-list"></div>
-			</div> -->
-			<span id="tagButton" onclick="addTag()" class="addBtn">Add Tag</span>
-			<span id="gfg" onclick="newElement()" class="addBtn">Add</span>
-			<span onclick="reset()" class="addBtn">Reset List</span>
-		</div>
-
-		<!-- <h2 class="myheading">My Drug List</h2>
-		<input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >
-		<div class="dropdown-list">
-		</div> -->
-		<script>
+            <!-- <h2 class="myheading">My Drug List</h2>
+            <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >
+            <div class="dropdown-list">
+            </div> -->
+			<script>
         let btn = document.getElementById('gfg');
         document.addEventListener('keypress', (event)=>{
 
-        // event.keyCode property will have the code of the pressed key
+        // event.keyCode or event.which  property will have the code of the pressed key
         let keyCode = event.keyCode ? event.keyCode : event.which;
 
         // 13 points the enter key
@@ -1117,71 +1044,78 @@ function deleteTag(button) {
             btn.click();
         }
         });
-        let tagbtn = document.getElementById('tagButton');
-        document.addEventListener('keydown', function(event) {
-        if (event.keyCode === 13 && !event.shiftKey) {
-            tagbtn.click();
-        }
-      });
-		</script>
-	</div>
-</div>
+        //let tagbtn = document.getElementById('tagButton');
+        //document.addEventListener('keydown', function(event) {
+        //if (event.keyCode === 13 && !event.shiftKey) {
+        //    tagbtn.click();
+        //}
+      //});
+    </script>
 
-<ul id="myUL">
+        </div>
+    </div>
 
-</ul>
+    <ul id="myUL">
 
-<div id="mybtn">
-	<button onclick="submitDelay()"> Submit</button>
-</div>
-<script>
+    </ul>
+
+    <div id="mybtn">
+        <button onclick="submitDelay()"> Submit</button>
+    </div>
+    <script>
       import myLoader from "Server/working/static/js/myLoader.js";
       const [isLoading, setIsLoading] = useState(false);
+    </script>
 
+    <!-- <div className="d-flex justify-content-center">
+      {isLoading && <MyLoader />}
+    </div> -->
 
+    <table id="drugtable" class="">
 
-</script>
+    </table>
+    <div id="interaction-message" class="interactiondiv"></div>
 
-<!-- <div className="d-flex justify-content-center">
-  {isLoading && <MyLoader />}
-</div> -->
+    <div id="notediv" class="notediv">
 
-<table id="drugtable" class="">
+    </div>
 
-</table>
-<div id="interaction-message" class="interactiondiv"></div>
+    <!-- Body End -->
 
-<div id="notediv" class="notediv">
+    <div class="d-grid gap-2">
+        <!--            <button class="btn btn-primary" type="submit">Add Drug</button>-->
 
-</div>
-</div>
-<!-- Body End -->
+    </div>
 
+    </div>
+  </main>
 
-<!-- ======= Footer ======= -->
-<footer id="footer" class="footer">
-	<div class="copyright">
-		© Copyright <strong><span>Tavlabs</span></strong>. All Rights Reserved
-	</div>
-</footer><!-- End Footer -->
-
-<a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i
-		class="bi bi-arrow-up-short"></i></a>
-
-<!-- Vendor JS Files -->
-<!--<script src="static/bootstrap/js/bootstrap.bundle.js" type="text/javascript"></script>-->
-<!--<script src="static/quill/quill.min.js" type="text/javascript"></script>-->
-<!--<script src="static/tinymce/tinymce.min.js" type="text/javascript"></script>-->
-<!--<script src="static/simple-datatables/simple-datatables.js" type="text/javascript"></script>-->
-<!--<script src="static/chart.js/chart.min.js" type="text/javascript"></script>-->
-<!--<script src="static/apexcharts/apexcharts.min.js" type="text/javascript"></script>-->
-<!--<script src="static/echarts/echarts.min.js" type="text/javascript"></script>-->
-
-<!-- Template Main JS File -->
-<!--<script src="static/js/jquery.min.js" type="text/javascript"></script>-->
-<!--<script src="static/js/popper.js" type="text/javascript"></script>-->
-<!--<script src="static/js/bootstrap.min.js" type="text/javascript"></script>-->
-<!--<script src="static/js/main_new.js" type="text/javascript"></script>-->
-<!--<script src="static/js/main.js" type="text/javascript"></script>-->
-
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js" integrity="sha384-h8X9FYbyyh/p1+Jt1bwEpp+fVAInrzJf+YzqG+zshEldW8xsr+Fd4y05f4Fb5mh5" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/js/bootstrap.min.js" integrity="sha384-5fiJTETJOFw2M0ZZULzqOylXjsN0zVg/Nvqt1qrE/8DfhZHTtWWw3fBkCjlLx1qX" crossorigin="anonymous"></script>
 </body>
+<footer id="footer" class="footer">
+    <div class="copyright">
+      © Copyright <strong><span>Tavlabs</span></strong>. All Rights Reserved
+    </div>
+  </footer><!-- End Footer -->
+
+  <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i
+      class="bi bi-arrow-up-short"></i></a>
+
+  <!-- Vendor JS Files -->
+  <script src="static/bootstrap/js/bootstrap.bundle.js" type="text/javascript"></script>
+  <script src="static/quill/quill.min.js" type="text/javascript"></script>
+  <script src="static/tinymce/tinymce.min.js" type="text/javascript"></script>
+  <script src="static/simple-datatables/simple-datatables.js" type="text/javascript"></script>
+  <script src="static/chart.js/chart.min.js" type="text/javascript"></script>
+  <script src="static/apexcharts/apexcharts.min.js" type="text/javascript"></script>
+  <script src="static/echarts/echarts.min.js" type="text/javascript"></script>
+
+  <!-- Template Main JS File -->
+  <script src="static/js/jquery.min.js" type="text/javascript"></script>
+  <script src="static/js/popper.js" type="text/javascript"></script>
+  <script src="static/js/bootstrap.min.js" type="text/javascript"></script>
+  <script src="static/js/main_new.js" type="text/javascript"></script>
+  <script src="static/js/main.js" type="text/javascript"></script>
+</html>

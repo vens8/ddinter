@@ -11,14 +11,14 @@ drugsList, sortedInteractionDictionary = {}, {}
 # file_handler = FileHandler('errorlog.txt')
 # file_handler.setLevel(WARNING)
 
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__, template_folder='../templates')
 
 
 @app.route('/')
 def dd_inter():
     fetch_process_drugs()
     # Rendering the ddinter html and returning the dictionaries
-    return render_template('ddinter.html', drugsList=drugsList, interactionDictionary=sortedInteractionDictionary)
+    return render_template('ddinter2.html', drugsList=drugsList, interactionDictionary=sortedInteractionDictionary)
 
 
 @app.route('/testing')
@@ -32,7 +32,7 @@ def fetch_process_drugs():
     # Pull and process data here for faster and efficient query handling
 
     # Connect to database
-    conn = sqlite3.connect("dashdata.db")
+    conn = sqlite3.connect("C:/Users/Rahul Maddula/PycharmProjects/ddinter/dashdata.db")
     c = conn.cursor()
 
     # Fetch the values of the 'drugsList' table from the SQLITE database
@@ -119,4 +119,4 @@ def getInteractions():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=7000)
