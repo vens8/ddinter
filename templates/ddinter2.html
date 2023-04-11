@@ -397,9 +397,9 @@
       width: 100%;
       padding: 10px;
       float: center;
-		}
+    }
 
-		#dropdown-input {
+    #dropdown-input {
       margin: 0;
       margin-bottom: 35px;
       border: solid 3px black;
@@ -408,32 +408,32 @@
       padding: 10px;
       float: left;
       font-size: 16px;
-		}
+    }
 
-		.dropdown-list {
-			position: absolute;
+    .dropdown-list {
+      position: absolute;
             top: 100%;
             left: 25%;
       right: 0.5px;
-			z-index: 1;
-			width: 50.5%;
-			height: 200px;
-			overflow-y: auto;
-			background-color: #fff;
-			border: 1px solid #0e0e0e;
-			border-radius: 4px;
-			box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-		}
+      z-index: 1;
+      width: 50.5%;
+      height: 200px;
+      overflow-y: auto;
+      background-color: #fff;
+      border: 1px solid #0e0e0e;
+      border-radius: 4px;
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    }
 
-		.dropdown-list-item {
-			padding: 10px;
-			cursor: pointer;
+    .dropdown-list-item {
+      padding: 10px;
+      cursor: pointer;
       color:#0c0c0f
-		}
+    }
 
-		.dropdown-list-item:hover {
-			background-color: #d0d3d3;
-		}
+    .dropdown-list-item:hover {
+      background-color: #d0d3d3;
+    }
   </style>
 
 </head>
@@ -441,6 +441,7 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", function (event) {
+    console.log('DOM content loaded');
     var scrollpos = localStorage.getItem('scrollpos');
     if (scrollpos) window.scrollTo(0, scrollpos);
   });
@@ -452,6 +453,8 @@
 
 <script>
   window.tagsList = [];
+  console.log('initial value', window.tagsList);
+
   document.getElementById("myUL").innerHTML= "";
   const INTERACTION_EXAMPLE = [
   {id: 1, name: "Aluminum hydroxide"},
@@ -530,12 +533,6 @@ for (i = 0; i < close.length; i++) {
 
 
 function newElement() {
-
-  if (window.tagsList.length === 0) {
-    alert("Please add a few drugs!");
-    return;
-  }
-
   const ul = document.getElementById("myUL");
   ul.innerHTML = ""; // clear the existing list items
 
@@ -570,10 +567,9 @@ function newElement() {
   }
 
   // show the dropdown menu after adding the tag
-  showDropdown();
+  // showDropdown();
 
   console.log(window.tagsList);
-
 }
 
 function reset() {
@@ -607,7 +603,7 @@ function reset() {
 function showDropdown() {
   console.log("dropdown called");
   const dropdown = document.querySelector('.dropdown-list');
-  dropdown.classList.add('show');
+  dropdown.classList.toggle('show');
 }
 
 function deleteList() {
@@ -629,7 +625,7 @@ function deleteLoading() {
   loadingdiv.innerHTML = ""
 }
 
-function updatetable(interactions) {
+function updateTable(interactions) {
   deleteTable();
   deleteNote();
   if (interactions.length > 0) {
@@ -712,7 +708,7 @@ function fetchData() {
 function checkFetch() {
   const dropdown = document.querySelector('.dropdown-list');
   // Loop through the dictionary and add an option element for each key-value pair
-  console.log("count", dropdown.childElementCount);
+  // console.log("count", dropdown.childElementCount);
   if (dropdown.childElementCount === 0) {
     fetchData();
   }
@@ -738,7 +734,7 @@ function initDropdown() {
 
   // Add a click event listener to the input field
   input.addEventListener('click', function() {
-    // console.log("Im being clicked");
+    console.log("Im being clicked");
     // Toggle the visibility of the dropdown list
     list.style.top = input.offsetTop + input.offsetHeight + 'px';
     list.style.left = input.offsetLeft + 'px';
@@ -749,28 +745,35 @@ function initDropdown() {
     }
   });
 
-  // Add a click event listener to each dropdown list item
-  const items = document.querySelectorAll('.dropdown-list-item');
-  items.forEach(function(item) {
-    item.addEventListener('click', function() {
-      // Update the input field with the selected item
-      input.value = item.textContent;
-      // Trigger an input event on the input field to simulate user input
-      const event = new Event('input', {
-        bubbles: true,
-        cancelable: true,
-      });
-      input.dispatchEvent(event);
-      addTag();
-
-      // Hide the dropdown list
-      list.style.display = 'none';
+// Add a click event listener to each dropdown list item
+const items = document.querySelectorAll('.dropdown-list-item');
+items.forEach(function(item) {
+  item.addEventListener('click', function() {
+    console.log('field item clicked');
+    // Update the input field with the selected item
+    input.value = item.textContent;
+    // Trigger an input event on the input field to simulate user input
+    const event = new Event('input', {
+      bubbles: true,
+      cancelable: true,
     });
+    input.dispatchEvent(event);
+    addTag();
+    const event2 = new MouseEvent('click', {
+	  view: window,
+	  bubbles: true,
+	  cancelable: true
+	});
+	document.dispatchEvent(event2);
   });
+});
+
 
   // Hide the dropdown list if the user clicks outside of it
   document.addEventListener('click', function(event) {
+    console.log('document click');
     if (!input.contains(event.target) && !list.contains(event.target)) {
+      console.log('hid dropdown list because you clicked outside!');
       list.style.display = 'none';
     }
   });
@@ -781,7 +784,7 @@ function initDropdown() {
   // Add event listener to the search input
 
   dropdownSearch.addEventListener('input', () => {
-    console.log("search being clicked");
+    console.log("search being triggered");
     const searchValue = dropdownSearch.value.toLowerCase().trim();
     let found = false;
     // Show/hide options based on search input
@@ -800,21 +803,22 @@ function initDropdown() {
     }
   });
 
-let selectedOptionIndex = -1; // initialize the selected option index to 0
+window.selectedOptionIndex = -1; // initialize the selected option index to 0
 
 dropdownSearch.addEventListener('keydown', (event) => {
+  console.log('dropdown search key pressed');
   const key = event.key;
   if (key === "ArrowUp" || key === "ArrowDown") {
     event.preventDefault();
     const visibleOptions = Array.from(dropdownList.children).filter((option) => option.style.display !== 'none');
     if (visibleOptions.length > 0) {
-      if (selectedOptionIndex === -1) {
-        selectedOptionIndex = key === "ArrowUp" ? visibleOptions.length - 1 : 0;
+      if (window.selectedOptionIndex === -1) {
+        window.selectedOptionIndex = key === "ArrowUp" ? visibleOptions.length - 1 : 0;
       } else {
-        selectedOptionIndex = (selectedOptionIndex + (key === "ArrowUp" ? -1 : 1) + visibleOptions.length) % visibleOptions.length;
+        window.selectedOptionIndex = (window.selectedOptionIndex + (key === "ArrowUp" ? -1 : 1) + visibleOptions.length) % visibleOptions.length;
       }
       visibleOptions.forEach((option, index) => {
-        if (index === selectedOptionIndex) {
+        if (index === window.selectedOptionIndex) {
           option.classList.add('selected');
           dropdownSearch.value = option.textContent;
         } else {
@@ -822,38 +826,8 @@ dropdownSearch.addEventListener('keydown', (event) => {
         }
       });
     }
-  } else if (key === "Enter") {
-    const selectedOption = dropdownList.querySelector('.selected');
-    if (selectedOption) {
-      selectedOption.click();
-    }
   }
 });
-
-
-//dropdownList.addEventListener('click', (event) => {
-//  dropdownSearch.value = event.target.textContent;
-//  dropdownSearch.focus();
-//  dropdownList.innerHTML = originalDropdownHTML; // reset the dropdown menu to its original HTML
-//  selectedOptionIndex = -1; // reset the selected option index
-// });
-
-dropdownList.addEventListener('click', (event) => {
-  dropdownSearch.value = event.target.textContent;
-  dropdownSearch.focus();
-  dropdownList.innerHTML = originalDropdownHTML; // reset the dropdown menu to its original HTML
-  for (let i = 0; i < dropdownList.children.length; i++) {
-    const option = dropdownList.children[i];
-    const optionText = option.textContent.toLowerCase();
-    if (optionText.includes(dropdownSearch.value.toLowerCase().trim())) {
-      option.style.display = 'block';
-    } else {
-      option.style.display = 'none';
-    }
-  }
-  selectedOptionIndex = -1;
-});
-
 
 
 
@@ -869,11 +843,11 @@ dropdownList.addEventListener('click', (event) => {
   });
 
   // Hide options when clicking outside the dropdown
-  document.addEventListener('click', (event) => {
-    if (!dropdownSearch.contains(event.target)) {
-      dropdownList.classList.remove('show');
-    }
-  });
+  // document.addEventListener('click', (event) => {
+  //   if (!dropdownSearch.contains(event.target)) {
+  //     dropdownList.classList.remove('show');
+  //   }
+  // });
 
 }
 
@@ -944,21 +918,12 @@ function submitDelay() {
   setTimeout(submitList,2000);
 }
 
-function toCamelCase(str){
-  let newStr = "";
-  if(str){
-    let wordArr = str.split(/[-_]/g);
-    for (let i in wordArr){
-      if(i > 0){
-        newStr += wordArr[i].charAt(0).toUpperCase() + wordArr[i].slice(1);
-      }else{
-        newStr += wordArr[i]
-      }
-    }
-  }else{
-    return newStr
+function capitalize(str) {
+  if (!str) {
+    return str;
   }
-  return newStr;
+  const trimmedStr = str.trim();
+  return trimmedStr.charAt(0).toUpperCase() + trimmedStr.slice(1);
 }
 
 
@@ -966,11 +931,13 @@ document.getElementById("tag-list").innerHTML = "";
 
 // Add a tag when clicking on the "Add" button
 function addTag() {
-  console.log(window.tagsList);
+  console.log('selected option', window.selectedOptionIndex);
+  console.log('current value', window.tagsList);
   console.log("It was me")
   var tagList = document.getElementById("tag-list");
-  var inputValue = document.getElementById("myInput").value.trim();
-  console.log('cameled', inputValue);
+  var inputValue = capitalize(document.getElementById("myInput").value.trim());
+  const dropdownList = document.querySelector('.dropdown-list');
+  console.log('capitalized', inputValue);
   const input = document.querySelector('.myInput');
 
   if (inputValue === '') {
@@ -980,17 +947,27 @@ function addTag() {
   } else if (window.tagsList.includes(inputValue)) {
     alert("This drug is already added!");
   } else {
-    // Create a new tag element with text and delete button
+    // Create a new tag element with text and close button
     var tag = document.createElement("div");
-    tag.classList.add("tag");
-    tag.innerHTML = inputValue + '<button onclick="deleteTag(this)">x</button>';
+    tag.classList.add("tag", "badge", "badge-primary", "d-flex", "align-items-center", "justify-content-between", "py-1", "px-2", "ms-2");
+    tag.innerHTML = `
+      <span>${inputValue}</span>
+      <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick="deleteTag(this)"></button>
+    `;
     tagList.appendChild(tag);
     window.tagsList.push(inputValue);
   }
 
   console.log('tagsList', window.tagsList)
   document.getElementById("myInput").value = "";  // Clear the input textbox after adding the tag
-  showDropdown();
+  // Trigger an input event on the input field to simulate user input
+  const event = new Event('input', {
+    bubbles: true,
+    cancelable: true,
+  });
+  input.dispatchEvent(event);
+  dropdownList.style.display = 'block';
+  window.selectedOptionIndex = -1;
 }
 
 
@@ -1031,7 +1008,7 @@ function deleteTag(button) {
             <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >
             <div class="dropdown-list">
             </div> -->
-			<script>
+      <script>
         let btn = document.getElementById('gfg');
         document.addEventListener('keypress', (event)=>{
 
@@ -1044,12 +1021,12 @@ function deleteTag(button) {
             btn.click();
         }
         });
-        //let tagbtn = document.getElementById('tagButton');
-        //document.addEventListener('keydown', function(event) {
-        //if (event.keyCode === 13 && !event.shiftKey) {
-        //    tagbtn.click();
-        //}
-      //});
+        let tagbtn = document.getElementById('tagButton');
+        document.addEventListener('keydown', function(event) {
+        if (event.keyCode === 13 && !event.shiftKey) {
+            tagbtn.click();
+        }
+      });
     </script>
 
         </div>
