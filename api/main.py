@@ -32,7 +32,7 @@ def fetch_process_drugs():
     # Pull and process data here for faster and efficient query handling
 
     # Connect to database
-    conn = sqlite3.connect("C:/Users/Rahul Maddula/PycharmProjects/ddinter/dashdata.db")
+    conn = sqlite3.connect("dashdata.db")
     c = conn.cursor()
 
     # Fetch the values of the 'drugsList' table from the SQLITE database
