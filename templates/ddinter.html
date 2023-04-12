@@ -326,20 +326,20 @@
 }
 
 #drugtable tr:hover {
-  background-color: #ddd;
+  background-color: #999999;
 }
 
 #drugtable > th {
   padding-top: 12px;
   padding-bottom: 12px;
-  background-color: #04AA6D;
-  color: white;
+    background-color: #00CC99;
+  color: #fff;
   text-align: center;
 }
 
 #drugtable th:first-child,
 #drugtable td:first-child {
-  text-align: left;
+  text-align: center;
 }
 
 @media only screen and (max-width: 600px) {
@@ -598,6 +598,7 @@ function updateTable(interactions) {
     var mytable = document.getElementById("drugtable");
 
     var header = mytable.createTHead();
+    header.classList.add("text-white"); // add text-white class to thead
     var row = header.insertRow(0);
     row.style.backgroundColor = "black";
     var cell1 = row.insertCell(0);
@@ -880,9 +881,10 @@ function capitalize(str) {
   if (!str) {
     return str;
   }
-  const trimmedStr = str.trim();
+  const trimmedStr = str.trim().toLowerCase(); // Convert to lowercase
   return trimmedStr.charAt(0).toUpperCase() + trimmedStr.slice(1);
 }
+
 
 
 document.getElementById("tag-section").innerHTML = "";
@@ -1000,7 +1002,7 @@ function deleteTag(button) {
 
         <div class="table-responsive">
             <table id="drugtable" class="table table-striped table-bordered text-center">
-                <thead class="bg-dark text-white"></thead>
+                <thead class="text-white"></thead>
                 <tbody>
                     <!-- Rows will be added dynamically by the JavaScript code -->
                 </tbody>
