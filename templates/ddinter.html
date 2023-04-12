@@ -930,12 +930,13 @@ function addTag() {
 function deleteTag(button) {
   var tag = button.parentElement;
   tag.parentElement.removeChild(tag);
-  var tagText = tag.textContent.replace('x', '').trim(); // Extract the tag text
+  var tagText = tag.querySelector('span').textContent; // Extract the tag text
   var index = window.tagsList.indexOf(tagText); // Find the index of the tag in the window.tagsList
   if (index !== -1) {
     window.tagsList.splice(index, 1); // Remove the tag from the tagsList
   }
 }
+
 
 </script>
 <body>
