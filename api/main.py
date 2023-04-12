@@ -18,7 +18,7 @@ app = Flask(__name__, template_folder='../templates')
 def dd_inter():
     fetch_process_drugs()
     # Rendering the ddinter html and returning the dictionaries
-    return render_template('ddinter2.html', drugsList=drugsList, interactionDictionary=sortedInteractionDictionary)
+    return render_template('ddinter.html', drugsList=drugsList, interactionDictionary=sortedInteractionDictionary)
 
 
 @app.route('/testing')

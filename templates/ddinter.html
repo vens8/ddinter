@@ -1,53 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-	<meta charset="utf-8">
-	<meta content="width=device-width, initial-scale=1.0" name="viewport">
-
-	<title>Safe ICU</title>
-	<meta content="" name="description">
-	<meta content="" name="keywords">
-
-	<!-- Favicons -->
-<!--	<link href="static/img/favicon.png" rel="icon">-->
-	<link href="static/img/apple-touch-icon.png" rel="apple-touch-icon">
-
-	<!-- Google Fonts -->
-	<link href="https://fonts.gstatic.com" rel="preconnect">
-	<link
-			href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Nunito:300,300i,400,400i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i"
-			rel="stylesheet">
-
-	<!-- Vendor CSS Files -->
-<!--	<link href="static/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/remixicon/remixicon.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/quill/quill.snow.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/quill/quill.bubble.css" rel="stylesheet">-->
-<!--	<link href="static/vendor/simple-datatables/style.css" rel="stylesheet">-->
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js"
-			integrity="sha512-AA1Bzp5Q0K1KanKKmvN/4d3IRKVlv9PYgwFPvm32nPO6QS8yH1HO7LbgB1pgiOxPtfeg5zEn2ba64MUcqJx6CA=="
-			crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-	<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css"
-		  integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
-	<!-- <link href="static/platform_style.css" rel="stylesheet"> -->
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-	<!-- <link rel="stylesheet" href="static/css/style.css">   -->
-<!--	<link rel="stylesheet" href="static/textSummarisation.css">-->
-
-	<!-- Template Main CSS File -->
-<!--	<link href="static/css/style_new.css" rel="stylesheet">-->
-	<!-- <link href="static/platform_style.css" rel="stylesheet"> -->
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-	<!-- <link rel="stylesheet" href="static/css/style.css"> -->
-<!--	<script src='static/Chart.min.js' type="text/javascript"></script>-->
-<!--	<script src="Server/working/static/js/ddinter.js"></script>-->
+  <meta charset="UTF-8">
+  <title>My Drug List</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css" integrity="sha384-QC0/KM9tJvApoT3KM7GzFZn3ZtMz1+d6H4YY6b4dWm9gJvqLMbSJoCkTcN6kkzTl" crossorigin="anonymous">
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.0.2/css/bootstrap.min.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.5.0/font/bootstrap-icons.min.css">
+  <style>
 	<style>
-    input[type=text] {
+
+  input[type=text] {
       border: 0;
-      
+
     }
 
     input[type=text]:focus {
@@ -76,13 +43,7 @@
       transition: 0.4s;
       border-radius: 5px;
     }
-
-
-
-	</style>
-
-	<style>
-    /* Include the padding and border in an element's total width and height */
+  /* Include the padding and border in an element's total width and height */
     * {
       box-sizing: border-box;
     }
@@ -94,7 +55,7 @@
 
     /* Remove margins and padding from the list */
     #myUL {
-      margin: 100px 0px;
+      margin: 10px 10%;
       padding: 0;
     }
 
@@ -102,7 +63,7 @@
     #myUL > li {
       cursor: pointer;
       position: relative;
-      top: 75px;
+      top: 10px;
       padding: 20px 8px 4px 10px;
       text-align: center;
       background: #e5ecdde1;
@@ -133,60 +94,6 @@
       text-decoration: line-through;
     }
 
-    /* Add a "checked" mark when clicked on */
-    #myUL > li.checked::before {
-      content: '';
-      position: absolute;
-      border-color: #fff;
-      border-style: solid;
-      border-width: 0 2px 2px 0;
-      top: 10px;
-      left: 16px;
-      transform: rotate(45deg);
-      height: 15px;
-      width: 7px;
-    }
-    .footer{
-      position: absolute;
-      left: 5px;
-    }
-    /* Define the sidebar's default position */
-    .sidebar {
-      position: fixed;
-      top: 60px;
-      left: -250px;
-      height: 100%;
-      width: 250px;
-      z-index: 999;
-      background-color: #fff;
-      box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.2);
-      transition: all 0.3s ease-in-out;
-    }
-
-    /* Define the sidebar's visible position */
-    .sidebar.active {
-      left: 0;
-    }
-
-    /* Define the toggle button's position */
-    #sidebar-toggle {
-      position: absolute;
-      top: 10px;
-      left: 3px;
-      font-size: 24px;
-      color: #333;
-      background-color: transparent;
-      border: none;
-      outline: none;
-      cursor: pointer;
-    }
-
-    /* Define the button's icon */
-    #sidebar-toggle i {
-      vertical-align: middle;
-    }
-
-    /* Define the main content's position */
     #myhomepage {
       margin-left: 250px;
       transition: all 0.3s ease-in-out;
@@ -196,7 +103,10 @@
     #myhomepage.active {
       margin-left: 0;
     }
-
+    .tag-container {
+      display: flex;
+      padding: 30px;
+    }
 
     /* Style the close button */
     .close {
@@ -204,10 +114,12 @@
       right: 0;
       top: 0;
       padding: 12px 16px 12px 16px;
+      background-color: #2b1e1e;
+      color: white;
     }
 
     .close:hover {
-      background-color: #dc2828;
+      background-color: #643d3d;
       color: white;
     }
 
@@ -227,96 +139,146 @@
       clear: both;
     }
 
-    /* Style the input */
-    #myInput {
-      
-      margin: 0;
-      margin-bottom: 35px;
-      border: solid 3px black;
-      border-radius: 10px;
-      width: 60%;
-      padding: 10px;
-      float: center;
-      font-size: 16px;
-    }
-
-    .myInput {
-      
-      margin: 0;
-      margin-bottom: 35px;
-      border: solid 3px black;
-      border-radius: 10px;
-      width: 60%;
-      padding: 10px;
-      float: center;
-      font-size: 16px;
-    }
-
-    /* Style the "Add" button */
-    .addBtn {
-      padding: 10px;
-      
-      width: 100%;
-      background: #d9d9d9;
-      color: #170411;
-      float: center;
-      text-align: center;
-      font-size: 18px;
-      cursor: pointer;
-      transition: 0.3s;
-      border-radius: 5px;
-      
-      
-    }
-
-    .addBtn:hover {
-      background-color: #bedcf7;
-    }
+  .footer {
+    width: 100%;
+    height: 50px;
+    line-height: 60px;
+  }
 
     .myheading {
-      color: #0c0c0f;
-      font-family: Helvetica, 'Open Sans', Arial, sans-serif;
-      font-size: 32px;
-      font-weight: bold;
-      background-image: linear-gradient(to right, #004C99, #ff6666);
-      font-size: 32px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      width: 300px;
-      text-align: center;
-      margin: auto;
-      white-space: nowrap;
-      padding-bottom: 50px;
-      background-clip: text;
-      color: transparent;
-      -webkit-background-clip: text;
-    }
+  color: #0c0c0f;
+  font-family: Helvetica, "Open Sans", Arial, sans-serif;
+  font-size: 32px;
+  font-weight: bold;
+  background-image: linear-gradient(to right, #004C99, #ff6666);
 
-    .myheading:before {
-      background-color: #046e18;
-      content: '';
-      display: block;
-      height: 3px;
-      width: 275px;
-      margin-bottom: 5px;
-    }
+  display: flex;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  width: 300px;
+  text-align: center;
+  margin: auto;
+  white-space: nowrap;
+  padding-bottom: 50px;
+  padding-top: 20px;
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.myheading:before,
+.myheading:after {
+  background-color: #064c02;
+  content: "";
+  display: block;
+  height: 3px;
+  width: 275px;
+  margin-bottom: 5px;
+}
 
-    .myheading:after {
-      background-color: #064c02;
-      content: '';
-      display: block;
-      margin-top: 5px;
-      /* left: 0; */
-      /* right: 25; */
-      margin-right: 0px;
-      bottom: 0;
-      height: 3px;
-      width: 275px;
-      margin-bottom: 5px;
-    }
+.myheading:before {
+  background-color: #046e18;
+}
 
-    #mybtn {
+.myheading:after {
+  margin-top: 5px;
+}
+#myInput {
+  position: relative;
+  margin: 0 auto;
+  margin-bottom: 3px;
+  margin-left: 40px;
+  border: solid 3px black;
+  border-radius: 5px;
+  width: 50%;
+  padding: 10px;
+  float: center;
+  font-size: 16px;
+}
+
+.myInput {
+  flex: 1;
+  display: inline-block;
+  margin: 0 auto;
+  margin-bottom: 3px;
+  margin-left: 85px;
+  border: solid 3px black;
+  border-radius: 10px;
+  width: 50%;
+  padding: 10px;
+  float: center;
+  font-size: 16px;
+}
+.addBtn {
+  padding: 10px;
+  display: inline-block;
+  width: 10%;
+  background: #d9d9d9;
+  vertical-align: middle;
+  color: #170411;
+  float: center;
+  text-align: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.3s;
+  border-radius: 5px;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.submitBtn {
+  padding: 10px;
+  display: inline-block;
+  width: 5%;
+  background: #128216;
+  vertical-align: middle;
+  color: white;
+  float: center;
+  text-align: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.3s;
+  border-radius: 5px;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+@media only screen and (max-width: 768px) {
+  .addBtn {
+    width: 30%;
+  }
+}
+
+@media only screen and (max-width: 576px) {
+  .addBtn {
+    width: 50%;
+  }
+}
+
+.addBtn:hover {
+  background-color: #bedcf7;
+}
+
+@media only screen and (max-width: 768px) {
+  .submitBtn {
+    width: 30%;
+  }
+}
+
+@media only screen and (max-width: 576px) {
+  .submitBtn {
+    width: 50%;
+  }
+}
+
+.submitBtn:hover {
+  background-color: #0fb015;
+}
+#mybtn {
       content: "";
       position: relative;
       bottom: 0px;
@@ -344,41 +306,55 @@
     } */
 
     #drugtable {
-      font-family: Arial, Helvetica, sans-serif;
-      border-collapse: collapse;
-      width: 80%;
-      /* left: 50%; */
-      color: white;
-      margin-left: 25%;
-      margin-right: 30%;
-      max-width: 800px;
-    }
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  width: 80%;
+  margin: auto;
+  max-width: 800px;
+  table-layout: fixed;
+}
 
-    #drugtable td,
-    #drugtable th {
-      border: 1px solid #ddd;
-      padding: 8px;
-    }
+#drugtable td,
+#drugtable th {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
 
-    #drugtable tr:nth-child(even) {
-      background-color: #f2f2f2;
-    }
+#drugtable tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
 
-    #drugtable tr:hover {
-      background-color: #ddd;
-    }
+#drugtable tr:hover {
+  background-color: #ddd;
+}
 
-    #drugtable > th {
-      padding-top: 12px;
-      padding-bottom: 12px;
-      text-align: left;
-      background-color: #04AA6D;
-      color: white;
-    }
+#drugtable > th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  background-color: #04AA6D;
+  color: white;
+  text-align: center;
+}
+
+#drugtable th:first-child,
+#drugtable td:first-child {
+  text-align: left;
+}
+
+@media only screen and (max-width: 600px) {
+  #drugtable {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 
     #notediv {
       padding-left: 10px;
       margin-top: 20px;
+      margin-bottom: 20px;
       font-size: 20px;
       color: #ff0000;
       text-align: center;
@@ -405,15 +381,43 @@
       color: #5a5a5a;
       text-align: center;
     }
+/* Style the tags */
+#tag-section {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
 
-    /* #dropdown {
-			position: relative;
-			display: inline-block;c
-			width: 200px;
-			margin-top: 10px;
-		} */
+.tag {
+  display: inline-block;
+  background-color: #bedcf7;
+  color: #170411;
+  padding: 5px 10px;
+  margin-right: 10px;
+  border-radius: 5px;
+  font-size: 16px;
+  margin-top: -5px;
+  width: fit-content;
+}
 
-    #dropdown {
+.tag button {
+  margin-left: 5px;
+  background-color: #424242;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.tag button:hover {
+  background-color: #232222;
+}
+
+#dropdown {
       margin: 0;
       margin-bottom: 35px;
       border: solid 3px black;
@@ -421,9 +425,9 @@
       width: 100%;
       padding: 10px;
       float: center;
-		}
-		
-		#dropdown-input {
+    }
+
+    #dropdown-input {
       margin: 0;
       margin-bottom: 35px;
       border: solid 3px black;
@@ -432,101 +436,54 @@
       padding: 10px;
       float: left;
       font-size: 16px;
-		}
-		
-		.dropdown-list {
-			position: absolute;
-			top: 37%;
-			left: 25%;
+    }
+
+    .dropdown-list {
+    	display: none;
+      position: absolute;
+            top: 100%;
+            left: 25%;
       right: 0.5px;
-			z-index: 1;
-			width: 43%;
-			max-height: 200px;
-			overflow-y: auto;
-			background-color: #fff;
-			border: 1px solid #0e0e0e;
-			border-radius: 4px;
-			box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-		}
-		
-		.dropdown-list-item {
-			padding: 10px;
-			cursor: pointer;
-      color:#0c0c0f
-		}
-		
-		.dropdown-list-item:hover {
-			background-color: #d0d3d3;
-		}
-
-
-    /* Set the footer position to fixed at the bottom of the screen */
-    #footer {
-      position: fixed;
-      bottom: 0;
-      left: -19%;
-      width: 100%;
-      display: flex; /* Add this */
-      justify-content: center; /* Add this */
+      z-index: 1;
+      width: 50.5%;
+      height: 200px;
+      overflow-y: auto;
+      background-color: #fff;
+      border: 1px solid #0e0e0e;
+      border-radius: 4px;
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
     }
 
-
-    /* Center align the content within the footer */
-    #footer .copyright {
-      text-align: center;
-    }
-
-
-    /* Style the tags */
-    .tag {
-      display: inline-block;
-      background-color: #bedcf7;
-      color: #170411;
-      padding: 5px 10px;
-      margin-right: 5px;
-      margin-bottom: 5px;
-      border-radius: 5px;
-      font-size: 16px;
-    }
-
-    .tag button {
-      margin-left: 5px;
-      background-color: #424242;
-      color: white;
-      border: none;
-      border-radius: 50%;
+    .dropdown-list-item {
+      padding: 10px;
       cursor: pointer;
-      font-size: 16px;
+      color:#0c0c0f
     }
 
-    .tag button:hover {
-      background-color: #232222;
+    .dropdown-list-item:hover {
+      background-color: #d0d3d3;
     }
-
-
-
-
-	</style>
+  </style>
 
 </head>
 
 
 <script>
   document.addEventListener("DOMContentLoaded", function (event) {
+    console.log('DOM content loaded');
     var scrollpos = localStorage.getItem('scrollpos');
     if (scrollpos) window.scrollTo(0, scrollpos);
   });
 
-  window.onbeforeunload = function (e) {
-    localStorage.setItem('scrollpos', window.scrollY);
-  };
-
-
-
+  //window.onbeforeunload = function (e) {
+  //  localStorage.setItem('scrollpos', window.scrollY);
+  //};
 </script>
 
 <script>
   window.tagsList = [];
+  console.log('initial value', window.tagsList);
+
   document.getElementById("myUL").innerHTML= "";
   const INTERACTION_EXAMPLE = [
   {id: 1, name: "Aluminum hydroxide"},
@@ -561,56 +518,8 @@ for (i = 0; i < close.length; i++) {
   }
 }
 
-// // Add a "checked" symbol when clicking on a list item
-// var list = document.querySelector('ul');   // Yaha bhi hein ek ul
-// list.addEventListener('click', function (ev) {
-//   if (ev.target.tagName === 'LI') {  // Yaha bhi hein ek LI
-//     ev.target.classList.toggle('checked');
-//   }
-// }, false);
-
-// Create a new list item when clicking on the "Add" button
-// function newElement() {
-
-//   var li = document.createElement("li");  // yaha bhi li hein ek
-//   var inputValue = document.getElementById("myInput").value;
-//   var t = document.createTextNode(inputValue);
-//   li.appendChild(t);
-//   if (inputValue === '') {
-//     alert("Please enter the drug name!");
-//   } else {
-//     console.log(document.getElementById("myUL"));
-//     document.getElementById("myUL").appendChild(li);
-//   }
-//   document.getElementById("myInput").value = "";  // Clear the input textbox after adding the item
-
-//   var span = document.createElement("SPAN");
-//   var txt = document.createTextNode("\u00D7");
-//   span.className = "close";
-//   span.appendChild(txt);
-//   li.appendChild(span);
-
-//   var close = document.getElementsByClassName("close"); // Definition of the class variable
-
-
-//   for (i = 0; i < close.length; i++) {
-//     close[i].onclick = function () {
-//       var div = this.parentElement;
-//       div.style.display = "none";
-//     }
-//   }
-
-//   console.log(myNodelist);
-// }
-
 
 function newElement() {
-
-  if (window.tagsList.length === 0) {
-    alert("Please add a few drugs!");
-    return;
-  }
-
   const ul = document.getElementById("myUL");
   ul.innerHTML = ""; // clear the existing list items
 
@@ -619,9 +528,10 @@ function newElement() {
     const t = document.createTextNode(window.tagsList[i]);
     li.appendChild(t);
 
-    const span = document.createElement("SPAN");
-    const txt = document.createTextNode("\u00D7");
-    span.className = "close";
+    const span = document.createElement("button");
+    const txt = document.createTextNode("X");
+    span.className = "close btn btn-sm";
+    span.setAttribute("type", "button");
     span.appendChild(txt);
     li.appendChild(span);
 
@@ -643,46 +553,23 @@ function newElement() {
       }
     }
   }
-
-  // show the dropdown menu after adding the tag
-  showDropdown();
-
-  console.log(window.tagsList);
-
 }
+
+
 
 function reset() {
     document.getElementById("myUL").innerHTML = "";
     var table = document.getElementById("drugtable");
     table.innerHTML = "";
-    window.tagsList.length = 0;
+    var tagSection = document.getElementById("tag-section");
+    tagSection.innerHTML = ""; // delete all the tag elements
+    window.tagsList.length = 0; // reset the tagsList array
 }
-
-// function showDropdown() {
-//     console.log("big dropdown called");
-
-//     const input = document.querySelector('.myInput');
-//     const list = document.querySelector('.dropdown-list');
-//     const filter = input.value.toUpperCase();
-//     list.innerHTML = "";
-
-//     for (let key in window.drugsList) {
-//       const drugName = window.drugsList[key];
-//       if (drugName.toUpperCase().indexOf(filter) > -1) {
-//         let newListItem = document.createElement('div');
-//         newListItem.classList.add('dropdown-list-item');
-//         newListItem.textContent = drugName;
-//         list.appendChild(newListItem);
-//       }
-//     }
-
-//     list.style.display = "block";
-// }
 
 function showDropdown() {
   console.log("dropdown called");
   const dropdown = document.querySelector('.dropdown-list');
-  dropdown.classList.add('show');
+  dropdown.classList.toggle('show');
 }
 
 function deleteList() {
@@ -737,11 +624,10 @@ function updateTable(interactions) {
     deleteList();
   }
   else {
-    console.log('empty');
     // Display HTML message for no interactions
-    // var message = document.createElement("p");
-    // message.innerHTML = "No interactions found";
-    // document.getElementById("interaction-message").appendChild(message);
+    var message = document.createElement("p");
+    message.innerHTML = "No interactions found";
+    document.getElementById("interaction-message").appendChild(message);
     deleteList();
     alert("No interactions found!");
   }
@@ -770,7 +656,7 @@ function fetchData() {
       .then(data => {
         window.drugsList = data;  // Declare the variable as global
         console.log('inside', window.drugsList);
-        
+
         // Creating a swapped drugsList
         window.swappedDrugsList = {};
         for (const key in window.drugsList) {
@@ -787,14 +673,13 @@ function fetchData() {
 function checkFetch() {
   const dropdown = document.querySelector('.dropdown-list');
   // Loop through the dictionary and add an option element for each key-value pair
-  console.log("count", dropdown.childElementCount);
+  // console.log("count", dropdown.childElementCount);
   if (dropdown.childElementCount === 0) {
     fetchData();
   }
 }
 
 window.fetchData = fetchData;
-// window.fetchData();
 
 function initDropdown() {
   const drugsList = window.drugsList;
@@ -810,11 +695,16 @@ function initDropdown() {
   // Get the dropdown input and list elements
   const input = document.querySelector('.myInput');
   const list = document.querySelector('.dropdown-list');
+  list.style.top = input.offsetTop + input.offsetHeight + 'px';
+	list.style.left = input.offsetLeft + 'px';
+  list.style.display = 'block';
 
   // Add a click event listener to the input field
   input.addEventListener('click', function() {
-    // console.log("Im being clicked");
+    console.log("Im being clicked");
     // Toggle the visibility of the dropdown list
+    list.style.top = input.offsetTop + input.offsetHeight + 'px';
+    list.style.left = input.offsetLeft + 'px';
     if (list.style.display === 'block') {
       list.style.display = 'none';
     } else {
@@ -822,28 +712,34 @@ function initDropdown() {
     }
   });
 
-  // Add a click event listener to each dropdown list item
-  const items = document.querySelectorAll('.dropdown-list-item');
-  items.forEach(function(item) {
-    item.addEventListener('click', function() {
-      // Update the input field with the selected item
-      input.value = item.textContent;
-      // Trigger an input event on the input field to simulate user input
-      const event = new Event('input', {
-        bubbles: true,
-        cancelable: true,
-      });
-      input.dispatchEvent(event);
-      addTag();
-
-      // Hide the dropdown list
-      list.style.display = 'none';
+// Add a click event listener to each dropdown list item
+const items = document.querySelectorAll('.dropdown-list-item');
+items.forEach(function(item) {
+  item.addEventListener('click', function() {
+    // Update the input field with the selected item
+    input.value = item.textContent;
+    // Trigger an input event on the input field to simulate user input
+    const event = new Event('input', {
+      bubbles: true,
+      cancelable: true,
     });
+    input.dispatchEvent(event);
+    addTag();
+    const event2 = new MouseEvent('click', {
+    view: window,
+    bubbles: true,
+    cancelable: true
   });
+  document.dispatchEvent(event2);
+  });
+});
+
 
   // Hide the dropdown list if the user clicks outside of it
   document.addEventListener('click', function(event) {
+    console.log('document click');
     if (!input.contains(event.target) && !list.contains(event.target)) {
+      console.log('hid dropdown list because you clicked outside!');
       list.style.display = 'none';
     }
   });
@@ -854,30 +750,49 @@ function initDropdown() {
   // Add event listener to the search input
 
   dropdownSearch.addEventListener('input', () => {
-    console.log("search being clicked");
     const searchValue = dropdownSearch.value.toLowerCase().trim();
     let found = false;
     // Show/hide options based on search input
     for (let i = 0; i < dropdownList.children.length; i++) {
       const option = dropdownList.children[i];
       const optionText = option.textContent.toLowerCase();
-      
+
       if (optionText.includes(searchValue)) {
         option.style.display = 'block';
         found = true;
       } else {
         //dropdownList.innerHTML = '<div class="dropdown-list-item">Option not found</div>';
         option.style.display = 'none';
-      
+
       }
     }
-  //   if (!found) {
-  //     dropdownList.innerHTML = '<div class="dropdown-list-item">Option not found</div>';
-  //   } else {
-  //     option.style.display = 'block';
-  //     dropdownList.innerHTML = originalDropdownHTML;
-  //   }
   });
+
+window.selectedOptionIndex = -1; // initialize the selected option index to 0
+
+dropdownSearch.addEventListener('keydown', (event) => {
+  console.log('dropdown search key pressed');
+  const key = event.key;
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    event.preventDefault();
+    const visibleOptions = Array.from(dropdownList.children).filter((option) => option.style.display !== 'none');
+    if (visibleOptions.length > 0) {
+      if (window.selectedOptionIndex === -1) {
+        window.selectedOptionIndex = key === "ArrowUp" ? visibleOptions.length - 1 : 0;
+      } else {
+        window.selectedOptionIndex = (window.selectedOptionIndex + (key === "ArrowUp" ? -1 : 1) + visibleOptions.length) % visibleOptions.length;
+      }
+      visibleOptions.forEach((option, index) => {
+        if (index === window.selectedOptionIndex) {
+          option.classList.add('selected');
+          dropdownSearch.value = option.textContent;
+        } else {
+          option.classList.remove('selected');
+        }
+      });
+    }
+  }
+});
 
 
 
@@ -891,14 +806,6 @@ function initDropdown() {
       option.style.display = 'block';
     }
   });
-
-  // Hide options when clicking outside the dropdown
-  document.addEventListener('click', (event) => {
-    if (!dropdownSearch.contains(event.target)) {
-      dropdownList.classList.remove('show');
-    }
-  });
-
 }
 
 function findInteractions(drugIDs) {
@@ -922,6 +829,7 @@ function findInteractions(drugIDs) {
 async function submitList() {
   var myNodelist = document.getElementById("myUL").childNodes;
   var drugs = [];
+  console.log('drugs count', drugs, drugs.length);
   for (var i = 0; i < myNodelist.length; i++) {
     var node = myNodelist[i];
     // console.log("node", node);
@@ -937,7 +845,7 @@ async function submitList() {
     }
   }
   // addLoading();
-  if (drugs.length == 1) {
+  if (drugs.length == 0) {
     alert("Please enter at least one drug name!");
   }
   else {
@@ -959,25 +867,30 @@ async function submitList() {
     updateTable(interactions);
     addNote(count)
   }
+  // May later want to add else if statement to check all interactions for one drug
 }
-
 
 function submitDelay() {
   // Fetch data (pretty large so it takes some time)
-  // fetchData();
   // Call submitList after 2 seconds so that data is recorded
   setTimeout(submitList,2000);
 }
 
+function capitalize(str) {
+  if (!str) {
+    return str;
+  }
+  const trimmedStr = str.trim();
+  return trimmedStr.charAt(0).toUpperCase() + trimmedStr.slice(1);
+}
 
-document.getElementById("tag-list").innerHTML = "";
+
+document.getElementById("tag-section").innerHTML = "";
 
 // Add a tag when clicking on the "Add" button
 function addTag() {
-  console.log(window.tagsList);
-  console.log("It was me")
-  var tagList = document.getElementById("tag-list");
-  var inputValue = document.getElementById("myInput").value.trim();
+  var inputValue = capitalize(document.getElementById("myInput").value.trim());
+  const dropdownList = document.querySelector('.dropdown-list');
   const input = document.querySelector('.myInput');
 
   if (inputValue === '') {
@@ -987,17 +900,29 @@ function addTag() {
   } else if (window.tagsList.includes(inputValue)) {
     alert("This drug is already added!");
   } else {
-    // Create a new tag element with text and delete button
-    var tag = document.createElement("div");
-    tag.classList.add("tag");
-    tag.innerHTML = inputValue + '<button onclick="deleteTag(this)">x</button>';
-    tagList.appendChild(tag);
+    // Create a new tag element with text and close button
+    var tagSection = document.getElementById("tag-section");
+
+	var tag = document.createElement("div");
+	tag.classList.add("tag", "badge", "badge-primary", "d-flex", "align-items-center", "justify-content-between", "py-1", "px-2", "ms-10");
+	tag.innerHTML = `
+	  <span>${inputValue}</span>
+	  <button type="button" class="btn-close btn-close-black" aria-label="Close" onclick="deleteTag(this)"></button>
+	`;
+	tagSection.appendChild(tag);
     window.tagsList.push(inputValue);
   }
 
   console.log('tagsList', window.tagsList)
   document.getElementById("myInput").value = "";  // Clear the input textbox after adding the tag
-  showDropdown();
+  // Trigger an input event on the input field to simulate user input
+  const event = new Event('input', {
+    bubbles: true,
+    cancelable: true,
+  });
+  input.dispatchEvent(event);
+  dropdownList.style.display = 'block';
+  window.selectedOptionIndex = -1;
 }
 
 
@@ -1012,103 +937,46 @@ function deleteTag(button) {
   }
 }
 
-
-
-
 </script>
-
 <body>
-
-<!-- ======= Header ======= -->
-<header id="header" class="header fixed-top d-flex align-items-center">
-	<div class="d-flex align-items-center justify-content-between">
-		<a href="/" class="logo d-flex align-items-center">
-			<span class="d-lg-block">SAFE ICU</span>
-		</a>
-		<button class="sidebar-toggle" id="sidebar-toggle">
-			<i class="bi bi-list"></i>
-		</button>
-	</div>
-</header>
-
-<!-- ======= Sidebar ======= -->
-<aside id="sidebar" class="sidebar">
-	<ul class="sidebar-nav" id="sidebar-nav">
-		<li class="nav-item">
-			<a class="nav-link collapsed" href="/first_page">
-				<i class="bi bi-house-door-fill"></i>
-				<span>Dashboard</span>
-			</a>
-		</li>
-		<li class="nav-item">
-			<a class="nav-link collapsed" href="./tensorboard">
-				<i class="bi bi-calendar2-minus-fill"></i>
-				<span>Tensorboard</span>
-			</a>
-		</li>
-		<li class="nav-item">
-			<a class="nav-link collapsed" href="./network_page">
-				<i class="bi bi-union"></i>
-				<span>Word Graph</span>
-			</a>
-		</li>
-		<li class="nav-item">
-			<a class="nav-link collapsed" id="active" href="./ddinter">
-				<i class="bi bi-union"></i>
-				<span>DD Inter</span>
-			</a>
-		</li>
-		<li class="nav-item">
-			<a class="nav-link collapsed" href="/back">
-				<i class="bi bi-door-closed-fill"></i>
-				<span>Sign out</span>
-			</a>
-		</li>
-	</ul>
-</aside><!-- End Sidebar-->
-
-<script>
-    const sidebarToggle = document.getElementById("sidebar-toggle");
-    const sidebar = document.getElementById("sidebar");
-
-    sidebarToggle.addEventListener("click", function() {
-      console.log('toggling');
-      sidebar.classList.toggle("active");
-    });
+<h1 class="myheading">My Drug List</h1>
 
 
+<!--<main class="container py-3">-->
+<!--    <div class="row justify-content-center">-->
+<!--        <div class="col-md-6">-->
+<!--            <div class="mb-3">-->
+<!--				<div id="tag-section"></div>-->
+<!--                <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >-->
+<!--                <div id = "tagButton" onclick="addTag()" class="addBtn">Add Tag</div>-->
+<!--                <div id = "gfg" onclick="newElement()" class="addBtn">Add</div>-->
+<!--                <div onclick="reset()" class="addBtn">Reset List</div>-->
+<!--                <div class="dropdown-list">-->
+<!--                </div>-->
+<!--            </div>-->
 
-</script>
-
-
-<!-- Body Start -->
-<div id="myhomepage">
-	<div id="myDIV" class="header">
-		<h2 class="myheading">My Drug List</h2>
-		<div class="tag-container">
-			<div id="tag-list"></div>
-			<input type="text" class="myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()">
-			<div class="dropdown-list">
-			</div>
-			<!-- <input type="text" id="myInput" class="drop" placeholder="Type a drug name..."> -->
-			<!-- <div id="dropdown" class="dropdown">
-			  <input type="text" id="dropdown-input" class="dropdown-input" placeholder="Search a drug...">
-			  <div class="dropdown-list"></div>
-			</div> -->
-			<span id="tagButton" onclick="addTag()" class="addBtn">Add Tag</span>
-			<span id="gfg" onclick="newElement()" class="addBtn">Add</span>
-			<span onclick="reset()" class="addBtn">Reset List</span>
-		</div>
-
-		<!-- <h2 class="myheading">My Drug List</h2>
-		<input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >
-		<div class="dropdown-list">
-		</div> -->
-		<script>
+    <main class="container py-3">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="mb-5">
+							<div id="tag-section" class="tag-section"></div>
+							<input type="text" class="myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()">
+                            <div id="tagButton" onclick="addTag()" class="addBtn">Add Tag</div>
+                            <div id="gfg" onclick="newElement()" class="addBtn">Add</div>
+                            <div onclick="reset()" class="addBtn">Reset List</div>
+                            <div class="dropdown-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      <script>
         let btn = document.getElementById('gfg');
         document.addEventListener('keypress', (event)=>{
 
-        // event.keyCode property will have the code of the pressed key
+        // event.keyCode or event.which  property will have the code of the pressed key
         let keyCode = event.keyCode ? event.keyCode : event.which;
 
         // 13 points the enter key
@@ -1123,65 +991,96 @@ function deleteTag(button) {
             tagbtn.click();
         }
       });
-		</script>
-	</div>
-</div>
+    </script>
 
-<ul id="myUL">
+    <ul id="myUL" class="list-group"></ul>
 
-</ul>
+        <button id="mybtn" onclick="submitDelay()" class="submitBtn">Submit</button>
 
-<div id="mybtn">
-	<button onclick="submitDelay()"> Submit</button>
-</div>
-<script>
+        <div class="table-responsive">
+            <table id="drugtable" class="table table-striped table-bordered text-center">
+                <thead class="bg-dark text-white"></thead>
+                <tbody>
+                    <!-- Rows will be added dynamically by the JavaScript code -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="interaction-message" class="mt-3"></div>
+
+        <div id="notediv" class="card mt-3">
+        </div>
+    </main>
+    <script>
       import myLoader from "Server/working/static/js/myLoader.js";
       const [isLoading, setIsLoading] = useState(false);
+    </script>
 
+    <!-- <div className="d-flex justify-content-center">
+      {isLoading && <MyLoader />}
+    </div> -->
 
+<!--	<div class="table-responsive">-->
+<!--	  <table id="drugtable" class="table table-striped table-bordered text-center">-->
+<!--		<thead class="bg-dark text-white">-->
+<!--		</thead>-->
+<!--		<tbody>-->
+<!--		  &lt;!&ndash; Rows will be added dynamically by the JavaScript code &ndash;&gt;-->
+<!--		</tbody>-->
+<!--	  </table>-->
+<!--	</div>-->
+<!--    <div id="interaction-message" class="interactiondiv"></div>-->
 
-</script>
+<!--    <div id="notediv" class="notediv">-->
 
-<!-- <div className="d-flex justify-content-center">
-  {isLoading && <MyLoader />}
-</div> -->
+<!--    </div>-->
 
-<table id="drugtable" class="">
+<!--    &lt;!&ndash; Body End &ndash;&gt;-->
 
-</table>
-<div id="interaction-message" class="interactiondiv"></div>
+<!--    <div class="d-grid gap-2">-->
+<!--        &lt;!&ndash;            <button class="btn btn-primary" type="submit">Add Drug</button>&ndash;&gt;-->
 
-<div id="notediv" class="notediv">
+<!--    </div>-->
 
-</div>
-</div>
-<!-- Body End -->
-
-
-<!-- ======= Footer ======= -->
-<footer id="footer" class="footer">
-	<div class="copyright">
-		© Copyright <strong><span>Tavlabs</span></strong>. All Rights Reserved
-	</div>
-</footer><!-- End Footer -->
-
-<a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i
-		class="bi bi-arrow-up-short"></i></a>
-
-<!-- Vendor JS Files -->
-<!--<script src="static/bootstrap/js/bootstrap.bundle.js" type="text/javascript"></script>-->
-<!--<script src="static/quill/quill.min.js" type="text/javascript"></script>-->
-<!--<script src="static/tinymce/tinymce.min.js" type="text/javascript"></script>-->
-<!--<script src="static/simple-datatables/simple-datatables.js" type="text/javascript"></script>-->
-<!--<script src="static/chart.js/chart.min.js" type="text/javascript"></script>-->
-<!--<script src="static/apexcharts/apexcharts.min.js" type="text/javascript"></script>-->
-<!--<script src="static/echarts/echarts.min.js" type="text/javascript"></script>-->
-
-<!-- Template Main JS File -->
-<!--<script src="static/js/jquery.min.js" type="text/javascript"></script>-->
-<!--<script src="static/js/popper.js" type="text/javascript"></script>-->
-<!--<script src="static/js/bootstrap.min.js" type="text/javascript"></script>-->
-<!--<script src="static/js/main_new.js" type="text/javascript"></script>-->
-<!--<script src="static/js/main.js" type="text/javascript"></script>-->
+<!--    </div>-->
+<!--  </main>-->
 
 </body>
+<footer id="footer" class="footer fixed-bottom bg-light">
+  <div class="container d-flex justify-content-center">
+    <div class="row">
+      <div class="col text-center">
+        <span>&copy; Copyright
+          <strong>Tavlabs</strong>. All Rights Reserved</span>
+      </div>
+    </div>
+  </div>
+</footer>
+  <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i
+      class="bi bi-arrow-up-short"></i></a>
+
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-QC/EnoYMSNN7yb2KNx2U5r6u/cxqD+"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js" integrity="sha384-h8X9FYbyyh/p1+Jt1bwEpp+fVAInrzJf+YzqG+zshEldW8xsr+Fd4y05f4Fb5mh5" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/js/bootstrap.min.js" integrity="sha384-5fiJTETJOFw2M0ZZULzqOylXjsN0zVg/Nvqt1qrE/8DfhZHTtWWw3fBkCjlLx1qX" crossorigin="anonymous"></script>
+  <!-- Vendor JS Files -->
+  <script src="static/bootstrap/js/bootstrap.bundle.js" type="text/javascript"></script>
+  <script src="static/quill/quill.min.js" type="text/javascript"></script>
+  <script src="static/tinymce/tinymce.min.js" type="text/javascript"></script>
+  <script src="static/simple-datatables/simple-datatables.js" type="text/javascript"></script>
+  <script src="static/chart.js/chart.min.js" type="text/javascript"></script>
+  <script src="static/apexcharts/apexcharts.min.js" type="text/javascript"></script>
+  <script src="static/echarts/echarts.min.js" type="text/javascript"></script>
+
+  <!-- Template Main JS File -->
+  <script src="static/js/jquery.min.js" type="text/javascript"></script>
+  <script src="static/js/popper.js" type="text/javascript"></script>
+  <script src="static/js/bootstrap.min.js" type="text/javascript"></script>
+  <script src="static/js/main_new.js" type="text/javascript"></script>
+  <script src="static/js/main.js" type="text/javascript"></script>
+
+
+
+</html>
