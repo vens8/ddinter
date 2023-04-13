@@ -59,6 +59,7 @@
     #myUL {
       margin: 10px 10%;
       padding: 0;
+      margin-bottom: 0;
     }
 
     /* Style the list items */
@@ -286,7 +287,7 @@
       bottom: 0px;
       clear: both;
       display: block;
-      margin: 150px auto;
+      margin: 40px auto;
       width: 20%;
       text-align: center;
     }
@@ -360,6 +361,7 @@
       font-size: 20px;
       color: #ff0000;
       text-align: center;
+      display:none;
     }
 
     #interactiondiv {
@@ -493,6 +495,14 @@
   animation: slide-up 0.5s ease-out forwards;
 }
 
+.back-to-top {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  margin-bottom: 0px;
+  margin-right: 20px;
+}
+
   </style>
 
 </head>
@@ -602,6 +612,7 @@ function reset() {
     var tagSection = document.getElementById("tag-section");
     tagSection.innerHTML = ""; // delete all the tag elements
     window.tagsList.length = 0; // reset the tagsList array
+    deleteNote();
 }
 
 function showDropdown() {
@@ -677,6 +688,7 @@ function addNote(count) {
   // console.log(count);
   if (count["Unknown"] > 0) {
     var notediv = document.getElementById("notediv");
+    notediv.style.display = "block";
     notediv.innerHTML = "*Note: <b>Unknown interaction means there might be an interaction between the drugs but with unknown severity.</b>"
   }
 }
@@ -684,6 +696,7 @@ function addNote(count) {
 function deleteNote() {
   var notediv = document.getElementById("notediv");
   notediv.innerHTML = "";
+  notediv.style.display = "none";
 }
 
 
@@ -1049,50 +1062,20 @@ function deleteTag(button) {
       import myLoader from "Server/working/static/js/myLoader.js";
       const [isLoading, setIsLoading] = useState(false);
     </script>
-
-    <!-- <div className="d-flex justify-content-center">
-      {isLoading && <MyLoader />}
-    </div> -->
-
-<!--	<div class="table-responsive">-->
-<!--	  <table id="drugtable" class="table table-striped table-bordered text-center">-->
-<!--		<thead class="bg-dark text-white">-->
-<!--		</thead>-->
-<!--		<tbody>-->
-<!--		  &lt;!&ndash; Rows will be added dynamically by the JavaScript code &ndash;&gt;-->
-<!--		</tbody>-->
-<!--	  </table>-->
-<!--	</div>-->
-<!--    <div id="interaction-message" class="interactiondiv"></div>-->
-
-<!--    <div id="notediv" class="notediv">-->
-
-<!--    </div>-->
-
-<!--    &lt;!&ndash; Body End &ndash;&gt;-->
-
-<!--    <div class="d-grid gap-2">-->
-<!--        &lt;!&ndash;            <button class="btn btn-primary" type="submit">Add Drug</button>&ndash;&gt;-->
-
-<!--    </div>-->
-
-<!--    </div>-->
-<!--  </main>-->
-
 </body>
 <footer id="footer" class="footer fixed-bottom bg-light">
   <div class="container d-flex justify-content-center">
+
     <div class="row">
       <div class="col text-center">
         <span>&copy; Copyright
           <strong>Tavlabs</strong>. All Rights Reserved</span>
       </div>
     </div>
+	    <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i
+      class="bi bi-arrow-up"></i></a>
   </div>
 </footer>
-  <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i
-      class="bi bi-arrow-up-short"></i></a>
-
 
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"
