@@ -5,7 +5,9 @@
   <title>My Drug List</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css" integrity="sha384-QC0/KM9tJvApoT3KM7GzFZn3ZtMz1+d6H4YY6b4dWm9gJvqLMbSJoCkTcN6kkzTl" crossorigin="anonymous">
-  <!-- Bootstrap CSS -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+	<!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.0.2/css/bootstrap.min.css">
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.5.0/font/bootstrap-icons.min.css">
@@ -395,11 +397,11 @@
   display: inline-block;
   background-color: #bedcf7;
   color: #170411;
-  padding: 5px 10px;
+  padding: 3px 10px;
   margin-right: 10px;
   border-radius: 5px;
   font-size: 16px;
-  margin-top: -5px;
+  margin-top: 3px;
   width: fit-content;
 }
 
@@ -463,6 +465,34 @@
     .dropdown-list-item:hover {
       background-color: #d0d3d3;
     }
+
+/* Animation for error label */
+@keyframes slide-down {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}
+
+.alert.slide-down {
+  animation: slide-down 0.5s ease-out forwards;
+}
+
+.alert.slide-up {
+  animation: slide-up 0.5s ease-out forwards;
+}
+
   </style>
 
 </head>
@@ -518,43 +548,51 @@ for (i = 0; i < close.length; i++) {
   }
 }
 
+function showError(message) {
+  const errorLabel = document.getElementById("error-label");
+  errorLabel.innerText = message;
+  errorLabel.classList.remove("d-none");
+  errorLabel.classList.add("animate__animated", "animate__fadeIn");
+}
+
+function hideError() {
+  const errorLabel = document.getElementById("error-label");
+  errorLabel.innerText = "";
+  errorLabel.classList.add("d-none");
+  errorLabel.classList.remove("animate__animated", "animate__fadeIn");
+}
+
 
 function newElement() {
   const ul = document.getElementById("myUL");
   ul.innerHTML = ""; // clear the existing list items
+	if (window.tagsList.length == 0) {
+		showError("Please add at least one drug tag before confirmation!");
+	}
+	else {
+		hideError();  // Hide error if any
+	  for (let i = 0; i < window.tagsList.length; i++) {
+		const li = document.createElement("li");
+		const t = document.createTextNode(window.tagsList[i]);
+		li.appendChild(t);
 
-  for (let i = 0; i < window.tagsList.length; i++) {
-    const li = document.createElement("li");
-    const t = document.createTextNode(window.tagsList[i]);
-    li.appendChild(t);
+		const span = document.createElement("button");
+		const txt = document.createTextNode("X");
+		span.className = "close btn btn-sm";
+		span.setAttribute("type", "button");
+		span.appendChild(txt);
+		li.appendChild(span);
 
-    const span = document.createElement("button");
-    const txt = document.createTextNode("X");
-    span.className = "close btn btn-sm";
-    span.setAttribute("type", "button");
-    span.appendChild(txt);
-    li.appendChild(span);
+		ul.appendChild(li);
 
-    ul.appendChild(li);
-
-    const close = document.getElementsByClassName("close");
-
-    for (let i = 0; i < close.length; i++) {
-      close[i].onclick = function () {
-        const div = this.parentElement;
-        div.style.display = "none";
-
-        // remove the tag from the list
-        const tagValue = div.textContent.trim();
-        const index = window.tagsList.indexOf(tagValue);
-        if (index !== -1) {
-          window.tagsList.splice(index, 1);
-        }
-      }
-    }
-  }
+		// add delete functionality
+		span.addEventListener("click", function () {
+		  const li = this.parentElement;
+		  ul.removeChild(li);
+		});
+	  }
+	}
 }
-
 
 
 function reset() {
@@ -595,6 +633,7 @@ function updateTable(interactions) {
   deleteTable();
   deleteNote();
   if (interactions.length > 0) {
+  	hideError();  // Hide error if any
     var mytable = document.getElementById("drugtable");
 
     var header = mytable.createTHead();
@@ -626,11 +665,9 @@ function updateTable(interactions) {
   }
   else {
     // Display HTML message for no interactions
-    var message = document.createElement("p");
-    message.innerHTML = "No interactions found";
-    document.getElementById("interaction-message").appendChild(message);
     deleteList();
-    alert("No interactions found!");
+    // alert("No interactions found!");
+    showError("No interactions found!");
   }
 
   // deleteLoading();
@@ -846,10 +883,15 @@ async function submitList() {
     }
   }
   // addLoading();
-  if (drugs.length == 0) {
-    alert("Please enter at least one drug name!");
+  if (drugs.length == 0 && window.tagsList.length == 0) {
+    // alert("Please add at least one drug tag (Press 'Add Tag' or simply click enter)!");
+    showError("Please add at least one drug tag (Press 'Add Tag' or simply click enter)!");
+  }
+  else if (drugs.length == 0 && window.tagsList.length > 0) {
+  	showError("Please confirm the drug tags (Press 'Confirm' or simply click shift + enter)!");
   }
   else {
+  	hideError();  // Hide error if any
     var count = { "Major": 0, "Moderate": 0, "Minor": 0, "Unknown": 0 };
     drugIDs = []
     for (var i = 0; i < drugs.length; i++) {
@@ -896,12 +938,16 @@ function addTag() {
   const input = document.querySelector('.myInput');
 
   if (inputValue === '') {
-    alert("Please enter a drug name!");
+    //alert("Please enter a drug name!");
+    showError("Please enter a drug name!");
   } else if (!window.swappedDrugsList.hasOwnProperty(inputValue)) {
-    alert("Please enter a valid drug name!");
+    // alert("Please enter a valid drug name!");
+    showError("Please enter a valid drug name!");
   } else if (window.tagsList.includes(inputValue)) {
-    alert("This drug is already added!");
+    // alert("This drug is already added!");
+    showError("This drug is already added!");
   } else {
+  	hideError();  // Hide error if any
     // Create a new tag element with text and close button
     var tagSection = document.getElementById("tag-section");
 
@@ -913,18 +959,18 @@ function addTag() {
 	`;
 	tagSection.appendChild(tag);
     window.tagsList.push(inputValue);
-  }
 
-  console.log('tagsList', window.tagsList)
-  document.getElementById("myInput").value = "";  // Clear the input textbox after adding the tag
-  // Trigger an input event on the input field to simulate user input
-  const event = new Event('input', {
-    bubbles: true,
-    cancelable: true,
-  });
-  input.dispatchEvent(event);
-  dropdownList.style.display = 'block';
-  window.selectedOptionIndex = -1;
+	  console.log('tagsList', window.tagsList)
+	  document.getElementById("myInput").value = "";  // Clear the input textbox after adding the tag
+	  // Trigger an input event on the input field to simulate user input
+	  const event = new Event('input', {
+		bubbles: true,
+		cancelable: true,
+	  });
+	  input.dispatchEvent(event);
+	  dropdownList.style.display = 'block';
+	  window.selectedOptionIndex = -1;
+  }
 }
 
 
@@ -945,19 +991,6 @@ function deleteTag(button) {
 <h1 class="myheading">My Drug List</h1>
 
 
-<!--<main class="container py-3">-->
-<!--    <div class="row justify-content-center">-->
-<!--        <div class="col-md-6">-->
-<!--            <div class="mb-3">-->
-<!--				<div id="tag-section"></div>-->
-<!--                <input type="text" class = "myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()" >-->
-<!--                <div id = "tagButton" onclick="addTag()" class="addBtn">Add Tag</div>-->
-<!--                <div id = "gfg" onclick="newElement()" class="addBtn">Add</div>-->
-<!--                <div onclick="reset()" class="addBtn">Reset List</div>-->
-<!--                <div class="dropdown-list">-->
-<!--                </div>-->
-<!--            </div>-->
-
     <main class="container py-3">
         <div class="row justify-content-center">
             <div class="col-md-10">
@@ -967,12 +1000,13 @@ function deleteTag(button) {
 							<div id="tag-section" class="tag-section"></div>
 							<input type="text" class="myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()">
                             <div id="tagButton" onclick="addTag()" class="addBtn">Add Tag</div>
-                            <div id="gfg" onclick="newElement()" class="addBtn">Add</div>
+                            <div id="gfg" onclick="newElement()" class="addBtn">Confirm</div>
                             <div onclick="reset()" class="addBtn">Reset List</div>
                             <div class="dropdown-list"></div>
                         </div>
                     </div>
                 </div>
+				<div id="error-label" class="alert alert-danger animate__animated animate__fadeIn d-none"></div>
             </div>
         </div>
       <script>
@@ -1008,9 +1042,6 @@ function deleteTag(button) {
                 </tbody>
             </table>
         </div>
-
-        <div id="interaction-message" class="mt-3"></div>
-
         <div id="notediv" class="card mt-3">
         </div>
     </main>
@@ -1068,7 +1099,9 @@ function deleteTag(button) {
         integrity="sha384-QC/EnoYMSNN7yb2KNx2U5r6u/cxqD+"></script>
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js" integrity="sha384-h8X9FYbyyh/p1+Jt1bwEpp+fVAInrzJf+YzqG+zshEldW8xsr+Fd4y05f4Fb5mh5" crossorigin="anonymous"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/js/bootstrap.min.js" integrity="sha384-5fiJTETJOFw2M0ZZULzqOylXjsN0zVg/Nvqt1qrE/8DfhZHTtWWw3fBkCjlLx1qX" crossorigin="anonymous"></script>
-  <!-- Vendor JS Files -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.js"></script>
+
+<!-- Vendor JS Files -->
   <script src="static/bootstrap/js/bootstrap.bundle.js" type="text/javascript"></script>
   <script src="static/quill/quill.min.js" type="text/javascript"></script>
   <script src="static/tinymce/tinymce.min.js" type="text/javascript"></script>

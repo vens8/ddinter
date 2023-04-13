@@ -21,12 +21,6 @@ def dd_inter():
     return render_template('ddinter.html', drugsList=drugsList, interactionDictionary=sortedInteractionDictionary)
 
 
-@app.route('/testing')
-def testing():
-    print('called')
-    return render_template('test.html')
-
-
 def fetch_process_drugs():
     global drugsList, sortedInteractionDictionary
     # Pull and process data here for faster and efficient query handling
@@ -71,9 +65,7 @@ def fetch_process_drugs():
 
 @app.route('/getDrugsList')
 def getDrugsList():
-    print('called')
     global drugsList
-    print(jsonify(drugsList))
     return jsonify(drugsList)
 
 
@@ -81,13 +73,11 @@ def getDrugsList():
 @app.route('/getInteractionTable')
 def getInteractionTable():
     global sortedInteractionDictionary
-    print(jsonify(sortedInteractionDictionary))
     return jsonify(sortedInteractionDictionary)
 
 
 @app.route('/getInteractions', methods=['POST'])
 def getInteractions():
-    print(request.json)
     data = request.json
     drugIDs = [int(x) for x in data['drugIDs']]
     interactions = []
@@ -114,7 +104,6 @@ def getInteractions():
                                 "severity": interaction[id]
                             })
 
-    print('interactions', interactions)
     return jsonify(interactions=interactions)
 
 
