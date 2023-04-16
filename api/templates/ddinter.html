@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Drug List</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css" integrity="sha384-QC0/KM9tJvApoT3KM7GzFZn3ZtMz1+d6H4YY6b4dWm9gJvqLMbSJoCkTcN6kkzTl" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+	<!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.0.2/css/bootstrap.min.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.5.0/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='componentStyles.css') }}">
+</head>
+
+<body>
+<h1 class="myheading">My Drug List</h1>
+    <main class="container py-3">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="mb-5">
+							<div id="tag-section" class="tag-section"></div>
+							<input type="text" class="myInput" id="myInput" placeholder="Enter the drug name..." onclick="checkFetch()">
+                            <div id="tagButton" onclick="addTag()" class="addBtn">Add Tag</div>
+                            <div id="gfg" onclick="newElement()" class="addBtn">Confirm</div>
+                            <div onclick="reset()" class="addBtn">Reset List</div>
+                            <div class="dropdown-list"></div>
+                        </div>
+                    </div>
+                </div>
+				<div id="error-label" class="alert alert-danger animate__animated animate__fadeIn d-none"></div>
+            </div>
+        </div>
+    <ul id="myUL" class="list-group"></ul>
+
+        <button id="mybtn" onclick="submitList()" class="submitBtn">Submit</button>
+
+        <div class="table-responsive">
+            <table id="drugtable" class="table table-striped table-bordered text-center">
+                <thead class="text-white"></thead>
+                <tbody>
+                    <!-- Rows will be added dynamically by the JavaScript code -->
+                </tbody>
+            </table>
+        </div>
+        <div id="notediv" class="card mt-3">
+        </div>
+    </main>
+</body>
+<footer id="footer" class="footer fixed-bottom bg-light">
+  <div class="container d-flex justify-content-center">
+
+    <div class="row">
+      <div class="col text-center">
+        <span>&copy; Copyright
+          <strong>Tavlabs</strong>. All Rights Reserved</span>
+      </div>
+    </div>
+	    <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i
+      class="bi bi-arrow-up"></i></a>
+  </div>
+</footer>
+<script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-QC/EnoYMSNN7yb2KNx2U5r6u/cxqD+"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js" integrity="sha384-h8X9FYbyyh/p1+Jt1bwEpp+fVAInrzJf+YzqG+zshEldW8xsr+Fd4y05f4Fb5mh5" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/js/bootstrap.min.js" integrity="sha384-5fiJTETJOFw2M0ZZULzqOylXjsN0zVg/Nvqt1qrE/8DfhZHTtWWw3fBkCjlLx1qX" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.js"></script>
+</html>

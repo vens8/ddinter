@@ -11,7 +11,7 @@ drugsList, sortedInteractionDictionary = {}, {}
 # file_handler = FileHandler('errorlog.txt')
 # file_handler.setLevel(WARNING)
 
-app = Flask(__name__, template_folder='../templates')
+app = Flask(__name__)
 
 
 @app.route('/')
