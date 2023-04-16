@@ -12,8 +12,6 @@
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.5.0/font/bootstrap-icons.min.css">
   <style>
-	<style>
-
   input[type=text] {
       border: 0;
 
@@ -601,6 +599,7 @@ function newElement() {
 		  ul.removeChild(li);
 		});
 	  }
+	  console.log('tagslist inside new element', window.tagsList)
 	}
 }
 
@@ -879,6 +878,7 @@ function findInteractions(drugIDs) {
 
 async function submitList() {
   var myNodelist = document.getElementById("myUL").childNodes;
+    console.log("myNodeList", myNodelist);
   var drugs = [];
   console.log('drugs count', drugs, drugs.length);
   for (var i = 0; i < myNodelist.length; i++) {
