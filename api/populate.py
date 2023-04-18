@@ -1,7 +1,7 @@
 import csv
 import sqlite3
 
-filename = "DDInterTable.csv"
+filename = "../DDinterTable.csv"
 dictionary = {}
 
 with open(filename, "r") as csv_file:
@@ -16,7 +16,7 @@ sorted_dictionary = dict(sorted(dictionary.items()))
 
 
 # Connect to database
-conn = sqlite3.connect("dashdata.db")
+conn = sqlite3.connect("../dashdata.db")
 c = conn.cursor()
 
 c.execute("DROP TABLE drugsList")
@@ -57,7 +57,7 @@ for row in rows:
 print(drugsList)
 
 # PARSE THE DRUG INTERACTION TABLE
-filename = "DDInterTable.csv"
+filename = "../DDinterTable.csv"
 interactionDictionary = {}
 
 with open(filename, "r") as csv_file:

@@ -419,11 +419,9 @@ function capitalize(str) {
   if (!str) {
     return str;
   }
-  const trimmedStr = str.trim().toLowerCase(); // Convert to lowercase
+  const trimmedStr = str.trim();
   return trimmedStr.charAt(0).toUpperCase() + trimmedStr.slice(1);
 }
-
-
 
 document.getElementById("tag-section").innerHTML = "";
 
@@ -434,10 +432,8 @@ function addTag() {
   const input = document.querySelector('.myInput');
 
   if (inputValue === '') {
-    //alert("Please enter a drug name!");
     showError("Please enter a drug name!");
   } else if (!window.swappedDrugsList.hasOwnProperty(inputValue)) {
-    // alert("Please enter a valid drug name!");
     showError("Please enter a valid drug name!");
   } else if (window.tagsList.includes(inputValue)) {
     // alert("This drug is already added!");
