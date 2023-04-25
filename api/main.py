@@ -40,7 +40,7 @@ def fetch_process_drugs():
     for row in rows:
         drugsList[row[0]] = row[1]
 
-    # print(drugsList)
+    print(drugsList)
 
     # Fetch results from 'interactionTable' table on SQLITE
     c.execute("SELECT * FROM interactionTable")

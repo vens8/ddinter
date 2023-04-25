@@ -144,4 +144,21 @@ sortedInteractionDictionary = dict(sorted(interactionDictionary.items()))
 print(sortedInteractionDictionary)
 
 conn.commit()
+
+
+# Create a new table to store drug synonyms
+conn.execute('''CREATE TABLE IF NOT EXISTS drug_synonyms
+             (id INTEGER PRIMARY KEY AUTOINCREMENT,
+             common_name TEXT NOT NULL,
+             synonym TEXT NOT NULL);''')
+
+conn.commit()
+
+# Insert data from the synonyms_dict dictionary into the drug_synonyms table
+for common_name, synonyms in synonyms_dict.items():
+	for synonym in synonyms:
+		conn.execute("INSERT INTO drug_synonyms (common_name, synonym) VALUES (?, ?)", (common_name, synonym))
+
+conn.commit()
+
 c.close()
