@@ -16,7 +16,7 @@ sorted_dictionary = dict(sorted(dictionary.items()))
 
 
 # Connect to database
-conn = sqlite3.connect("../dashdata.db")
+conn = sqlite3.connect("dashdata.db")
 c = conn.cursor()
 
 c.execute("DROP TABLE drugsList")

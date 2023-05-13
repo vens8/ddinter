@@ -484,7 +484,7 @@ dict(sorted(synonyms_dict.items(), key=lambda x: x[0]))
 import sqlite3
 
 # Connect to the SQLite database
-conn = sqlite3.connect('dashdata.db')
+conn = sqlite3.connect('api/dashdata.db')
 c = conn.cursor()
 
 c.execute('CREATE TABLE IF NOT EXISTS synonyms (drugID INTEGER, synonym TEXT, '
