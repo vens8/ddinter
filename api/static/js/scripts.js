@@ -189,24 +189,33 @@ function deleteNote() {
 
 
 function fetchData() {
-  console.log("Fetched Data");
-    fetch('/getDrugsList')
-      .then(response => response.json())
-      .then(data => {
-        window.drugsList = data;  // Declare the variable as global
-        console.log('inside', window.drugsList);
+    console.log("Fetching Data...");
+	fetch('/getSynonyms')
+	.then(response => response.json())
+	.then(data1 => {
+		window.synonyms = data1;  // Declare the variable as global
+//		console.log('synonymsDict', window.synonyms);
 
-        // Creating a swapped drugsList
-        window.swappedDrugsList = {};
-        for (const key in window.drugsList) {
-          const value = window.drugsList[key];
-          window.swappedDrugsList[value] = key;
-        }
-        initDropdown();
-      })
-      .catch(error => {
-        console.error('Error fetching data:', error);
-      });
+		fetch('/getDrugsList')
+		.then(response => response.json())
+		.then(data2 => {
+		window.drugsList = data2;  // Declare the variable as global
+//		console.log('inside', window.drugsList);
+
+		// Creating a swapped drugsList
+		window.swappedDrugsList = {};
+		for (const key in window.drugsList) {
+		  const value = window.drugsList[key];
+		  window.swappedDrugsList[value] = key;
+		}
+		initDropdown();
+		})
+		.catch(error => {
+			console.error('Error fetching drugs list:', error);
+		});})
+	.catch(error => {
+		console.error('Error fetching synonyms:', error);
+	});
 }
 
 function checkFetch() {
@@ -296,7 +305,7 @@ items.forEach(function(item) {
       const option = dropdownList.children[i];
       const optionText = option.textContent.toLowerCase();
 
-      if (optionText.includes(searchValue)) {
+      if (optionText.includes(searchValue) || (synonyms[option.textContent] && synonyms[option.textContent].some((synonym) => synonym.toLowerCase().includes(searchValue)))) {
         option.style.display = 'block';
         found = true;
       } else {

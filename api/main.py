@@ -1,10 +1,11 @@
 import sqlite3
 from flask import Flask, render_template, request
 from flask import jsonify
+import os.path
 import configparser
 from logging import FileHandler,WARNING
 
-drugsList, sortedInteractionDictionary = {}, {}
+drugsList, sortedInteractionDictionary, drugSynonyms = {}, {}, {}
 # config = configparser.ConfigParser()
 # config.read('.config')
 # app.secret_key = config.get('Section', 'flaskKey')
@@ -12,7 +13,6 @@ drugsList, sortedInteractionDictionary = {}, {}
 # file_handler.setLevel(WARNING)
 
 app = Flask(__name__)
-
 
 @app.route('/')
 def dd_inter():
@@ -22,11 +22,11 @@ def dd_inter():
 
 
 def fetch_process_drugs():
-    global drugsList, sortedInteractionDictionary
+    global drugsList, sortedInteractionDictionary, drugSynonyms
     # Pull and process data here for faster and efficient query handling
 
     # Connect to database
-    conn = sqlite3.connect("dashdata.db")
+    conn = sqlite3.connect("../dashdata.db")
     c = conn.cursor()
 
     # Fetch the values of the 'drugsList' table from the SQLITE database
@@ -40,7 +40,7 @@ def fetch_process_drugs():
     for row in rows:
         drugsList[row[0]] = row[1]
 
-    print(drugsList)
+    # print(drugsList)
 
     # Fetch results from 'interactionTable' table on SQLITE
     c.execute("SELECT * FROM interactionTable")
@@ -59,14 +59,40 @@ def fetch_process_drugs():
     sortedInteractionDictionary = dict(sorted(interactionDictionary.items()))
 
     conn.commit()
-    c.close()
+
+    # Execute the query to retrieve drugs and their synonyms
+    c.execute('SELECT drugsList.name, GROUP_CONCAT(synonyms.synonym, ", ") AS synonyms '
+               'FROM drugsList '
+               'LEFT JOIN synonyms ON drugsList.id = synonyms.drugID '
+               'GROUP BY drugsList.id')
+
+    conn.commit()
+
+    # Fetch all the results
+    results = c.fetchall()
+
+    # Create the dictionary
+    for row in results:
+        drug_name, synonyms = row
+        if synonyms:
+            drugSynonyms[drug_name] = synonyms.split(', ')
+        else:
+            drugSynonyms[drug_name] = None
+
+    conn.close()
     # print(sortedInteractionDictionary)
 
 
-@app.route('/getDrugsList')
+@app.route('/getDrugsList', methods=['GET'])
 def getDrugsList():
     global drugsList
     return jsonify(drugsList)
+
+
+@app.route('/getSynonyms', methods=['GET'])
+def getSynonyms():
+    global drugSynonyms
+    return jsonify(drugSynonyms)
 
 
 # Very inefficient approach (huge amount of data to be sent to front end)

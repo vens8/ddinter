@@ -133,8 +133,7 @@ sortedInteractionDictionary = {}
 
 if len(rows) > 0:
 	for row in rows:
-		temp = {}
-		temp[row[1]] = row[2]
+		temp = {row[1]: row[2]}
 		if row[0] not in interactionDictionary.keys():
 			interactionDictionary[row[0]] = []
 		interactionDictionary[row[0]].append(temp)
