@@ -1,3 +1,10 @@
+/* body {
+  background-image: url("{{ url_for('static', filename='Images/bgimg.jpg') }}");
+  background-repeat: repeat;
+  /* opacity: 1; */
+  /* background-size: 2000px 2000px; */
+  /* background-size: cover; */
+/* } */ 
 input[type=text] {
   border: 0;
 
@@ -53,7 +60,7 @@ h4 {
   top: 10px;
   padding: 20px 8px 4px 10px;
   text-align: center;
-  background: #e5ecdde1;
+  background: #8dd6eee1;
   font-size: 18px;
   transition: 0.2s;
 
@@ -68,10 +75,13 @@ h4 {
 #myUL > li:nth-child(odd) {
   background: #f9f9f9;
 }
+#myUL > li:nth-child(odd):hover {
+  background: #d2ede5;
+}
 
 /* Darker background-color on hover */
 #myUL > li:hover {
-  background: #ddd;
+  background: #03a4f4;
 }
 
 /* When clicked on, add a background color and strike out text */
@@ -101,12 +111,12 @@ h4 {
   right: 0;
   top: 0;
   padding: 12px 16px 12px 16px;
-  background-color: #2b1e1e;
+  background-color: #060606;
   color: white;
 }
 
 .close:hover {
-  background-color: #643d3d;
+  background-color: #f40b0b;
   color: white;
 }
 
@@ -130,15 +140,17 @@ h4 {
 width: 100%;
 height: 50px;
 line-height: 60px;
+
 }
 
+
 .myheading {
-  color: #0c0c0f;
+  color: #f0f0f5;
   font-family: Helvetica, "Open Sans", Arial, sans-serif;
   font-size: 48px;
   font-weight: bold;
   text-shadow: 2px 2px #1d1111;
-
+  /* margin-top: 5000px; */
   background-image: linear-gradient(to right, #004C99, #ff6666);
 
   display: flex;
@@ -164,7 +176,7 @@ line-height: 60px;
 
 .myheading:before,
 .myheading:after {
-  background-color: #064c02;
+  background-color: #04fee1;
   content: "";
   display: block;
   height: 3px;
@@ -173,7 +185,7 @@ line-height: 60px;
 }
 
 .myheading:before {
-  background-color: #046e18;
+  background-color: #04fee1;
 }
 
 .myheading:after {
@@ -190,7 +202,10 @@ line-height: 60px;
     transform:scale(1);
 }
 }
+.card-body{
+  background: hwb(125 73% 7%);
 
+}
 .myInput {
 flex: 1;
 display: inline-block;
@@ -208,9 +223,9 @@ font-size: 16px;
 padding: 10px;
 display: inline-block;
 width: 10%;
-background: #d9d9d9;
+background: #0dc4a6;
 vertical-align: middle;
-color: #170411;
+color: #121112;
 float: center;
 text-align: center;
 font-size: 18px;
@@ -219,15 +234,17 @@ transition: 0.3s;
 border-radius: 5px;
 margin-left: 10px;
 margin-right: 10px;
+border: 1.5px solid #057560;
+/* padding: 10px 20px; */
 }
 
 .submitBtn {
 padding: 10px;
 display: inline-block;
 width: 5%;
-background: #128216;
+background: #a0b8ed;
 vertical-align: middle;
-color: white;
+color: rgb(7, 7, 7);
 float: center;
 text-align: center;
 font-size: 18px;
@@ -251,7 +268,7 @@ width: 50%;
 }
 
 .addBtn:hover {
-background-color: #bedcf7;
+background-color: #07b79a;
 }
 
 @media only screen and (max-width: 768px) {
@@ -267,7 +284,7 @@ width: 50%;
 }
 
 .submitBtn:hover {
-background-color: #0fb015;
+background-color: #4a85dd;
 }
 #mybtn {
   content: "";
@@ -385,7 +402,7 @@ margin-bottom: 10px;
 
 .tag {
 display: inline-block;
-background-color: #bedcf7;
+background-color: #f0b34a;
 color: #170411;
 padding: 3px 10px;
 margin-right: 10px;
@@ -437,7 +454,7 @@ background-color: #232222;
         left: 25%;
   right: 0.5px;
   z-index: 1;
-  width: 50.5%;
+  width: 48.75%;
   height: 200px;
   overflow-y: auto;
   background-color: #fff;
@@ -453,7 +470,7 @@ background-color: #232222;
 }
 
 .dropdown-list-item:hover {
-  background-color: #d0d3d3;
+  background-color: #c0f0f0;
 }
 
 /* Animation for error label */
