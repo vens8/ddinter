@@ -1,9 +1,14 @@
+# TavLab, IIITD
+# | Authors |
+# Rahul Maddula (github.com/vens8)
+# Vatsal Lakhmani (github.com/mitsreese)
+
+
 import sqlite3
 from flask import Flask, render_template, request
 from flask import jsonify
-import os.path
-import configparser
-from logging import FileHandler,WARNING
+# import configparser
+# from logging import FileHandler,WARNING
 
 drugsList, sortedInteractionDictionary, drugSynonyms = {}, {}, {}
 # config = configparser.ConfigParser()
@@ -26,7 +31,7 @@ def fetch_process_drugs():
     # Pull and process data here for faster and efficient query handling
 
     # Connect to database
-    conn = sqlite3.connect("api/dashdata.db")
+    conn = sqlite3.connect("api/dashdata.db")  # Use this path for Vercel deployment, not working on local, need to fix
     c = conn.cursor()
 
     # Fetch the values of the 'drugsList' table from the SQLITE database
@@ -134,4 +139,4 @@ def getInteractions():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=7000)
+    app.run(debug=True, host='0.0.0.0', port=9000)

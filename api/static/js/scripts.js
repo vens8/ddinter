@@ -138,7 +138,7 @@ function updateTable(interactions) {
     var header = mytable.createTHead();
     header.classList.add("text-white"); // add text-white class to thead
     var row = header.insertRow(0);
-    row.style.backgroundColor = "black";
+    row.style.backgroundColor = "#A6A9EB";
     var cell1 = row.insertCell(0);
     var cell2 = row.insertCell(1);
     var cell3 = row.insertCell(2);
@@ -146,13 +146,18 @@ function updateTable(interactions) {
     cell2.innerHTML = "<b>Drug2</b>";
     cell3.innerHTML = "<b>Level</b>";
 
-    colorList = { "Major": "#904d35", "Moderate": "#9e9236", "Minor": "#409e56", "Unknown": "#6a6969" };
+//    colorList = { "Major": "#f44336", "Moderate": "#E8A847", "Minor": "#6BB87F", "Unknown": "#999999" };
+    colorList = { "Major": "#F8D7DA", "Moderate": "#fff3cd", "Minor": "#d1e7dd", "Unknown": "#999999" };
+    textColorList = { "Major": "#f44336", "Moderate": "#e9a845", "Minor": "#6cb87d", "Unknown": "#FCFBF9" };
+
 
     var ind = 1;
     interactions.map(interaction => {
       var row = mytable.insertRow(ind++)
       row.style.backgroundColor = colorList[interaction["severity"]]
-
+      row.style.color = textColorList[interaction["severity"]];
+	  row.style.fontWeight = "bold";
+	  row.style.border = "1px solid #000000";
       var cell1 = row.insertCell(0)
       var cell2 = row.insertCell(1)
       var cell3 = row.insertCell(2)
@@ -487,22 +492,18 @@ function deleteTag(button) {
 }
 
 let btn = document.getElementById('gfg');
-document.addEventListener('keypress', (event)=>{
-
-// event.keyCode or event.which  property will have the code of the pressed key
-let keyCode = event.keyCode ? event.keyCode : event.which;
-
-// 13 points the enter key
-if(event.shiftKey && event.keyCode === 13) {
-// call click function of the buttonn
-    btn.click();
-}
-});
 let tagbtn = document.getElementById('tagButton');
+let mybtn = document.getElementById('mybtn');
+
 document.addEventListener('keydown', function(event) {
-if (event.keyCode === 13 && !event.shiftKey) {
+  if (event.ctrlKey && event.shiftKey && event.keyCode === 13) {
+    mybtn.click();
+  } else if (event.shiftKey && event.keyCode === 13) {
+    btn.click();
+  } else if (event.keyCode === 13 && !event.shiftKey) {
     tagbtn.click();
-}
+  }
 });
+
 //import myLoader from "Server/working/static/js/myLoader.js";
 const [isLoading, setIsLoading] = useState(false);
