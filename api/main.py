@@ -31,7 +31,7 @@ def fetch_process_drugs():
     # Pull and process data here for faster and efficient query handling
 
     # Connect to database
-    conn = sqlite3.connect("api/dashdata.db")  # Use this path for Vercel deployment, not working on local, need to fix
+    conn = sqlite3.connect("C:/Users/Rahul Maddula/PycharmProjects/ddinter/api/dashdata.db")  # Use this path for Vercel deployment, not working on local, need to fix
     c = conn.cursor()
 
     # Fetch the values of the 'drugsList' table from the SQLITE database
