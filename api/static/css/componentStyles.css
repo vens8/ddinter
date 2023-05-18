@@ -6,7 +6,7 @@ Vatsal Lakhmani (github.com/mitsreese)
 */
 
 body {
-  background-color: #9083e9;
+  background-color: #FCFBF9;
 }
 
 h4 {
@@ -226,7 +226,7 @@ margin-bottom: 3px;
 margin-left: 85px;
 border: solid 2px #999999;
 border-radius: 10px;
-width: 50%;
+width: 35%;
 padding: 10px;
 float: center;
 font-size: 16px;
@@ -238,8 +238,8 @@ outline: none;
 .addBtn {
   padding: 10px;
   display: inline-block;
-  width: 10%;
-  background: #9083E9;
+  width: 15%;
+  background: #B2CEEE;
   vertical-align: middle;
   color: #FCFBF9;
   text-align: center;
@@ -297,7 +297,7 @@ width: 50%;
 }
 
 .addBtn:hover {
-background-color: #A6A9EB;
+background-color: #D3D9EC;
 }
 
 @media only screen and (max-width: 768px) {
@@ -506,7 +506,7 @@ background-color: #D3D9EC;
         left: 25%;
   right: 0.5px;
   z-index: 1;
-  width: 48.75%;
+  width: 34%;
   height: 200px;
   overflow-y: auto;
   background-color: #fff;
