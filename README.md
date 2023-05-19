@@ -1,7 +1,7 @@
 
 # Drugs Interaction (DDInter) - User Guide
 
-A simple guide on how to use the drug interaction web application made under Mr. Tavpritesh Sethi @TavLabs, IIIT Delhi. 
+A simple guide on how to use the drug interaction web application made under Dr. Tavpritesh Sethi @TavLabs, IIIT Delhi. 
 
 The application can be accessed at:
 https://ddinter.vercel.app/
@@ -17,7 +17,9 @@ Once you add the drugs of your choice, press "Confirm" or hit "Shift + Enter" on
 
 Then, simply click on "Submit" to submit the list of drugs and our API will provide you with lightning fast results showing the various interactions between the drugs if present. 
 ## Authors
-
+- [Dr.Tavpritesh Sethi](https://github.com/tavlab-iiitd)
+- [Akshaya](https://github.com/Akshaya-Devadiga)
+- [Pradeep Singh](https://github.com/pradeepsinghnitk)
 - [Rahul Maddula](https://www.github.com/vens8)
 - [Vatsal Lakhmani](https://www.github.com/mitsreese)
 
