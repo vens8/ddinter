@@ -12,14 +12,6 @@
   console.log('initial value', window.tagsList);
 
   document.getElementById("myUL").innerHTML= "";
-  const INTERACTION_EXAMPLE = [
-  {id: 1, name: "Aluminum hydroxide"},
-  {id: 2, name: "Dolutegravir"},
-  {id: 3, name: "Aprepitant"},
-  {id: 4, name: "Abacavir"},
-  {id: 5, name: "Orlistat"},
-  {id: 6, name: "Dexamethasone"},
-]
 // Create a "close" button and append it to each list item
 var myNodelist = document.getElementById("myUL").childNodes; // Yaha bhi hein ek LI
 for (var i = 0; i < myNodelist.length; i++) {
