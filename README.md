@@ -1,7 +1,7 @@
 
 # Drugs Interaction (DDInter) - User Guide
 
-A simple guide on how to use the drug interaction web application made under Mr. Tavpritesh Sethi @TavLabs, IIIT Delhi. 
+A simple guide on how to use the drug interaction web application made under Dr. Tavpritesh Sethi @TavLabs, IIIT Delhi. 
 
 The application can be accessed at:
 https://ddinter.vercel.app/
