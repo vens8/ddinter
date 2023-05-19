@@ -1,10 +1,24 @@
+# Contraindicator - User Guide
 
-# Drugs Interaction (DDInter) - User Guide
+A simple guide on how to install and use Contraindicator - the drug interaction web application made under Dr. Tavpritesh Sethi @TavLabs, IIIT Delhi. 
 
-A simple guide on how to use the drug interaction web application made under Dr. Tavpritesh Sethi @TavLabs, IIIT Delhi. 
+The application can be installed at:
+https://github.com/vens8/ddinter/releases
 
-The application can be accessed at:
-https://ddinter.vercel.app/
+## Installation
+- Download the contraindicator_setup.exe setup file.
+- Open to install, click next until the installation process is complete.
+![Setup - Select Destination Location](https://github.com/vens8/ddinter/blob/main/screenshots/setup1.png)
+![Setup - Create Desktop Shortcut](https://github.com/vens8/ddinter/blob/main/screenshots/setup2.png)
+![Setup - Click Install](https://github.com/vens8/ddinter/blob/main/screenshots/setup3.png)
+![Setup - Launch Application](https://github.com/vens8/ddinter/blob/main/screenshots/setup4.png)
+![Setup - Allow Through Windows Firewall](https://github.com/vens8/ddinter/blob/main/screenshots/setup5.png)
+
+Just like that, the Contraindicator app has been installed on your PC and you can get it by searching on the Windows start menu as well!
+
+## Launching the Application
+Search for "Contraindicator" on the Windows start menu and open it. This will open the web application on localhost on port 5000 on your default web browser.
+
 
 ## Introduction
 The main focus of the application is to display the presence and severity of various interactions between about 2000 drugs. The application provides a clean responsive user interface that can be used to get ultrafast results with minimal steps. 
@@ -22,5 +36,3 @@ Then, simply click on "Submit" to submit the list of drugs and our API will prov
 - [Pradeep Singh](https://github.com/pradeepsinghnitk)
 - [Rahul Maddula](https://www.github.com/vens8)
 - [Vatsal Lakhmani](https://www.github.com/mitsreese)
-
-
