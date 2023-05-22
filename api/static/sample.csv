@@ -1,0 +1,34 @@
+Date,Drug_1,Drug_2,Severity,Description
+2023-01-01,Lipitor,Warfarin,Moderate,Co-administration may increase the risk of bleeding.
+2023-02-14,Zoloft,Xanax,Severe,Co-administration may cause excessive sedation and respiratory depression.
+2023-03-05,Ibuprofen,Lisinopril,Moderate,Co-administration may reduce the antihypertensive effect of Lisinopril.
+2023-04-20,Metformin,Simvastatin,Mild,Co-administration may increase the risk of muscle pain and weakness.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+2023-06-10,Aspirin,Clopidogrel,Moderate,Co-administration may increase the risk of bleeding.
+2023-07-15,Citalopram,Tramadol,Severe,Co-administration may increase the risk of serotonin syndrome.
+2023-08-21,Albuterol,Ipratropium,Mild,Co-administration may enhance the bronchodilatory effect.
+2023-09-09,Warfarin,Amiodarone,Severe,Co-administration may increase the risk of bleeding and adverse cardiac effects.
+2023-10-17,Digoxin,Furosemide,Moderate,Co-administration may lead to increased risk of digoxin toxicity.
+2023-11-02,Lisinopril,Losartan,Moderate,Co-administration may reduce the antihypertensive effect of Lisinopril.
+2023-12-25,Warfarin,NSAIDs,Severe,Co-administration may increase the risk of bleeding.
+2024-01-10,Simvastatin,Gemfibrozil,Severe,Co-administration may increase the risk of myopathy and rhabdomyolysis.
+2024-02-14,Metformin,Cimetidine,Moderate,Co-administration may increase the risk of lactic acidosis.
+2024-03-05,Warfarin,Fluconazole,Severe,Co-administration may increase the risk of bleeding.
+2024-04-20,Amoxicillin,Methotrexate,Severe,Co-administration may increase the risk of methotrexate toxicity.
+2024-05-03,Lisinopril,Allopurinol,Moderate,Co-administration may increase the risk of hypersensitivity reactions.
+2024-06-10,Atorvastatin,Grapefruit juice,Severe,Co-administration may increase the risk of statin toxicity.
+2024-07-15,Lorazepam,Ciprofloxacin,Severe,Co-administration may increase the risk of central nervous system effects.
+2024-08-21,Warfarin,Cimetidine,Moderate,Co-administration may increase the risk of bleeding.
+2024-09-09,Furosemide,NSAIDs,Moderate,Co-administration may reduce the diuretic effect of Furosemide.
+2024-10-17,Warfarin,Phenytoin,Severe,Co-administration may increase the risk of bleeding.
+2024-11-02,Metformin,Ranolazine,Moderate,Co-administration may increase the risk of lactic acidosis.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+2023-05-03,Amoxicillin,Probenecid,Severe,Co-administration may increase the blood levels of Amoxicillin leading to potential toxicity.
+

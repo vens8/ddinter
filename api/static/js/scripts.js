@@ -421,6 +421,78 @@ async function submitList() {
   // May later want to add else if statement to check all interactions for one drug
 }
 
+function retrieveData() {
+  var fromDate = document.getElementById("fromDateInput").value;
+  var toDate = document.getElementById("toDateInput").value;
+  var severity = document.getElementById("severityInput").value;
+
+  var data = {
+    fromDate: fromDate,
+    toDate: toDate,
+    severity: severity
+  };
+
+  // Send data to Flask backend using POST request
+  fetch('/retrieveData', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => {
+    if (response.ok) {
+      return response.text();
+    } else {
+      throw new Error('Error ' + response.status + ": " + response.text());
+    }
+  })
+  .then(imgBase64 => {
+    if (imgBase64) {
+    	hideError();
+      // Create an image element
+      var img = new Image();
+
+      // Set the source of the image to the base64-encoded image
+      img.src = 'data:image/png;base64,' + imgBase64;
+
+      // Append the image element to the container div to display the plot
+      var container = document.getElementById("pddiHistoryContainer");
+      container.innerHTML = '';
+      container.appendChild(img);
+    } else {
+      showError('No interactions found in the given date range.');
+    }
+  })
+  .catch(error => {
+    showError(error.message);
+    var container = document.getElementById("pddiHistoryContainer");
+    container.innerHTML = ''; // Clear the container content
+  });
+}
+
+
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+async function initialize() {
+  try {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js');
+    // Your existing code that depends on Papa can go here
+    retrieveData();
+  } catch (error) {
+    console.error('Failed to load Papa library:', error);
+  }
+}
+
+
 function capitalize(str) {
   if (!str) {
     return str;

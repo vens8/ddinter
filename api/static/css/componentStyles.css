@@ -342,6 +342,10 @@ background-color: #68c881;
   background-color: #61c864;
 } */
 
+.container {
+    padding-bottom: 30px;
+}
+
 #drugtable {
   font-family: Arial, Helvetica, sans-serif;
   border-collapse: collapse;
