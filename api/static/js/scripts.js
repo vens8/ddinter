@@ -441,27 +441,31 @@ function retrieveData() {
     body: JSON.stringify(data)
   })
   .then(response => {
-    if (response.ok) {
-      return response.text();
+    if (response.status === 400) {
+      throw new Error('Please provide all the required input.');
+    } else if (response.status === 500) {
+      throw new Error('Error generating the interaction plot.');
+    } else if (response.status === 300) {
+      return response.json();
     } else {
-      throw new Error('Error ' + response.status + ": " + response.text());
+      return response.text();
     }
   })
-  .then(imgBase64 => {
-    if (imgBase64) {
-    	hideError();
+  .then(data => {
+    if (typeof data === 'object' && data.message) {
+      showError(data.message);
+    } else {
+      hideError();
       // Create an image element
       var img = new Image();
 
       // Set the source of the image to the base64-encoded image
-      img.src = 'data:image/png;base64,' + imgBase64;
+      img.src = 'data:image/png;base64,' + data;
 
       // Append the image element to the container div to display the plot
       var container = document.getElementById("pddiHistoryContainer");
       container.innerHTML = '';
       container.appendChild(img);
-    } else {
-      showError('No interactions found in the given date range.');
     }
   })
   .catch(error => {
@@ -469,27 +473,6 @@ function retrieveData() {
     var container = document.getElementById("pddiHistoryContainer");
     container.innerHTML = ''; // Clear the container content
   });
-}
-
-
-function loadScript(url) {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = url;
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
-
-async function initialize() {
-  try {
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js');
-    // Your existing code that depends on Papa can go here
-    retrieveData();
-  } catch (error) {
-    console.error('Failed to load Papa library:', error);
-  }
 }
 
 
