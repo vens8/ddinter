@@ -4,12 +4,14 @@
 # Vatsal Lakhmani (github.com/mitsreese)
 import base64
 import sqlite3
-
-import nxviz
+from nxviz.plots import CircosPlot
+import matplotlib.pyplot as plt
+import pandas as pd
+import io
+import traceback
 from flask import Flask, render_template, request, send_from_directory
 from flask import jsonify
 import networkx as nx
-import csv
 
 # import configparser
 # from logging import FileHandler,WARNING
@@ -145,76 +147,6 @@ def getInteractions():
 	return jsonify(interactions=interactions)
 
 
-def rescale(l, newmin, newmax):
-	arr = list(l)
-	min_val = min(arr)
-	max_val = max(arr)
-	return [((x - min_val) / (max_val - min_val)) * (newmax - newmin) + newmin for x in arr]
-
-
-def retrieve_data():
-	date = request.form.get('date')
-	severity = request.form.get('severity')
-	print('received date', date)
-	print('received severity', severity)
-
-	interactions = []
-	with open('static/sample.csv', 'r') as csvfile:
-		csvreader = csv.reader(csvfile)
-		header = next(csvreader)  # Skip the header row
-		for row in csvreader:
-			interactions.append(dict(zip(header, row)))
-
-	print(interactions)
-	# filtered_interactions = []
-	# for interaction in interactions:
-	# 	print(interaction['Date'], date, interaction['Date'] == date)
-	# 	print(interaction['Severity'], severity, interaction['Severity'] == severity)
-	# 	if interaction['Date'] == date and interaction['Severity'] == severity:
-	# 		filtered_interactions.append(interaction)
-	# 		print(filtered_interactions)
-	filtered_interactions = [interaction for interaction in interactions if
-							 interaction['Date'] == date and interaction['Severity'] == severity]
-
-	print('filtered interactions', filtered_interactions)
-	majorlist = [[interaction['Date'], interaction['Drug_1'], interaction['Drug_2'], interaction['AggregateValue']] for
-				 interaction in filtered_interactions]
-
-	print('major list', majorlist)
-
-	G = nx.Graph(name='Drug-Drug Interaction Graph')
-	for interaction in majorlist:
-		a = interaction[1]
-		b = interaction[2]
-		w = int(float(interaction[3]) * 100)
-		if w > 1:
-			G.add_weighted_edges_from([(a, b, w)])
-
-	nodelist = list(G.nodes())
-	ws = []
-	edgelist = []
-	if G.number_of_edges() > 0:
-		ws = rescale([w['weight'] for _, _, w in G.edges(data=True)], 1, 10)
-		edgelist = [{'source': source, 'target': target, 'weight': weight} for (source, target, weight) in
-					G.edges(data='weight')]
-
-	response_data = {
-		'nodelist': nodelist,
-		'ws': ws,
-		'edgelist': edgelist
-	}
-	print('sending', response_data)
-	return jsonify(response_data)
-
-
-import networkx as nx
-import nxviz as nv
-from nxviz import annotate
-import matplotlib.pyplot as plt
-import pandas as pd
-import io
-
-
 @app.route('/retrieveData', methods=['POST'])
 def retrieveData():
 	data = request.get_json()
@@ -224,6 +156,7 @@ def retrieveData():
 	if not all([from_date, till_date, severity]):
 		# Return an error message if any input is missing
 		return jsonify({'error': 'Please provide all the required input.'}), 400
+
 	def generate_interaction_plot(from_date, till_date, severity):
 		G = nx.Graph(name='Drug-Drug Interaction Graph')
 
@@ -233,6 +166,9 @@ def retrieveData():
 		# Filter interactions based on date range and severity
 		filtered_interactions = interactions[
 			(interactions[:, 0] >= from_date) & (interactions[:, 0] <= till_date) & (interactions[:, 3] == severity)]
+
+		if len(filtered_interactions) == 0:
+			return jsonify({'message': 'No interactions found in the given date range.'}), 300
 
 		# Aggregate interactions based on combination of interaction[1] and interaction[2]
 		aggregated_interactions = {}
@@ -275,42 +211,40 @@ def retrieveData():
 		g = nx.Graph(name='Protein Interaction Graph')
 		g.add_nodes_from(nodelist)
 		g.add_edges_from(edgelist)
-
 		# Go through nodes in graph G and store their degree as "class" in graph g
 		for v in G:
 			g.nodes[v]["class"] = G.degree(v)
-
-		print('graph', g)
-		nv.circos(
-			g,
-			edge_alpha_by="weight",
-		)
-		annotate.circos_group(g, group_by="class")
+		c = CircosPlot(graph=g, figsize=(10, 10), node_grouping="class", node_color="class", edge_width="weight",
+					   node_labels=True, fontsize=11, node_label_layout="rotation")
+		c.draw()
+		c.figure.tight_layout()
+		# plt.show()
 		# Save the plot to a BytesIO object
 		img_bytes = io.BytesIO()
 		plt.savefig(img_bytes, format='png')
 		img_bytes.seek(0)
 		# Return the BytesIO object
+		print('type', type(img_bytes))
 		return img_bytes
 
 	try:
 		# Call the function to generate the interaction plot
-		img_bytes = generate_interaction_plot(from_date, till_date, severity)
+		response = generate_interaction_plot(from_date, till_date, severity)
 	except Exception as e:
 		# Return an error message if there's an error generating the plot
+		traceback.print_exc()
 		return jsonify({'error': 'Error generating the interaction plot.'}), 500
 
-	if not img_bytes:
+	if isinstance(response, tuple):
 		# Return a message if no interactions were found in the given date range
-		return jsonify({'message': 'No interactions found in the given date range.'}), 200
+		return jsonify({'message': 'No interactions found that match the given input.'}), 300
 
 	# Convert the plot BytesIO to base64
-	img_base64 = base64.b64encode(img_bytes.getvalue()).decode('utf-8')
+	img_base64 = base64.b64encode(response.getvalue()).decode('utf-8')
 
 	# Return the base64-encoded image as the response
 	return img_base64
 
 
 if __name__ == "__main__":
-	retrieveData()
 	app.run(debug=True, host='0.0.0.0', port=9000)
